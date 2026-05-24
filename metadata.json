@@ -1,6 +1,6 @@
 {
-  "name": "Naija Faceless Video Creator Hub",
-  "description": "An AI-powered faceless video generator app that creates scripts, voiceovers, sources stock clips, and compiles fully synced videocards with CapCut captions.",
+  "name": "Vixora",
+  "description": "An AI-powered faceless video generator app and AI video companion that creates scripts, voiceovers, sources stock clips, and compiles fully synced videocards with CapCut captions.",
   "requestFramePermissions": [
     "camera",
     "microphone"

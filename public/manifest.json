@@ -1,6 +1,6 @@
 {
-  "name": "Digital Creator Hub",
-  "short_name": "Creator Hub",
+  "name": "Vixora",
+  "short_name": "Vixora",
   "description": "An AI-powered content creation partner and faceless video/audio production suite.",
   "start_url": "/",
   "display": "standalone",
@@ -24,7 +24,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Kore AI Live",
+      "name": "Vixora AI Live",
       "url": "/?tab=studio",
       "description": "Start interactive AI Assistant session"
     },

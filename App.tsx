@@ -483,7 +483,7 @@ const App: React.FC = () => {
     const updated = [newVideo, ...createdVideos];
     setCreatedVideos(updated);
     localStorage.setItem('ggd_created_videos', JSON.stringify(updated));
-    alert("🎉 Ultimate Video compiled successfully & saved to your local Creator Hub Gallery!");
+    alert("🎉 Ultimate Video compiled successfully & saved to your local Vixora Studio Gallery!");
   };
 
   const handleAutopilotVideoGeneration = async (topicToUse: string) => {
@@ -744,7 +744,7 @@ const App: React.FC = () => {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
           tools: [{ googleSearch: {} }, { functionDeclarations: [navigateToTabDeclaration, generateScriptDeclaration, sourceVideoDeclaration, createFullAutopilotVideoDeclaration] }],
-          systemInstruction: `You are 'Kore', a brilliant Nigerian AI Creator Assistant. Speak English, Pidgin, and Igbo. Your vibe is 100% Naija (energetic, witty, helpful). No asterisks.
+          systemInstruction: `You are 'Vixora', a brilliant Nigerian AI Creator Assistant. Speak English, Pidgin, and Igbo. Your vibe is 100% Naija (energetic, witty, helpful). No asterisks.
           You can control the app! Use tools to change tabs, generate scripts, source videos, or cook an entire video automatically. 
           If the user wants you to make/build/generate a video for a topic, use the 'createFullAutopilotVideo' tool to generate the script, voiceover, and stock footage storyboard with one single action.
           Respond like a sister on a phone call. Explain what you are doing naturally.`,
@@ -786,7 +786,7 @@ const App: React.FC = () => {
             <div className="w-24 h-24 bg-ggd-orange rounded-[2.5rem] mx-auto flex items-center justify-center text-white shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20">
               <i className="fa-solid fa-wand-magic-sparkles text-4xl"></i>
             </div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter">Creator <span className="text-ggd-orange italic text-glow">Hub</span></h1>
+            <h1 className="text-4xl font-black uppercase tracking-tighter">VIXORA</h1>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Digital content production engine</p>
             <button onClick={() => setWizardStep(1)} className="w-full py-5 bg-white text-slate-950 font-black uppercase rounded-2xl active:scale-95 transition-all">Begin Onboarding</button>
           </div>
@@ -801,7 +801,7 @@ const App: React.FC = () => {
             <h2 className="text-2xl font-black uppercase">Gemini API Key</h2>
             <p className="text-[10px] text-slate-500">Add your key to enable the AI Studio features.</p>
             <input type="password" value={wizardData.apiKey} onChange={e => setWizardData({...wizardData, apiKey: e.target.value})} className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange" placeholder="sk-..." />
-            <button onClick={handleFinishOnboarding} className="w-full py-5 bg-ggd-orange font-black uppercase rounded-2xl">Setup My Hub</button>
+            <button onClick={handleFinishOnboarding} className="w-full py-5 bg-ggd-orange font-black uppercase rounded-2xl">Setup Vixora Studio</button>
           </div>
         )}
       </div>
@@ -818,13 +818,13 @@ const App: React.FC = () => {
       <div className={`fixed top-0 left-0 h-full w-72 bg-slate-900 z-[201] transition-transform duration-300 transform shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8 h-full flex flex-col">
           <div className="flex items-center justify-between mb-10">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Creator <span className="text-ggd-orange">Hub</span></h2>
+            <h2 className="text-xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
             <button onClick={() => setIsSidebarOpen(false)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><i className="fa-solid fa-xmark"></i></button>
           </div>
 
           <div className="flex-1 space-y-4">
             <button onClick={() => { setActiveTab('studio'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold uppercase text-xs tracking-widest border transition-all ${activeTab === 'studio' ? 'bg-ggd-orange/10 border-ggd-orange/30 text-ggd-orange' : 'bg-white/5 border-white/5 text-slate-400'}`}>
-              <i className="fa-solid fa-microphone-lines w-5"></i> Kore Studio
+              <i className="fa-solid fa-microphone-lines w-5"></i> Vixora Studio
             </button>
             <button onClick={() => { setActiveTab('scripts'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold uppercase text-xs tracking-widest border transition-all ${activeTab === 'scripts' ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' : 'bg-white/5 border-white/5 text-slate-400'}`}>
               <i className="fa-solid fa-scroll w-5"></i> YT Scripts
@@ -869,8 +869,8 @@ const App: React.FC = () => {
               <div className="w-20 h-20 bg-ggd-orange rounded-3xl mx-auto flex items-center justify-center text-white text-3xl shadow-xl rotate-3">
                  <i className="fa-solid fa-rocket"></i>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tighter">Naija Creator <span className="text-ggd-orange">Hub</span></h2>
-              <p className="text-xs text-slate-400">Modern content house engine for faceless channels.</p>
+              <h2 className="text-2xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
+              <p className="text-xs text-slate-400">Modern AI content engine for faceless channels.</p>
               <p className="text-[8px] text-slate-600 font-black uppercase tracking-[0.3em]">Version 2.5.0 Gold Edition</p>
            </div>
         </div>
@@ -881,7 +881,7 @@ const App: React.FC = () => {
           <button onClick={() => setIsSidebarOpen(true)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 active:scale-90 transition-all">
             <i className="fa-solid fa-bars-staggered text-xs"></i>
           </button>
-          <h1 className="text-lg font-black uppercase tracking-tighter">Creator <span className="text-ggd-orange">Hub</span></h1>
+          <h1 className="text-lg font-black uppercase tracking-tighter">Vixora</h1>
         </div>
         <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
           <i className="fa-solid fa-bolt text-ggd-orange text-xs"></i>
@@ -896,9 +896,9 @@ const App: React.FC = () => {
                  <i className="fa-solid fa-download text-sm"></i>
               </div>
               <div className="text-left">
-                 <p className="text-[10px] font-black uppercase text-white tracking-widest">Install Creator Hub</p>
-                 <p className="text-[8px] text-slate-400 font-bold">Fast access from your home screen</p>
-              </div>
+                 <p className="text-[10px] font-black uppercase text-white tracking-widest">Install Vixora App</p>
+                  <p className="text-[8px] text-slate-400 font-bold">Fast access from your home screen</p>
+               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
                <button onClick={triggerPwaInstall} className="px-3 py-2 bg-ggd-orange text-white text-[8px] font-black uppercase rounded-xl active:scale-95 transition-all">Install</button>
@@ -921,8 +921,8 @@ const App: React.FC = () => {
                  <div className="w-20 h-20 bg-ggd-orange/10 rounded-full mx-auto flex items-center justify-center text-ggd-orange text-3xl mb-6 border border-ggd-orange/20">
                    <i className="fa-solid fa-microphone-lines"></i>
                  </div>
-                 <h2 className="text-2xl font-black uppercase mb-4">Chat with Kore</h2>
-                 <p className="text-xs text-slate-400 font-medium mb-10 leading-relaxed">Connect with your AI partner. Kore can control the app for you—just ask her to generate a script or switch tabs!</p>
+                 <h2 className="text-2xl font-black uppercase mb-4">Chat with Vixora</h2>
+                 <p className="text-xs text-slate-400 font-medium mb-10 leading-relaxed">Connect with your AI partner. Vixora can control the app for you—just ask her to generate a script or switch tabs!</p>
                  <button disabled={isConnecting} onClick={startLiveAssistant} className="w-full py-5 bg-ggd-orange text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
                    {isConnecting ? 'Warming Up Engine...' : 'Launch AI Session'}
                  </button>
@@ -937,13 +937,13 @@ const App: React.FC = () => {
                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-800 shadow-2xl">
                        <img 
                         src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=500&auto=format&fit=crop" 
-                        alt="Kore" 
+                        alt="Vixora" 
                         className="w-full h-full object-cover"
                        />
                      </div>
                    </div>
                    <div className="text-center space-y-2">
-                     <h2 className="text-3xl font-black uppercase tracking-tighter">Kore AI</h2>
+                     <h2 className="text-3xl font-black uppercase tracking-tighter">Vixora AI</h2>
                      <p className="text-emerald-400 text-sm font-black uppercase tracking-widest">{formatTime(callTimer)}</p>
                    </div>
                 </div>
@@ -995,7 +995,7 @@ const App: React.FC = () => {
                   <i className="fa-solid fa-wand-magic-sparkles animate-pulse"></i>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-black uppercase text-white tracking-tight">Kore Autopilot Active</h3>
+                  <h3 className="text-lg font-black uppercase text-white tracking-tight">Vixora Autopilot Active</h3>
                   <p className="text-xs text-slate-400 font-medium">Cooking complete faceless video storyboard automatically...</p>
                 </div>
                 <div className="space-y-4">
@@ -1025,7 +1025,7 @@ const App: React.FC = () => {
                     <i className="fa-solid fa-wand-magic-sparkles"></i>
                   </div>
                   <div className="text-left">
-                    <h4 className="text-[10px] font-black uppercase text-white tracking-widest">Naija Video Autopilot</h4>
+                    <h4 className="text-[10px] font-black uppercase text-white tracking-widest">Vixora Video Autopilot</h4>
                     <p className="text-[8px] text-slate-400 font-bold">1-Click script generator, voice synthesis & assets syncing</p>
                   </div>
                 </div>
@@ -1185,11 +1185,11 @@ const App: React.FC = () => {
         {activeTab === 'voiceover' && (
           <div className="animate-rise space-y-6">
              <div className="bg-slate-900/40 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
-                <h2 className="text-xl font-black uppercase text-white">Naija Voice Studio</h2>
+                <h2 className="text-xl font-black uppercase text-white">Vixora Voice Studio</h2>
                 <div className="flex gap-2">
                    {['Kore', 'Zephyr', 'Puck'].map(v => (
                      <button key={v} onClick={() => setSelectedVoice(v)} className={`flex-1 py-2 rounded-xl text-[9px] font-bold uppercase border ${selectedVoice === v ? 'bg-ggd-orange border-ggd-orange' : 'bg-white/5 border-white/10 text-slate-400'}`}>
-                       {v === 'Kore' ? 'Lady Accent' : v}
+                       {v === 'Kore' ? 'Vixora Voice' : v}
                      </button>
                    ))}
                 </div>
@@ -1279,7 +1279,7 @@ const App: React.FC = () => {
                 <div className="w-20 h-20 bg-white/5 rounded-full mx-auto flex items-center justify-center text-ggd-orange text-3xl border border-white/10"><i className="fa-solid fa-headset"></i></div>
                 <div className="space-y-2">
                   <h2 className="text-2xl font-black uppercase tracking-tighter">Get In Touch</h2>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Goodgift Digital Support</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Vixora Support</p>
                 </div>
 
                 <div className="space-y-4">
@@ -1290,7 +1290,7 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="pt-4 border-t border-white/5">
-                   <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest">© 2026 Goodgift Digital. All rights reserved.</p>
+                   <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest">© 2026 Vixora. All rights reserved.</p>
                 </div>
              </div>
           </div>

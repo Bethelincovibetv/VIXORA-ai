@@ -118,7 +118,7 @@ const App: React.FC = () => {
   
   // Onboarding Wizard State
   const [wizardStep, setWizardStep] = useState(0);
-  const [wizardData, setWizardData] = useState({ fullName: '', email: '', apiKey: '' });
+  const [wizardData, setWizardData] = useState({ fullName: '', email: '', apiKey: 'AIzaSyCBO1PRv5h9aQAB3rWbLrkwq_Uf_Q_uQCk' });
 
   // PWA states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -783,8 +783,8 @@ const App: React.FC = () => {
       <div className="w-full max-w-sm space-y-8 animate-rise">
         {wizardStep === 0 ? (
           <div className="text-center space-y-10">
-            <div className="w-24 h-24 bg-ggd-orange rounded-[2.5rem] mx-auto flex items-center justify-center text-white shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20">
-              <i className="fa-solid fa-wand-magic-sparkles text-4xl"></i>
+            <div className="w-24 h-24 rounded-[2.5rem] mx-auto overflow-hidden shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20">
+              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <h1 className="text-4xl font-black uppercase tracking-tighter">VIXORA</h1>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Digital content production engine</p>
@@ -799,8 +799,10 @@ const App: React.FC = () => {
         ) : (
           <div className="space-y-6">
             <h2 className="text-2xl font-black uppercase">Gemini API Key</h2>
-            <p className="text-[10px] text-slate-500">Add your key to enable the AI Studio features.</p>
-            <input type="password" value={wizardData.apiKey} onChange={e => setWizardData({...wizardData, apiKey: e.target.value})} className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange" placeholder="sk-..." />
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              We have pre-filled a default Gemini API key for you to start creating instantly. You can update it or add your own key anytime!
+            </p>
+            <input type="text" value={wizardData.apiKey} onChange={e => setWizardData({...wizardData, apiKey: e.target.value})} className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-xs text-ggd-orange font-mono" placeholder="Gemini API Key..." />
             <button onClick={handleFinishOnboarding} className="w-full py-5 bg-ggd-orange font-black uppercase rounded-2xl">Setup Vixora Studio</button>
           </div>
         )}
@@ -818,7 +820,10 @@ const App: React.FC = () => {
       <div className={`fixed top-0 left-0 h-full w-72 bg-slate-900 z-[201] transition-transform duration-300 transform shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8 h-full flex flex-col">
           <div className="flex items-center justify-between mb-10">
-            <h2 className="text-xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
+            <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-8 h-8 rounded-xl object-cover border border-white/10" referrerPolicy="no-referrer" />
+              Vixora <span className="text-ggd-orange">Studio</span>
+            </h2>
             <button onClick={() => setIsSidebarOpen(false)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><i className="fa-solid fa-xmark"></i></button>
           </div>
 
@@ -866,8 +871,8 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[300] bg-slate-950 flex flex-col items-center justify-center p-8 animate-rise">
            <div className="w-full max-w-sm bg-slate-900 rounded-[3rem] p-10 border border-white/10 text-center space-y-8 relative shadow-2xl">
               <button onClick={() => setShowAbout(false)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><i className="fa-solid fa-xmark"></i></button>
-              <div className="w-20 h-20 bg-ggd-orange rounded-3xl mx-auto flex items-center justify-center text-white text-3xl shadow-xl rotate-3">
-                 <i className="fa-solid fa-rocket"></i>
+              <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-xl rotate-3 border border-white/10">
+                 <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
               <h2 className="text-2xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
               <p className="text-xs text-slate-400">Modern AI content engine for faceless channels.</p>
@@ -881,7 +886,10 @@ const App: React.FC = () => {
           <button onClick={() => setIsSidebarOpen(true)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 active:scale-90 transition-all">
             <i className="fa-solid fa-bars-staggered text-xs"></i>
           </button>
-          <h1 className="text-lg font-black uppercase tracking-tighter">Vixora</h1>
+          <h1 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+            <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-6 h-6 rounded-lg object-cover border border-white/10" referrerPolicy="no-referrer" />
+            Vixora
+          </h1>
         </div>
         <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
           <i className="fa-solid fa-bolt text-ggd-orange text-xs"></i>

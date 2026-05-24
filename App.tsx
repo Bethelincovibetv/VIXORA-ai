@@ -865,8 +865,8 @@ const App: React.FC = () => {
       <div className="w-full max-w-sm space-y-8 animate-rise">
         {wizardStep === 0 ? (
           <div className="text-center space-y-10">
-            <div className="w-24 h-24 rounded-[2.5rem] mx-auto overflow-hidden shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20">
-              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <div className="w-24 h-24 rounded-[2.5rem] mx-auto overflow-hidden shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20 bg-white p-2.5 flex items-center justify-center">
+              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-contain rounded-3xl" referrerPolicy="no-referrer" />
             </div>
             <h1 className="text-4xl font-black uppercase tracking-tighter">VIXORA</h1>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Digital content production engine</p>
@@ -903,7 +903,9 @@ const App: React.FC = () => {
         <div className="p-8 h-full flex flex-col">
           <div className="flex items-center justify-between mb-10">
             <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-8 h-8 rounded-xl object-cover border border-white/10" referrerPolicy="no-referrer" />
+              <span className="w-8 h-8 rounded-xl bg-white p-0.5 flex items-center justify-center overflow-hidden shrink-0 border border-white/10">
+                <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-contain rounded-lg" referrerPolicy="no-referrer" />
+              </span>
               Vixora <span className="text-ggd-orange">Studio</span>
             </h2>
             <button onClick={() => setIsSidebarOpen(false)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><i className="fa-solid fa-xmark"></i></button>
@@ -953,8 +955,8 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[300] bg-slate-950 flex flex-col items-center justify-center p-8 animate-rise">
            <div className="w-full max-w-sm bg-slate-900 rounded-[3rem] p-10 border border-white/10 text-center space-y-8 relative shadow-2xl">
               <button onClick={() => setShowAbout(false)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><i className="fa-solid fa-xmark"></i></button>
-              <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-xl rotate-3 border border-white/10">
-                 <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-xl rotate-3 border border-white/10 bg-white p-2 flex items-center justify-center">
+                 <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-contain rounded-[1.25rem]" referrerPolicy="no-referrer" />
               </div>
               <h2 className="text-2xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
               <p className="text-xs text-slate-400">Modern AI content engine for faceless channels.</p>
@@ -969,7 +971,9 @@ const App: React.FC = () => {
             <i className="fa-solid fa-bars-staggered text-xs"></i>
           </button>
           <h1 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-            <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-6 h-6 rounded-lg object-cover border border-white/10" referrerPolicy="no-referrer" />
+            <span className="w-6 h-6 rounded-lg bg-white p-0.5 flex items-center justify-center overflow-hidden shrink-0 border border-white/10">
+              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-contain rounded-md" referrerPolicy="no-referrer" />
+            </span>
             Vixora
           </h1>
         </div>

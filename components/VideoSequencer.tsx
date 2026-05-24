@@ -116,6 +116,22 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   // Keeps track of the currently active video source to prevent redundant reloading
   const currentVideoSrcRef = useRef<string>('');
 
+  // Cache of preloaded thumbnail image elements to prevent black "empty scenes" when video is buffering/loading
+  const thumbnailImgCacheRef = useRef<Record<string, HTMLImageElement>>({});
+
+  // Preload thumbnail images when segments list is ready/modified
+  useEffect(() => {
+    if (!segments || segments.length === 0) return;
+    segments.forEach(seg => {
+      if (seg.thumbnail && !thumbnailImgCacheRef.current[seg.thumbnail]) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = seg.thumbnail;
+        thumbnailImgCacheRef.current[seg.thumbnail] = img;
+      }
+    });
+  }, [segments]);
+
   // Auto clean up URL on unmount
   useEffect(() => {
     return () => {
@@ -339,25 +355,78 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           video.pause();
         }
 
-        // Draw active video context onto canvas preserving correct aspect ratios using cover
-        const vW = video.videoWidth || 1920;
-        const vH = video.videoHeight || 1080;
-        const targetRatio = width / height;
-        const sourceRatio = vW / vH;
-        let sWidth = vW;
-        let sHeight = vH;
-        let sx = 0;
-        let sy = 0;
+        // Check if video is loaded and ready
+        const isVideoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+        const cachedImg = activeSeg.thumbnail ? thumbnailImgCacheRef.current[activeSeg.thumbnail] : null;
 
-        if (sourceRatio > targetRatio) {
-          sWidth = vH * targetRatio;
-          sx = (vW - sWidth) / 2;
+        if (isVideoReady) {
+          // Draw active video context onto canvas preserving correct aspect ratios using cover
+          const vW = video.videoWidth;
+          const vH = video.videoHeight;
+          const targetRatio = width / height;
+          const sourceRatio = vW / vH;
+          let sWidth = vW;
+          let sHeight = vH;
+          let sx = 0;
+          let sy = 0;
+
+          if (sourceRatio > targetRatio) {
+            sWidth = vH * targetRatio;
+            sx = (vW - sWidth) / 2;
+          } else {
+            sHeight = vW / targetRatio;
+            sy = (vH - sHeight) / 2;
+          }
+
+          ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, width, height);
+        } else if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
+          // Fallback to preloaded static scene thumbnail cover instantly so we never show empty black screens
+          const imgW = cachedImg.naturalWidth;
+          const imgH = cachedImg.naturalHeight;
+          const targetRatio = width / height;
+          const sourceRatio = imgW / imgH;
+          let sWidth = imgW;
+          let sHeight = imgH;
+          let sx = 0;
+          let sy = 0;
+
+          if (sourceRatio > targetRatio) {
+            sWidth = imgH * targetRatio;
+            sx = (imgW - sWidth) / 2;
+          } else {
+            sHeight = imgW / targetRatio;
+            sy = (imgH - sHeight) / 2;
+          }
+
+          ctx.drawImage(cachedImg, sx, sy, sWidth, sHeight, 0, 0, width, height);
+
+          // Subtle overlay dark layer for aesthetic visual loading aesthetics
+          ctx.fillStyle = 'rgba(2, 6, 23, 0.45)';
+          ctx.fillRect(0, 0, width, height);
         } else {
-          sHeight = vW / targetRatio;
-          sy = (vH - sHeight) / 2;
-        }
+          // Premium glowing grid/gradient fallback
+          const grad = ctx.createLinearGradient(0, 0, width, height);
+          grad.addColorStop(0, '#0f172a');
+          grad.addColorStop(0.5, '#1e1b4b');
+          grad.addColorStop(1, '#020617');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, width, height);
 
-        ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, width, height);
+          ctx.strokeStyle = 'rgba(255, 102, 0, 0.08)';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < width; i += 85) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, height);
+            ctx.stroke();
+          }
+          for (let j = 0; j < height; j += 85) {
+            ctx.beginPath();
+            ctx.moveTo(0, j);
+            ctx.lineTo(width, j);
+            ctx.stroke();
+          }
+        }
 
         // Standard subtle fade transition on segment borders
         const segmentElapsed = time - activeSeg.start;
@@ -376,7 +445,14 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       }
 
       // 3. Render Premium CapCut Subtitles Over the Canvas
-      const activeWord = activeSeg.words.find(word => time >= word.start && time <= word.end);
+      // Find the currently active word, falling back to the most recently spoken word to prevent flickering
+      let activeWord = activeSeg.words.find(word => time >= word.start && time <= word.end);
+      if (!activeWord && activeSeg.words.length > 0) {
+        const passedWords = activeSeg.words.filter(word => time >= word.end);
+        if (passedWords.length > 0) {
+          activeWord = passedWords[passedWords.length - 1];
+        }
+      }
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -443,8 +519,15 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       }
 
       activeRowWords.forEach((wordObj, i) => {
-        const isCurrent = wordObj === activeWord;
         const currentWWidth = rowWidths[i];
+        
+        // Strict Voiceover Word-by-Word Matching: Hide future words completely until voiced!
+        if (time < wordObj.start) {
+          startX += currentWWidth + wordsSpacing;
+          return;
+        }
+
+        const isCurrent = wordObj === activeWord;
         const textToDraw = activeTemplateInfo.id === 'toktok-neon' ? wordObj.text.toUpperCase() : wordObj.text;
 
         ctx.save();

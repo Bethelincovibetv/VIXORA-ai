@@ -17,7 +17,7 @@ export interface CreatedVideo {
   scriptText: string;
   videoUrl: string;
   date: string;
-  aspectRatio: 'vertical' | 'horizontal';
+  aspectRatio: 'vertical' | 'horizontal' | 'square';
 }
 
 interface SourcedVideo {
@@ -32,6 +32,75 @@ interface SourcedVideo {
     height: number;
   }>;
 }
+
+export const NICHE_OPTIONS = [
+  { 
+    id: 'finance', 
+    name: 'Finance & Wealth', 
+    icon: 'fa-sack-dollar', 
+    promptSuffix: 'Write in a professional, wealth-building, high-retention tone focusing on finance, investing, passive income, and smart money habits.',
+    suggestions: [
+      "5 rules of wealth you must learn",
+      "Why 99% of people stay poor forever",
+      "The truth about passive income in 2026"
+    ]
+  },
+  { 
+    id: 'motivation', 
+    name: 'Motivation & Mindset', 
+    icon: 'fa-fire-flame-curved', 
+    promptSuffix: 'Write in a deeply moving, highly inspirational, high-retention tone focusing on self-discipline, mindset shifting, morning habits, and relentless focus.',
+    suggestions: [
+      "How to build unbreakable discipline",
+      "Atomic habits that will change your life",
+      "The power of waking up at 5 am"
+    ]
+  },
+  { 
+    id: 'tech', 
+    name: 'Tech & Future AI', 
+    icon: 'fa-microchip', 
+    promptSuffix: 'Write in a fascinating, tech-forward, high-octane voice focusing on cutting-edge AI breakthroughs, futuristic tech, cyber developments, and smart gadgets.',
+    suggestions: [
+      "AI is evolving faster than you think",
+      "3 futuristic gadgets you can buy today",
+      "The truth about artificial super intelligence"
+    ]
+  },
+  { 
+    id: 'history', 
+    name: 'Ancient History & Mythology', 
+    icon: 'fa-scroll', 
+    promptSuffix: 'Write in a suspenseful, epic storytelling vibe focusing on historic ancient wars, Roman/Greek secrets, and legendary mythological figures.',
+    suggestions: [
+      "The secret lives of Roman Gladiators",
+      "Why did the Spartan Empire collapse?",
+      "The legendary power of Greek Gods"
+    ]
+  },
+  { 
+    id: 'psychology', 
+    name: 'Psychology & Relationships', 
+    icon: 'fa-brain', 
+    promptSuffix: 'Write in a curious, eye-opening psychological tone focusing on dark psychology facts, human behavior patterns, relationship dynamics, and mind reading.',
+    suggestions: [
+      "3 body language tricks to read anyone",
+      "Dark psychology hacks that actually work",
+      "The psychology of silence in conversations"
+    ]
+  },
+  { 
+    id: 'health', 
+    name: 'Health & Workout Longevity', 
+    icon: 'fa-heart-pulse', 
+    promptSuffix: 'Write in an energetic, health-conscious, informative style focusing on biohacking secrets, longevity workouts, superfoods, and holistic body wellness.',
+    suggestions: [
+      "Biohacking secrets to live 100 years",
+      "The optimal daily workout for focus",
+      "What happens to your body when you fast"
+    ]
+  }
+];
 
 // --- UTILITIES ---
 
@@ -151,6 +220,8 @@ const App: React.FC = () => {
   const [sourcedVideos, setSourcedVideos] = useState<SourcedVideo[]>([]);
   const [isSourcingVideos, setIsSourcingVideos] = useState(false);
   const [videoMode, setVideoMode] = useState<'ordinary' | 'ai_packaged'>('ai_packaged');
+  const [videoRatio, setVideoRatio] = useState<'vertical' | 'horizontal' | 'square'>('vertical');
+  const [selectedNicheFilter, setSelectedNicheFilter] = useState<string>('all');
 
   // Created Video Gallery History State
   const [createdVideos, setCreatedVideos] = useState<CreatedVideo[]>(() => {
@@ -193,6 +264,9 @@ const App: React.FC = () => {
     const savedUser = localStorage.getItem('ggd_creator_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
+      if (parsed && !parsed.niche) {
+        parsed.niche = 'finance';
+      }
       setUser(parsed);
       setNewApiKey(parsed.apiKey || '');
       if (parsed.fullName && parsed.apiKey) {
@@ -258,7 +332,7 @@ const App: React.FC = () => {
       setAppError("Please complete all fields.");
       return;
     }
-    const newUser = { fullName: wizardData.fullName, email: 'user@creator.hub', phone: '', apiKey: wizardData.apiKey };
+    const newUser = { fullName: wizardData.fullName, email: 'user@creator.hub', phone: '', apiKey: wizardData.apiKey, niche: 'finance' };
     setUser(newUser);
     localStorage.setItem('ggd_creator_user', JSON.stringify(newUser));
   };
@@ -382,10 +456,18 @@ const App: React.FC = () => {
     setGeneratedScript('');
 
     try {
+      const userNiche = (user as any)?.niche || 'finance';
+      const activeNicheConfig = NICHE_OPTIONS.find(n => n.id === userNiche) || NICHE_OPTIONS[0];
+      const nicheSuffix = activeNicheConfig.promptSuffix;
+
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Write a professional, viral-optimized YouTube script for a FACELESS channel about "${topic}". 
+        
+        NICHE VOICE GUIDELINES:
+        - ${nicheSuffix}
+
         REQUIREMENTS:
         - Go direct to the point. No introductory talk.
         - Do NOT use asterisks (*) or markdown bolding (**).
@@ -896,7 +978,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-3.5 md:p-6 overflow-y-auto">
         {showPwaPrompt && deferredPrompt && (
           <div className="mb-6 p-4 bg-slate-900/90 backdrop-blur-xl border border-ggd-orange/30 rounded-3xl flex items-center justify-between gap-3 animate-rise shadow-2xl">
             <div className="flex items-center gap-3">
@@ -995,24 +1077,106 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'videos' && (
-          <div className="animate-rise space-y-6">
+          <div className="animate-rise space-y-4">
+            {/* TOP BAR PROJECT CONTROLS */}
+            <div className="bg-slate-900/60 p-4 border border-white/10 rounded-3xl space-y-3 shadow-xl">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="text-left">
+                  <h3 className="text-xs font-black uppercase text-glow text-white tracking-widest flex items-center gap-1.5">
+                    <i className="fa-solid fa-cube text-ggd-orange"></i> Video Ratio & Niche Sourcing
+                  </h3>
+                  <p className="text-[7.5px] text-slate-500 font-bold uppercase">Configure output shape and template topic recommendations</p>
+                </div>
+                <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5 shadow-inner shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+                  <button 
+                    onClick={() => setVideoRatio('vertical')} 
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg flex items-center gap-1 transition-all ${videoRatio === 'vertical' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    <i className="fa-solid fa-mobile-screen-button"></i>
+                    <span>9:16 Vertical</span>
+                  </button>
+                  <button 
+                    onClick={() => setVideoRatio('horizontal')} 
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg flex items-center gap-1 transition-all ${videoRatio === 'horizontal' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    <i className="fa-solid fa-desktop"></i>
+                    <span>16:9 Landscape</span>
+                  </button>
+                  <button 
+                    onClick={() => setVideoRatio('square')} 
+                    className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg flex items-center gap-1 transition-all ${videoRatio === 'square' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    <i className="fa-solid fa-square text-[7px]"></i>
+                    <span>1:1 Square</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Niche Search Filter Chips */}
+              <div className="pt-2 border-t border-white/5 space-y-1.5">
+                <p className="text-[7.5px] font-black text-slate-500 uppercase tracking-widest text-left">Active Niche Filter</p>
+                <div className="flex flex-wrap gap-1">
+                  <button 
+                    onClick={() => setSelectedNicheFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase transition-all ${selectedNicheFilter === 'all' ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-400'}`}
+                  >
+                    All Niches
+                  </button>
+                  {NICHE_OPTIONS.map(n => (
+                    <button 
+                      key={n.id}
+                      onClick={() => setSelectedNicheFilter(n.id)}
+                      className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase flex items-center gap-1 transition-all ${selectedNicheFilter === n.id ? 'bg-ggd-orange/15 border-ggd-orange text-white shadow-sm' : 'bg-transparent border-white/5 text-slate-500 hover:border-white/10'}`}
+                    >
+                      <i className={`fa-solid ${n.icon} text-[8.5px]`}></i>
+                      <span>{n.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Suggested Topic Recommendations based on Selected Niche */}
+              <div className="p-2.5 bg-black/40 rounded-2xl border border-white/5 space-y-1.5">
+                <p className="text-[7.5px] font-black text-ggd-orange uppercase tracking-widest flex items-center gap-1 text-left">
+                  <i className="fa-solid fa-lightbulb"></i> Recommended Niche Starters (Click to generate)
+                </p>
+                <div className="flex flex-col sm:flex-row gap-1.5">
+                  {(selectedNicheFilter === 'all' 
+                    ? NICHE_OPTIONS[0].suggestions.concat(NICHE_OPTIONS[1].suggestions).slice(0, 3)
+                    : NICHE_OPTIONS.find(n => n.id === selectedNicheFilter)?.suggestions || []
+                  ).map((suggestion, idx) => (
+                    <button 
+                      key={idx}
+                      onClick={() => {
+                        setScriptTopic(suggestion);
+                        setVideoScriptInput(suggestion);
+                      }}
+                      className="flex-1 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-left text-[8px] font-bold text-slate-300 uppercase leading-snug transition-all truncate"
+                    >
+                      💡 {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* AUTOPILOT MODULE BLOCK */}
             {isAutopilotRunning ? (
-              <div className="bg-slate-900 border border-ggd-orange/30 rounded-[2.5rem] p-8 space-y-8 text-center animate-pulse">
-                <div className="w-20 h-20 bg-ggd-orange/10 border border-ggd-orange/20 rounded-full mx-auto flex items-center justify-center text-ggd-orange text-3xl animate-spin">
+              <div className="bg-slate-900 border border-ggd-orange/30 rounded-3xl p-5 space-y-5 text-center animate-pulse">
+                <div className="w-16 h-16 bg-ggd-orange/10 border border-ggd-orange/20 rounded-full mx-auto flex items-center justify-center text-ggd-orange text-2xl animate-spin">
                   <i className="fa-solid fa-wand-magic-sparkles animate-pulse"></i>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-black uppercase text-white tracking-tight">Vixora Autopilot Active</h3>
-                  <p className="text-xs text-slate-400 font-medium">Cooking complete faceless video storyboard automatically...</p>
+                <div className="space-y-1">
+                  <h3 className="text-md font-black uppercase text-white tracking-tight">Vixora Autopilot Active</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Cooking complete faceless video storyboard automatically...</p>
                 </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 px-2 leading-relaxed">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[7px] font-black uppercase text-slate-500 px-2 leading-relaxed">
                     <span className={autopilotStep >= 1 ? 'text-ggd-orange font-bold' : ''}>1. Script Draft</span>
                     <span className={autopilotStep >= 2 ? 'text-blue-400 font-bold' : ''}>2. Speech voice</span>
                     <span className={autopilotStep >= 3 ? 'text-orange-400 font-bold' : ''}>3. HD Sourcing</span>
                   </div>
-                  <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-white/5">
+                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-white/5">
                     <div 
                       className={`h-full transition-all duration-700 rounded-full ${
                         autopilotStep === 1 ? 'w-1/3 bg-ggd-orange' : 
@@ -1022,19 +1186,19 @@ const App: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="p-4 bg-slate-950 border border-white/5 rounded-2xl text-[10px] text-slate-400 font-mono italic">
+                <div className="p-3 bg-slate-950 border border-white/5 rounded-xl text-[9px] text-slate-400 font-mono italic">
                   {autopilotLog}
                 </div>
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-ggd-orange/10 via-slate-900 to-slate-950 border border-ggd-orange/20 rounded-[2.5rem] p-6 space-y-4 shadow-xl">
+              <div className="bg-gradient-to-br from-ggd-orange/10 via-slate-900 to-slate-950 border border-ggd-orange/20 rounded-3xl p-4 space-y-3.5 shadow-xl">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-ggd-orange/10 flex items-center justify-center text-ggd-orange text-lg">
+                  <div className="w-8 h-8 rounded-xl bg-ggd-orange/10 flex items-center justify-center text-ggd-orange text-md">
                     <i className="fa-solid fa-wand-magic-sparkles"></i>
                   </div>
                   <div className="text-left">
-                    <h4 className="text-[10px] font-black uppercase text-white tracking-widest">Vixora Video Autopilot</h4>
-                    <p className="text-[8px] text-slate-400 font-bold">1-Click script generator, voice synthesis & assets syncing</p>
+                    <h4 className="text-[9px] font-black uppercase text-white tracking-widest">Vixora Video Autopilot</h4>
+                    <p className="text-[7.5px] text-slate-400 font-bold font-sans">1-Click script generator, voice synthesis & assets syncing</p>
                   </div>
                 </div>
 
@@ -1042,12 +1206,12 @@ const App: React.FC = () => {
                   <input 
                     value={scriptTopic} 
                     onChange={e => setScriptTopic(e.target.value)}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:border-ggd-orange text-white placeholder-slate-600" 
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-ggd-orange text-white placeholder-slate-600" 
                     placeholder="e.g. 5 rules of wealth you must learn..." 
                   />
                   <button 
                     onClick={() => handleAutopilotVideoGeneration(scriptTopic)} 
-                    className="px-5 bg-ggd-orange rounded-xl text-[8px] font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all text-white shrink-0"
+                    className="px-4 bg-ggd-orange rounded-xl text-[8px] font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all text-white shrink-0"
                   >
                     Auto Generate
                   </button>
@@ -1056,17 +1220,17 @@ const App: React.FC = () => {
             )}
 
             {/* MANUAL CREATOR CONSOLE */}
-            <div className="bg-slate-900/40 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
-              <div className="flex items-center gap-2">
+            <div className="bg-slate-900/40 rounded-3xl p-5 border border-white/10 space-y-4">
+              <div className="flex items-center gap-2 text-left">
                 <i className="fa-solid fa-clapperboard text-ggd-orange text-sm"></i>
-                <h2 className="text-md font-black uppercase text-white">Manual Creator Studio</h2>
+                <h2 className="text-xs font-black uppercase text-white">Manual Creator Studio</h2>
               </div>
 
               <div className="space-y-2">
                 <textarea 
                   value={videoScriptInput} 
                   onChange={e => setVideoScriptInput(e.target.value)} 
-                  className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-ggd-orange resize-none" 
+                  className="w-full h-24 bg-black/40 border border-white/10 rounded-2xl p-3 text-xs outline-none focus:border-ggd-orange resize-none" 
                   placeholder="Paste script below to fetch stock footage timeline manually..." 
                 />
               </div>
@@ -1074,30 +1238,32 @@ const App: React.FC = () => {
               <button 
                 disabled={isSourcingVideos} 
                 onClick={() => handleSourceVideos()} 
-                className="w-full py-4 bg-ggd-orange rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all"
+                className="w-full py-3.5 bg-ggd-orange rounded-2xl font-black uppercase text-[9px] tracking-wider shadow-lg active:scale-95 transition-all"
               >
                 {isSourcingVideos ? 'Processing HD Project...' : 'Build Video Package'}
               </button>
               
               {sourcedVideos.length > 0 && (
-                <div className="space-y-6 animate-rise">
+                <div className="space-y-4 animate-rise">
                   <div className="flex items-center justify-between px-2">
                     <h3 className="text-[10px] font-black uppercase text-slate-400">Project Timeline</h3>
-                    <button onClick={downloadAllVideos} className="px-4 py-2 bg-emerald-600 rounded-xl text-[8px] font-black uppercase flex items-center gap-2">
+                    <button onClick={downloadAllVideos} className="px-3 py-1.5 bg-emerald-600 rounded-xl text-[8px] font-black uppercase flex items-center gap-2">
                       Download HD Package
                     </button>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <VideoSequencer 
                       scriptText={videoScriptInput || generatedScript || "Enter script and create voiceover"} 
                       voiceoverBase64={lastVoiceoverAudio} 
                       sourcedVideos={sourcedVideos} 
                       onVideoCompiled={handleVideoCompiled}
+                      aspectRatio={videoRatio}
+                      onAspectRatioChange={(ratio) => setVideoRatio(ratio)}
                     />
                     {!lastVoiceoverAudio && (
-                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-left text-[9px] text-blue-400 font-bold leading-relaxed flex gap-2 font-sans">
-                        <span className="text-sm">💡</span>
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-left text-[8.5px] text-blue-400 font-bold leading-relaxed flex gap-2 font-sans">
+                        <span className="text-md">💡</span>
                         <span>
                           <strong>Naija Smart Tip:</strong> Generate voiceover speech in the <strong>Voice overs</strong> tab first. Your voice audio will automatically sync inside the timelines!
                         </span>
@@ -1105,13 +1271,13 @@ const App: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 scrollbar-hide">
+                  <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto p-2 scrollbar-hide">
                     {sourcedVideos.map((video, idx) => (
                       <div key={video.id} className="relative rounded-2xl overflow-hidden group bg-slate-800 border border-white/5">
-                        <img src={video.image} className="w-full h-24 object-cover opacity-80" alt="" />
+                        <img src={video.image} className="w-full h-20 object-cover opacity-80" alt="" />
                         <div className="absolute inset-0 flex flex-col justify-end p-2 bg-gradient-to-t from-black/80 to-transparent">
                           <p className="text-[8px] font-black text-white uppercase">Clip {idx + 1}</p>
-                          <a href={video.video_files.find(f => f.quality === 'hd')?.link || video.video_files[0].link} target="_blank" rel="noopener noreferrer" className="mt-2 w-full py-2 bg-white/10 text-white rounded-lg text-center text-[8px] font-black uppercase" download>Get HD</a>
+                          <a href={video.video_files.find(f => f.quality === 'hd')?.link || video.video_files[0].link} target="_blank" rel="noopener noreferrer" className="mt-2 w-full py-1.5 bg-white/10 text-white rounded-lg text-center text-[7.5px] font-black uppercase" download>Get HD</a>
                         </div>
                       </div>
                     ))}
@@ -1247,7 +1413,7 @@ const App: React.FC = () => {
                <p className="text-[8px] text-ggd-orange font-bold uppercase tracking-widest mt-1">Status: Gold Creator Tier</p>
             </div>
 
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 border border-white/10 space-y-4">
+            <div className="bg-slate-900 rounded-3xl p-5 border border-white/10 space-y-4">
                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">App Environment</h3>
                <div className="space-y-3">
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
@@ -1269,7 +1435,34 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
+            <div className="bg-slate-900 rounded-3xl p-5 border border-white/10 space-y-4">
+               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Creator Persona & Target Niche</h3>
+               <p className="text-[9px] text-slate-400 leading-normal">Configure your primary target demographic and channel focus. Vixora automatically tailors script voice tones and footage search terms to dominate this audience.</p>
+               <div className="grid grid-cols-2 gap-2 pt-2">
+                 {NICHE_OPTIONS.map(n => {
+                    const isSelected = (user as any)?.niche === n.id;
+                    return (
+                       <button 
+                         key={n.id} 
+                         onClick={() => {
+                           if (!user) return;
+                           const updated = { ...user, niche: n.id };
+                           setUser(updated);
+                           localStorage.setItem('ggd_creator_user', JSON.stringify(updated));
+                         }}
+                         className={`p-3 rounded-xl border flex items-center gap-2 text-left transition-all ${isSelected ? 'bg-ggd-orange/15 border-ggd-orange text-white' : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/10'}`}
+                       >
+                         <span className={`w-7 h-7 rounded-lg bg-black/40 flex items-center justify-center shrink-0 ${isSelected ? 'text-ggd-orange' : 'text-slate-500'}`}>
+                           <i className={`fa-solid ${n.icon} text-xs`}></i>
+                         </span>
+                         <span className="text-[8.5px] font-black uppercase tracking-tight leading-tight truncate">{n.name}</span>
+                       </button>
+                    );
+                 })}
+               </div>
+            </div>
+
+            <div className="bg-slate-900 rounded-3xl p-5 border border-white/10 space-y-4">
                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">API Credentials</h3>
                <div className="space-y-3">
                   <input type="password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-mono outline-none focus:border-ggd-orange" placeholder="Gemini API Key" />

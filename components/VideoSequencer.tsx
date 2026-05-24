@@ -17,7 +17,9 @@ interface VideoSequencerProps {
   scriptText: string;
   voiceoverBase64: string | null;
   sourcedVideos: SourcedVideo[];
-  onVideoCompiled?: (blobUrl: string, orientation: 'vertical' | 'horizontal') => void;
+  aspectRatio?: 'vertical' | 'horizontal' | 'square';
+  onAspectRatioChange?: (ratio: 'vertical' | 'horizontal' | 'square') => void;
+  onVideoCompiled?: (blobUrl: string, orientation: 'vertical' | 'horizontal' | 'square') => void;
 }
 
 interface TimeWord {
@@ -38,13 +40,55 @@ interface Segment {
   thumbnail: string;
 }
 
+// Semantic emoji dictionary for CapCut AI Emoji translation
+const getSemanticEmoji = (word: string): string => {
+  const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (/^(money|cash|rich|wealth|gold|dollar|boss|pay|buy|earn|cost|expense|millions|billions)$/.test(clean)) return '💰';
+  if (/^(idea|brain|mind|think|learn|stud|know|thought|creativ|imag|question)$/.test(clean)) return '💡';
+  if (/^(fire|hot|burn|excit|lit|popular|viral)$/.test(clean)) return '🔥';
+  if (/^(love|heart|passion|romance|feel|babe|sweet)$/.test(clean)) return '❤️';
+  if (/^(success|win|goal|rocket|fly|space|star|above)$/.test(clean)) return '🚀';
+  if (/^(grow|up|gain|invest|scal|high|big|huge|expand)$/.test(clean)) return '📈';
+  if (/^(time|clock|fast|speed|run|hour|day|calendar|wait|late)$/.test(clean)) return '⏱️';
+  if (/^(alert|warning|caution|danger|scary|stop|careful)$/.test(clean)) return '⚠️';
+  if (/^(music|sound|voice|vocal|song|sing|podcast|mic)$/.test(clean)) return '🎵';
+  if (/^(smile|happy|joy|laugh|fun|haha)$/.test(clean)) return '😊';
+  if (/^(book|read|write|school|college|paper)$/.test(clean)) return '📖';
+  if (/^(sad|cry|hurt|sorry|tear)$/.test(clean)) return '😢';
+  if (/^(power|strong|gym|fit|muscle|work)$/.test(clean)) return '💪';
+  if (/^(car|drive|ride|speed|road)$/.test(clean)) return '🏎️';
+  if (/^(phone|call|text|connect|mobile)$/.test(clean)) return '📱';
+  if (/^(earth|world|global|nature|plant)$/.test(clean)) return '🌍';
+  if (/^(camera|video|shoot|photo|creator|studio)$/.test(clean)) return '🎥';
+  return '';
+};
+
+export const CAPCUT_TEMPLATES = [
+  { id: 'bold-yellow', name: 'CapCut Classic', color: '#facc15', font: '"Space Grotesk", "Impact", sans-serif', description: 'Yellow active word with bold black outer contours' },
+  { id: 'toktok-neon', name: 'TikTok Pop', color: '#22c55e', font: '"Impact", "Arial Black", sans-serif', description: 'Bright neon green pop with capital letters' },
+  { id: 'darkbox', name: 'Minimal Darkbox', color: '#ffffff', font: '"Inter", sans-serif', description: 'Translucent background box behind captions' },
+  { id: 'cyber-future', name: 'Cyberpunk Cyber', color: '#ec4899', font: '"JetBrains Mono", monospace', description: 'Glowing neon pink with cyber-cyan contours' },
+  { id: 'karaoke-grad', name: 'Karaoke Glow', color: '#f59e0b', font: '"Space Grotesk", sans-serif', description: 'Faded subtitles, flowing gold highlight' }
+];
+
 export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   scriptText,
   voiceoverBase64,
   sourcedVideos,
+  aspectRatio: controlledAspectRatio,
+  onAspectRatioChange,
   onVideoCompiled,
 }) => {
-  const [aspectRatio, setAspectRatio] = useState<'vertical' | 'horizontal'>('vertical');
+  const [localAspectRatio, setLocalAspectRatio] = useState<'vertical' | 'horizontal' | 'square'>('vertical');
+  const aspectRatio = controlledAspectRatio || localAspectRatio;
+
+  const setAspectRatio = (ratio: 'vertical' | 'horizontal' | 'square') => {
+    setLocalAspectRatio(ratio);
+    if (onAspectRatioChange) {
+      onAspectRatioChange(ratio);
+    }
+  };
+
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -54,6 +98,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [compiledBlobUrl, setCompiledBlobUrl] = useState<string | null>(null);
   const [captionColor, setCaptionColor] = useState<string>('#facc15'); // Yellow fallback
   const [fontSize, setFontSize] = useState<number>(24);
+  const [captionTemplate, setCaptionTemplate] = useState<string>('bold-yellow');
+  const [aiEmojiMode, setAiEmojiMode] = useState<boolean>(true);
 
   // Audio Context Ref for player
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -335,9 +381,13 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Design fonts
+      // Design fonts based on templates
+      const activeTemplateInfo = CAPCUT_TEMPLATES.find(t => t.id === captionTemplate) || CAPCUT_TEMPLATES[0];
+      const fontSelected = activeTemplateInfo.font;
+      const highlightColor = activeTemplateInfo.color;
+
       const scaleFont = fontSize * (width / 500); // Scale font automatically matching Canvas sizing
-      ctx.font = `900 ${scaleFont}px "Space Grotesk", "Impact", "Inter", sans-serif`;
+      ctx.font = `900 ${scaleFont}px ${fontSelected}`;
 
       const capX = width / 2;
       const capY = height * 0.8; // Lower fourth position
@@ -356,7 +406,6 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       const activeRowWords = words.slice(activeRowIndex * maxWordsPerRow, (activeRowIndex + 1) * maxWordsPerRow);
 
       // Measure dimensions to render background wrap or shadows
-      let offsetX = 0;
       const wordsSpacing = scaleFont * 0.35;
       
       // Compute row total width
@@ -367,25 +416,99 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       const totalRowWidth = rowWidths.reduce((a, b) => a + b, 0) + (rowWidths.length - 1) * wordsSpacing;
       let startX = capX - totalRowWidth / 2;
 
-      // Render outer glow/drop-shadow for CapCut aesthetic readability
-      ctx.shadowColor = '#000000';
-      ctx.shadowBlur = width * 0.015;
-      ctx.shadowOffsetX = width * 0.003;
-      ctx.shadowOffsetY = width * 0.003;
+      // Background backdrop box for "Minimal Darkbox" template
+      if (activeTemplateInfo.id === 'darkbox') {
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
+        const boxW = totalRowWidth + scaleFont * 0.8;
+        const boxH = scaleFont * 1.5;
+        const boxX = capX - boxW / 2;
+        const boxY = capY - boxH / 2;
+        const radius = scaleFont * 0.25;
+        
+        ctx.beginPath();
+        ctx.moveTo(boxX + radius, boxY);
+        ctx.lineTo(boxX + boxW - radius, boxY);
+        ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+        ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+        ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+        ctx.lineTo(boxX + radius, boxY + boxH);
+        ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+        ctx.lineTo(boxX, boxY + radius);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       activeRowWords.forEach((wordObj, i) => {
         const isCurrent = wordObj === activeWord;
-        
-        ctx.fillStyle = isCurrent ? captionColor : '#ffffff';
         const currentWWidth = rowWidths[i];
-        
-        // Draw primary outline stroke first (standard professional readable captions)
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = scaleFont * 0.15;
-        ctx.strokeText(wordObj.text, startX + currentWWidth / 2, capY);
-        
+        const textToDraw = activeTemplateInfo.id === 'toktok-neon' ? wordObj.text.toUpperCase() : wordObj.text;
+
+        ctx.save();
+
+        // 1. Configure outline strokes/glows based on templates
+        if (activeTemplateInfo.id === 'cyber-future') {
+          ctx.strokeStyle = '#06b6d4'; // neon cyan
+          ctx.lineWidth = scaleFont * 0.16;
+          ctx.shadowColor = '#06b6d4';
+          ctx.shadowBlur = scaleFont * 0.35;
+        } else if (activeTemplateInfo.id === 'darkbox') {
+          ctx.strokeStyle = 'transparent';
+          ctx.lineWidth = 0;
+          ctx.shadowBlur = 0;
+        } else if (activeTemplateInfo.id === 'karaoke-grad') {
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = scaleFont * 0.12;
+          if (isCurrent) {
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = scaleFont * 0.25;
+          } else {
+            ctx.shadowBlur = 0;
+          }
+        } else {
+          // Default heavy black contour
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = scaleFont * 0.16;
+          ctx.shadowColor = '#000000';
+          ctx.shadowBlur = width * 0.015;
+          ctx.shadowOffsetX = width * 0.003;
+          ctx.shadowOffsetY = width * 0.003;
+        }
+
+        // Draw outline stroke text
+        if (activeTemplateInfo.id !== 'darkbox') {
+          ctx.strokeText(textToDraw, startX + currentWWidth / 2, capY);
+        }
+
+        // 2. Configure Fill colors
+        if (isCurrent) {
+          ctx.fillStyle = highlightColor;
+        } else {
+          ctx.fillStyle = activeTemplateInfo.id === 'karaoke-grad' ? 'rgba(255, 255, 255, 0.45)' : '#ffffff';
+        }
+
         // Draw fill text
-        ctx.fillText(wordObj.text, startX + currentWWidth / 2, capY);
+        ctx.fillText(textToDraw, startX + currentWWidth / 2, capY);
+
+        // 3. Draw float bounce emoji above active word if AI Emoji Mode is enabled
+        if (isCurrent && aiEmojiMode) {
+          const emoji = getSemanticEmoji(wordObj.text);
+          if (emoji) {
+            ctx.restore();
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${scaleFont * 1.4}px "Inter", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+            // slow gentle sine-wave floating bounce
+            const floatY = capY - scaleFont * 1.45 + Math.sin(performance.now() / 140) * (scaleFont * 0.12);
+            ctx.fillText(emoji, startX + currentWWidth / 2, floatY);
+          }
+        }
+
+        ctx.restore();
 
         startX += currentWWidth + wordsSpacing;
       });
@@ -585,26 +708,36 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   };
 
   return (
-    <div className="p-6 bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] space-y-6 text-left relative overflow-hidden" id="sequencer-studio">
+    <div className="p-4 bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-3xl space-y-4 text-left relative overflow-hidden" id="sequencer-studio">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-black uppercase text-white tracking-tight">CapCut Render Studio</h2>
-          <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Auto-sync Voiceover, HD Footage & CapCut Subtitles</p>
+          <h2 className="text-base font-black uppercase text-white tracking-tight">CapCut Render Studio</h2>
+          <p className="text-[8px] text-slate-500 font-bold uppercase mt-0.5">Auto-sync Voiceover, HD Footage & Subtitle Aesthetics</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-2xl border border-white/5 shrink-0">
           <button 
             onClick={() => setAspectRatio('vertical')} 
-            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${aspectRatio === 'vertical' ? 'bg-ggd-orange border-ggd-orange text-white' : 'bg-white/5 border-white/5 text-slate-400'}`}
-            title="Vertical Short Form Format (9:16)"
+            className={`px-2.5 py-1.5 text-[8px] font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'vertical' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+            title="Vertical format (9:16)"
           >
-            <i className="fa-solid fa-mobile-screen-button text-sm"></i>
+            <i className="fa-solid fa-mobile-screen-button"></i>
+            <span>9:16</span>
           </button>
           <button 
             onClick={() => setAspectRatio('horizontal')} 
-            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${aspectRatio === 'horizontal' ? 'bg-ggd-orange border-ggd-orange text-white' : 'bg-white/5 border-white/5 text-slate-400'}`}
-            title="Landscape Standard Format (16:9)"
+            className={`px-2.5 py-1.5 text-[8px] font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'horizontal' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+            title="Landscape format (16:9)"
           >
-            <i className="fa-solid fa-desktop text-sm"></i>
+            <i className="fa-solid fa-desktop"></i>
+            <span>16:9</span>
+          </button>
+          <button 
+            onClick={() => setAspectRatio('square')} 
+            className={`px-2.5 py-1.5 text-[8px] font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'square' ? 'bg-ggd-orange text-white' : 'text-slate-500 hover:text-white'}`}
+            title="Square format (1:1)"
+          >
+            <i className="fa-solid fa-square-full text-[7.5px]"></i>
+            <span>1:1</span>
           </button>
         </div>
       </div>
@@ -613,7 +746,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       <div className="flex flex-col md:flex-row gap-6">
         {/* Playback Canvas Previewer Shield */}
         <div className="flex-1 flex flex-col items-center">
-          <div className={`relative w-full overflow-hidden rounded-3xl bg-black border border-white/10 shadow-2xl flex items-center justify-center ${aspectRatio === 'vertical' ? 'aspect-[9/16] max-w-[280px]' : 'aspect-video'}`}>
+          <div className={`relative w-full overflow-hidden rounded-3xl bg-black border border-white/10 shadow-2xl flex items-center justify-center ${aspectRatio === 'vertical' ? 'aspect-[9/16] max-w-[280px]' : aspectRatio === 'square' ? 'aspect-square max-w-[320px]' : 'aspect-video'}`}>
             <canvas 
               ref={playerCanvasRef} 
               className="max-h-full max-w-full object-contain"
@@ -630,7 +763,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             
             <div className="absolute top-4 left-4 flex gap-2">
               <span className="px-2 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[8px] font-black uppercase text-glow border border-white/5">
-                {aspectRatio === 'vertical' ? 'Vertical 9:16' : 'Horizontal 16:9'}
+                {aspectRatio === 'vertical' ? 'Vertical 9:16' : aspectRatio === 'square' ? 'Square 1:1' : 'Horizontal 16:9'}
               </span>
               <span className="px-2 py-1 bg-ggd-orange/80 rounded-lg text-[8px] font-black uppercase text-glow">
                 Live Studio
@@ -678,23 +811,33 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Style Options</h3>
             
             <div className="space-y-2">
-              <label className="text-[9px] font-bold text-slate-500 uppercase">CapCut Caption Highlight Color</label>
-              <div className="flex gap-2">
-                {['#facc15', '#22c55e', '#3b82f6', '#ec4899', '#ffffff'].map(c => (
-                  <button 
-                    key={c} 
-                    onClick={() => setCaptionColor(c)} 
-                    className={`w-7 h-7 rounded-lg border transition-all ${captionColor === c ? 'scale-110 border-white ring-2 ring-ggd-orange/50' : 'border-black/20'}`}
-                    style={{ backgroundColor: c }}
-                  />
+              <label className="text-[8px] font-bold text-slate-500 uppercase block tracking-wider">1. Caption Style Preset</label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
+                {CAPCUT_TEMPLATES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setCaptionTemplate(t.id);
+                      setCaptionColor(t.color);
+                    }}
+                    className={`w-full p-2 rounded-xl border text-left flex items-start gap-2 transition-all ${captionTemplate === t.id ? 'bg-ggd-orange/15 border-ggd-orange text-white shadow-md' : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/10'}`}
+                  >
+                    <span className="w-3.5 h-3.5 rounded-full border border-white/15 flex items-center justify-center text-[7px] font-bold mt-0.5 shrink-0" style={{ backgroundColor: t.color }}>
+                      {captionTemplate === t.id && <i className="fa-solid fa-check text-slate-950 text-[6px]"></i>}
+                    </span>
+                    <div className="overflow-hidden">
+                      <p className="text-[8px] font-black uppercase tracking-tight text-white">{t.name}</p>
+                      <p className="text-[7px] text-slate-500 leading-snug font-medium truncate">{t.description}</p>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-2">
-              <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase">
-                <span>Font Sizing</span>
-                <span className="text-white">{fontSize}px</span>
+              <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                <span>2. Font Sizing</span>
+                <span className="text-white font-mono">{fontSize}px</span>
               </div>
               <input 
                 type="range" 
@@ -704,6 +847,19 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
                 onChange={(e) => setFontSize(parseInt(e.target.value))} 
                 className="w-full accent-ggd-orange"
               />
+            </div>
+
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+              <div className="text-left shrink-0 max-w-[140px]">
+                <p className="text-[9px] font-black uppercase text-white tracking-wider flex items-center gap-1"><i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i> AI Emoji</p>
+                <p className="text-[6.5px] text-slate-500">Auto-inject interactive emojis above spoken words</p>
+              </div>
+              <button
+                onClick={() => setAiEmojiMode(!aiEmojiMode)}
+                className={`w-8 h-4 rounded-full transition-all relative p-0.5 flex items-center border ${aiEmojiMode ? 'bg-ggd-orange border-ggd-orange' : 'bg-white/5 border-white/15'}`}
+              >
+                <div className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${aiEmojiMode ? 'translate-x-3.5' : 'translate-x-0'}`} />
+              </button>
             </div>
           </div>
 

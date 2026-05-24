@@ -758,21 +758,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         </div>
       </div>
 
-      {/* Shared Native Back-End Integration scripts info */}
-      <div className="mt-4 p-4 bg-white/5 rounded-3xl border border-white/5 text-[9px] space-y-2 text-slate-400 leading-relaxed font-sans">
-        <p className="font-bold flex items-center gap-1.5 text-white"><i className="fa-solid fa-code text-ggd-orange"></i> Backend Implementation Ready</p>
-        <p>This sandbox implements an instant client-side canvas HTML5 composer. For high fidelity cluster server rendering, we have bundled production-ready script files in your workspace:</p>
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <div className="p-2.5 bg-black/40 rounded-xl border border-white/5">
-            <p className="font-black uppercase text-white font-mono text-[8px] mb-1">Python Pipeline</p>
-            <p className="text-[7.5px]">Uses <span className="text-white">MoviePy & Pillow</span> with synced timeline layers. (Run <span className="text-white font-mono bg-white/5 px-1 py-0.5 rounded">python video_assembler.py</span>)</p>
-          </div>
-          <div className="p-2.5 bg-black/40 rounded-xl border border-white/5">
-            <p className="font-black uppercase text-white font-mono text-[8px] mb-1">JS Workflow</p>
-            <p className="text-[7.5px]">Direct <span className="text-white">Fluent-FFmpeg</span> wrapper with sub-captions mapping. (Run <span className="text-white font-mono bg-white/5 px-1 py-0.5 rounded">node video_assembler.js</span>)</p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Hidden Video Source for drawing onto Canvas */}
       <video 

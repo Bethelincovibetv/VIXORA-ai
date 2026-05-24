@@ -1,0 +1,9 @@
+{
+  "name": "Copy of Creator room",
+  "description": "An AI-powered academic rehearsal and mastery platform for JAMB, WAEC, NECO, and Post-UTME preparation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

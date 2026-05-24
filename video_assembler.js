@@ -1,0 +1,219 @@
+#!/usr/bin/env node
+/**
+ * Naija Creator Hub - Javascript Video Assembly & FFmpeg pipeline
+ * =============================================================
+ * Handles video mapping, splits narrator segments, outputs timed .ass captions,
+ * and streams compilation into a single MP4 file utilizing FFmpeg commands.
+ * 
+ * Requirements:
+ *    npm install fluent-ffmpeg
+ *    Assumes ffmpeg is installed on system paths.
+ * 
+ * Usage:
+ *    node video_assembler.js --script "Script data..." --audio voiceover.wav --videos video1.mp4 video2.mp4 --output final.mp4 --orientation vertical
+ */
+
+import fs from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+
+// Simple arguments parser
+const args = {};
+process.argv.slice(2).forEach((arg, index, arr) => {
+  if (arg.startsWith('--')) {
+    const key = arg.slice(2);
+    const value = arr[index + 1];
+    if (value && !value.startsWith('--')) {
+      if (key === 'videos') {
+        args[key] = [];
+        let i = index + 1;
+        while (arr[i] && !arr[i].startsWith('--')) {
+          args[key].push(arr[i]);
+          i++;
+        }
+      } else {
+        args[key] = value;
+      }
+    }
+  }
+});
+
+const script = args.script || '';
+const audioPath = args.audio || '';
+const videoPaths = args.videos || [];
+const orientation = args.orientation || 'vertical';
+const outputPath = args.output || 'compiled_output.mp4';
+const highlightColor = args.highlight_color || '00FFFF'; // ASS style: BGR hex (Yellow custom is 00FFFF)
+
+if (!script || !audioPath || videoPaths.length === 0) {
+  console.log('[!] Usage: node video_assembler.js --script "your script..." --audio voiceover.wav --videos clip1.mp4 clip2.mp4 --output final.mp4');
+  console.log('[!] Ensure to add appropriate arguments.');
+  process.exit(1);
+}
+
+// 1. Get Audio duration using ffprobe
+const getMediaDuration = (filePath) => {
+  return new Promise((resolve, reject) => {
+    exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (err, stdout) => {
+      if (err) return reject(err);
+      resolve(parseFloat(stdout.trim()));
+    });
+  });
+};
+
+const assemble = async () => {
+  try {
+    console.log('[+] Starting Javascript FFmpeg video editor...');
+    const audioDuration = await getMediaDuration(audioPath);
+    console.log(`[+] Input audio duration details calculated: ${audioDuration} seconds`);
+
+    // Split sentences
+    const sentences = script
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 3);
+
+    if (sentences.length === 0) {
+      console.log('[-] Invalid script content.');
+      process.exit(1);
+    }
+
+    const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
+
+    // Build timeline mapping
+    let elapsed = 0;
+    const timeline = sentences.map((sentence, idx) => {
+      const weight = sentence.length / totalChars;
+      const duration = weight * audioDuration;
+      const start = elapsed;
+      const end = elapsed + duration;
+      elapsed = end;
+
+      // Group words
+      const words = sentence.split(/\s+/);
+      const totalWordChars = words.reduce((acc, w) => acc + w.length, 0);
+      let wordElapsed = start;
+      
+      const timedWords = words.map((w) => {
+        const wordWeight = w.length / totalWordChars;
+        const wDur = wordWeight * duration;
+        const wStart = wordElapsed;
+        const wEnd = wordElapsed + wDur;
+        wordElapsed = wEnd;
+        return { text: w, start: wStart, end: wEnd };
+      });
+
+      return {
+        id: idx,
+        text: sentence,
+        start,
+        end,
+        words: timedWords
+      };
+    });
+
+    // Write premium Advanced SubStation Alpha (.ass) style subtitle cue entries
+    // This allows custom styles: fonts, sizes, strokes, margins and word-by-word karaoke highlights!
+    const assFile = path.resolve('./temp_subtitles.ass');
+    const assHeader = `[Script Info]
+Title: Creator Hub Auto Subtitles
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Space Grotesk,50,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,5,1,2,50,50,300,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+    let assBody = '';
+    const formatAssTime = (sec) => {
+      const hrs = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const secs = Math.floor(sec % 60);
+      const ms = Math.floor((sec % 1) * 100);
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    };
+
+    // Generating timing dialogues word-by-word highlights
+    timeline.forEach(segment => {
+      segment.words.forEach(wordObj => {
+        const startStr = formatAssTime(wordObj.start);
+        const endStr = formatAssTime(wordObj.end);
+        
+        // Wrap other words of sentence as standard white, only active word colored
+        const styledSentence = segment.words.map(w => {
+          if (w === wordObj) {
+            return `{\\1c&H${highlightColor}&}${w.text}{\\1c&HFFFFFF&}`;
+          }
+          return w.text;
+        }).join(' ');
+
+        assBody += `Dialogue: 0,${startStr},${endStr},CapCut,,0,0,0,,${styledSentence}\n`;
+      });
+    });
+
+    fs.writeFileSync(assFile, assHeader + assBody);
+    console.log('[+] Advanced timed sub-captions file written successfully.');
+
+    // 2. Generate FFmpeg command scripts
+    const w = orientation === 'vertical' ? 1080 : 1920;
+    const h = orientation === 'vertical' ? 1920 : 1080;
+
+    // Concatenate video filters dynamically in a single pipeline
+    // For each segment index, feed the matching sourced clip scaled, cropped to target orientation box
+    console.log('[+] Preparing ffmpeg command chains matching timeline mapping window...');
+    let filterComplex = '';
+    let inputs = '';
+
+    videoPaths.forEach((vPath, idx) => {
+      inputs += ` -i "${vPath}"`;
+    });
+    // Add voiceover audio input
+    inputs += ` -i "${audioPath}"`;
+
+    // Map each segment slot in timeline in order
+    let sceneInputsCount = videoPaths.length;
+    let mapStrs = '';
+
+    timeline.forEach((seg, index) => {
+      const clipIdx = index % sceneInputsCount;
+      const duration = seg.end - seg.start;
+      
+      // Scale and Crop to vertical or landscape
+      filterComplex += `[${clipIdx}:v]scale=w=${w}:h=${h}:force_original_aspect_ratio=increase,crop=${w}:${h},trim=duration=${duration},setpts=PTS-STARTPTS[v${index}];`;
+      mapStrs += `[v${index}]`;
+    });
+
+    filterComplex += `${mapStrs}concat=n=${timeline.length}:v=1:a=0[vmaster];`;
+    // Attach Subtitles track filter
+    filterComplex += `[vmaster]subtitles='${assFile.replace(/\\/g, '/')}'[vfinal]`;
+
+    const finalCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vfinal]" -map ${sceneInputsCount}:a -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 192k "${outputPath}"`;
+
+    console.log('[+] Run command pipeline generated:');
+    console.log(`    ${finalCmd.slice(0, 500)}...`);
+
+    console.log('[+] Compiling final media clips using FFmpeg wrapper. Please wait...');
+    
+    exec(finalCmd, (execErr, stdout, stderr) => {
+      // Clean temporary timing subtitles file
+      try { fs.unlinkSync(assFile); } catch(e){}
+
+      if (execErr) {
+        console.error('[-] Compilation error: ', execErr);
+        console.log('[-] Ensure ffmpeg is installed and subtitle directories/configuration parameters are correct.');
+        process.exit(1);
+      }
+      console.log(`[+] SUCCESS! Final production movie exported successfully: ${outputPath}`);
+    });
+
+  } catch (error) {
+    console.error('[-] Error executing Javascript assembly pipeline: ', error);
+  }
+};
+
+assemble();

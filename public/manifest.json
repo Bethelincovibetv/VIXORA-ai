@@ -1,0 +1,42 @@
+{
+  "name": "Digital Creator Hub",
+  "short_name": "Creator Hub",
+  "description": "An AI-powered content creation partner and faceless video/audio production suite.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Kore AI Live",
+      "url": "/?tab=studio",
+      "description": "Start interactive AI Assistant session"
+    },
+    {
+      "name": "Script Gen",
+      "url": "/?tab=scripts",
+      "description": "Write YouTube scripts"
+    },
+    {
+      "name": "Video Sourcing",
+      "url": "/?tab=videos",
+      "description": "Source HD B-roll footage"
+    }
+  ]
+}

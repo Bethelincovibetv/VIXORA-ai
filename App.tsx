@@ -11,6 +11,15 @@ export interface GenAIBlob {
   mimeType: string;
 }
 
+export interface CreatedVideo {
+  id: string;
+  topic: string;
+  scriptText: string;
+  videoUrl: string;
+  date: string;
+  aspectRatio: 'vertical' | 'horizontal';
+}
+
 interface SourcedVideo {
   id: number;
   url: string;
@@ -142,6 +151,21 @@ const App: React.FC = () => {
   const [sourcedVideos, setSourcedVideos] = useState<SourcedVideo[]>([]);
   const [isSourcingVideos, setIsSourcingVideos] = useState(false);
   const [videoMode, setVideoMode] = useState<'ordinary' | 'ai_packaged'>('ai_packaged');
+
+  // Created Video Gallery History State
+  const [createdVideos, setCreatedVideos] = useState<CreatedVideo[]>(() => {
+    try {
+      const saved = localStorage.getItem('ggd_created_videos');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Autopilot Orchestration States
+  const [isAutopilotRunning, setIsAutopilotRunning] = useState(false);
+  const [autopilotStep, setAutopilotStep] = useState<number>(0);
+  const [autopilotLog, setAutopilotLog] = useState<string>('');
 
   // Tools State
   const [toolInput, setToolInput] = useState('');
@@ -442,6 +466,110 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleVideoCompiled = (blobUrl: string, orientation: 'vertical' | 'horizontal') => {
+    const newVideo: CreatedVideo = {
+      id: `vid_${Date.now()}`,
+      topic: scriptTopic || videoScriptInput || "Untitled Faceless Video",
+      scriptText: videoScriptInput || generatedScript || "",
+      videoUrl: blobUrl,
+      date: new Date().toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      aspectRatio: orientation,
+    };
+    const updated = [newVideo, ...createdVideos];
+    setCreatedVideos(updated);
+    localStorage.setItem('ggd_created_videos', JSON.stringify(updated));
+    alert("🎉 Ultimate Video compiled successfully & saved to your local Creator Hub Gallery!");
+  };
+
+  const handleAutopilotVideoGeneration = async (topicToUse: string) => {
+    if (!topicToUse.trim()) {
+      setAppError("Please provide an idea or topic for Autopilot.");
+      return;
+    }
+    const activeApiKey = user?.apiKey || process.env.API_KEY;
+    if (!activeApiKey) {
+      setAppError("API Credentials are required to launch autopilot.");
+      return;
+    }
+
+    setIsAutopilotRunning(true);
+    setAutopilotStep(1);
+    setAutopilotLog("Cooking up viral script draft with Gemini AI...");
+    
+    // Shift automatically to videos tab to monitor progress
+    setActiveTab('videos');
+
+    try {
+      // --- STEP 1: SCRIPT ---
+      const scriptText = await handleGenerateScript(topicToUse);
+      if (!scriptText) throw new Error("Could not formulate script.");
+      
+      setAutopilotStep(2);
+      setAutopilotLog("Generating smooth natural female accent voiceover...");
+
+      // --- STEP 2: VOICE OVER ---
+      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const voiceResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: `Speak this script with a natural, professional Nigerian female accent. No conversational filler: ${scriptText.replace(/\*/g, '')}` }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: selectedVoice },
+            },
+          },
+        },
+      });
+
+      const base64Audio = voiceResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (!base64Audio) throw new Error("Failed to produce voiceover stream.");
+      setLastVoiceoverAudio(base64Audio);
+      setVoiceoverText(scriptText);
+
+      // --- STEP 3: VIDEOS ---
+      setAutopilotStep(3);
+      setAutopilotLog("Sourcing Premium HD video storyboard clips from Pexels...");
+      
+      setVideoScriptInput(scriptText);
+      
+      const keywordResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `I need to create a faceless video. Extract 5 specific keywords for high-quality HD scenes that flow as a storyboard from this script: "${scriptText}". Return ONLY the keywords separated by spaces.`,
+      });
+
+      const searchQuery = keywordResponse.text?.trim() || scriptText.split(' ').slice(0, 3).join(' ');
+
+      const pexelsResponse = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(searchQuery)}&per_page=12&orientation=landscape`, {
+        headers: {
+          Authorization: PEXELS_API_KEY
+        }
+      });
+
+      if (!pexelsResponse.ok) throw new Error("Failed to fetch matching stock videos.");
+
+      const data = await pexelsResponse.json();
+      setSourcedVideos(data.videos || []);
+
+      setAutopilotStep(4);
+      setAutopilotLog("Timeline synchronized perfectly! Launching preview console...");
+      
+      setTimeout(() => {
+        setIsAutopilotRunning(false);
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("Autopilot engine failure:", err);
+      setAppError(`Autopilot failed: ${err.message || err}`);
+      setIsAutopilotRunning(false);
+    }
+  };
+
   // --- LIVE SESSION CORE (KORE AI PERSONA + FUNCTION CALLING) ---
 
   const startLiveAssistant = async () => {
@@ -502,6 +630,18 @@ const App: React.FC = () => {
             script: { type: Type.STRING, description: 'The text script to find matching videos for.' }
           },
           required: ['script']
+        }
+      };
+
+      const createFullAutopilotVideoDeclaration: FunctionDeclaration = {
+        name: 'createFullAutopilotVideo',
+        parameters: {
+          type: Type.OBJECT,
+          description: 'Fully cooks the complete script, voiceover audio, and stocks video storyboard clips in one automated autopilot run for a specified topic.',
+          properties: {
+            topic: { type: Type.STRING, description: 'The topic/theme for the autogenerated movie.' }
+          },
+          required: ['topic']
         }
       };
 
@@ -572,6 +712,10 @@ const App: React.FC = () => {
                   setActiveTab('videos');
                   handleSourceVideos(scriptText);
                   result = `Started sourcing videos for your script. Check the Creator tab.`;
+                } else if (fc.name === 'createFullAutopilotVideo') {
+                  const topic = (fc.args as any).topic;
+                  handleAutopilotVideoGeneration(topic);
+                  result = `I am now running the full automatic autopilot engine to cook your video about "${topic}". I will formulate the script, generate voiceover audio with my custom lady accent, and sync premium HD stock clips storyboard automatically. Go to the Creator tab, it will be ready in seconds!`;
                 }
 
                 sessionPromise.then(s => s.sendToolResponse({
@@ -599,10 +743,11 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-          tools: [{ googleSearch: {} }, { functionDeclarations: [navigateToTabDeclaration, generateScriptDeclaration, sourceVideoDeclaration] }],
+          tools: [{ googleSearch: {} }, { functionDeclarations: [navigateToTabDeclaration, generateScriptDeclaration, sourceVideoDeclaration, createFullAutopilotVideoDeclaration] }],
           systemInstruction: `You are 'Kore', a brilliant Nigerian AI Creator Assistant. Speak English, Pidgin, and Igbo. Your vibe is 100% Naija (energetic, witty, helpful). No asterisks.
-          You can control the app! Use tools to change tabs, generate scripts, or source videos. 
-          Respond like a sister on a phone call. If the user asks you to do something, use your tools and inform them naturally.`,
+          You can control the app! Use tools to change tabs, generate scripts, source videos, or cook an entire video automatically. 
+          If the user wants you to make/build/generate a video for a topic, use the 'createFullAutopilotVideo' tool to generate the script, voiceover, and stock footage storyboard with one single action.
+          Respond like a sister on a phone call. Explain what you are doing naturally.`,
           outputAudioTranscription: {},
         }
       });
@@ -843,68 +988,197 @@ const App: React.FC = () => {
 
         {activeTab === 'videos' && (
           <div className="animate-rise space-y-6">
-             <div className="bg-slate-900/40 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
-                <div className="flex flex-col gap-4">
-                  <h2 className="text-xl font-black uppercase text-white">Faceless Video Creator</h2>
-                  <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5">
-                    <button onClick={() => setVideoMode('ai_packaged')} className={`flex-1 py-3 rounded-xl text-[8px] font-black uppercase transition-all ${videoMode === 'ai_packaged' ? 'bg-ggd-orange text-white' : 'text-slate-500'}`}>
-                      AI Packaging (Full Project)
-                    </button>
-                    <button onClick={() => setVideoMode('ordinary')} className={`flex-1 py-3 rounded-xl text-[8px] font-black uppercase transition-all ${videoMode === 'ordinary' ? 'bg-ggd-orange text-white' : 'text-slate-500'}`}>
-                      Ordinary Sourcing
-                    </button>
+            {/* AUTOPILOT MODULE BLOCK */}
+            {isAutopilotRunning ? (
+              <div className="bg-slate-900 border border-ggd-orange/30 rounded-[2.5rem] p-8 space-y-8 text-center animate-pulse">
+                <div className="w-20 h-20 bg-ggd-orange/10 border border-ggd-orange/20 rounded-full mx-auto flex items-center justify-center text-ggd-orange text-3xl animate-spin">
+                  <i className="fa-solid fa-wand-magic-sparkles animate-pulse"></i>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black uppercase text-white tracking-tight">Kore Autopilot Active</h3>
+                  <p className="text-xs text-slate-400 font-medium">Cooking complete faceless video storyboard automatically...</p>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 px-2 leading-relaxed">
+                    <span className={autopilotStep >= 1 ? 'text-ggd-orange font-bold' : ''}>1. Script Draft</span>
+                    <span className={autopilotStep >= 2 ? 'text-blue-400 font-bold' : ''}>2. Speech voice</span>
+                    <span className={autopilotStep >= 3 ? 'text-orange-400 font-bold' : ''}>3. HD Sourcing</span>
+                  </div>
+                  <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className={`h-full transition-all duration-700 rounded-full ${
+                        autopilotStep === 1 ? 'w-1/3 bg-ggd-orange' : 
+                        autopilotStep === 2 ? 'w-2/3 bg-blue-500' : 
+                        'w-full bg-emerald-500'
+                      }`} 
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-slate-950 border border-white/5 rounded-2xl text-[10px] text-slate-400 font-mono italic">
+                  {autopilotLog}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-ggd-orange/10 via-slate-900 to-slate-950 border border-ggd-orange/20 rounded-[2.5rem] p-6 space-y-4 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-ggd-orange/10 flex items-center justify-center text-ggd-orange text-lg">
+                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-[10px] font-black uppercase text-white tracking-widest">Naija Video Autopilot</h4>
+                    <p className="text-[8px] text-slate-400 font-bold">1-Click script generator, voice synthesis & assets syncing</p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                   <textarea value={videoScriptInput} onChange={e => setVideoScriptInput(e.target.value)} className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-ggd-orange resize-none" placeholder="Paste your script to package the video scenes..." />
+                <div className="flex gap-2">
+                  <input 
+                    value={scriptTopic} 
+                    onChange={e => setScriptTopic(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:border-ggd-orange text-white placeholder-slate-600" 
+                    placeholder="e.g. 5 rules of wealth you must learn..." 
+                  />
+                  <button 
+                    onClick={() => handleAutopilotVideoGeneration(scriptTopic)} 
+                    className="px-5 bg-ggd-orange rounded-xl text-[8px] font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all text-white shrink-0"
+                  >
+                    Auto Generate
+                  </button>
                 </div>
+              </div>
+            )}
 
-                <button disabled={isSourcingVideos} onClick={() => handleSourceVideos()} className="w-full py-4 bg-ggd-orange rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">
-                   {isSourcingVideos ? 'Processing HD Project...' : 'Build Video Package'}
-                </button>
-                
-                {sourcedVideos.length > 0 && (
-                  <div className="space-y-6 animate-rise">
-                    <div className="flex items-center justify-between px-2">
-                       <h3 className="text-[10px] font-black uppercase text-slate-400">Project Timeline</h3>
-                       <button onClick={downloadAllVideos} className="px-4 py-2 bg-emerald-600 rounded-xl text-[8px] font-black uppercase flex items-center gap-2">
-                         Download HD Package
-                       </button>
-                    </div>
+            {/* MANUAL CREATOR CONSOLE */}
+            <div className="bg-slate-900/40 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-clapperboard text-ggd-orange text-sm"></i>
+                <h2 className="text-md font-black uppercase text-white">Manual Creator Studio</h2>
+              </div>
 
-                    {videoMode === 'ai_packaged' && (
-                      <div className="space-y-4">
-                        <VideoSequencer 
-                          scriptText={videoScriptInput || generatedScript || "Enter script and create voiceover"} 
-                          voiceoverBase64={lastVoiceoverAudio} 
-                          sourcedVideos={sourcedVideos} 
-                        />
-                        {!lastVoiceoverAudio && (
-                          <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-left text-[9px] text-blue-400 font-bold leading-relaxed flex gap-2">
-                             <span className="text-sm">💡</span>
-                             <span>
-                               <strong>Naija Smart Tip:</strong> Generate a premium voiceover in the <strong>Voice overs</strong> tab first. Your custom voiceover audio will instantly load here, unlocking auto-synced CapCut karaoke subtitles!
-                             </span>
-                          </div>
-                        )}
+              <div className="space-y-2">
+                <textarea 
+                  value={videoScriptInput} 
+                  onChange={e => setVideoScriptInput(e.target.value)} 
+                  className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-ggd-orange resize-none" 
+                  placeholder="Paste script below to fetch stock footage timeline manually..." 
+                />
+              </div>
+
+              <button 
+                disabled={isSourcingVideos} 
+                onClick={() => handleSourceVideos()} 
+                className="w-full py-4 bg-ggd-orange rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all"
+              >
+                {isSourcingVideos ? 'Processing HD Project...' : 'Build Video Package'}
+              </button>
+              
+              {sourcedVideos.length > 0 && (
+                <div className="space-y-6 animate-rise">
+                  <div className="flex items-center justify-between px-2">
+                    <h3 className="text-[10px] font-black uppercase text-slate-400">Project Timeline</h3>
+                    <button onClick={downloadAllVideos} className="px-4 py-2 bg-emerald-600 rounded-xl text-[8px] font-black uppercase flex items-center gap-2">
+                      Download HD Package
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <VideoSequencer 
+                      scriptText={videoScriptInput || generatedScript || "Enter script and create voiceover"} 
+                      voiceoverBase64={lastVoiceoverAudio} 
+                      sourcedVideos={sourcedVideos} 
+                      onVideoCompiled={handleVideoCompiled}
+                    />
+                    {!lastVoiceoverAudio && (
+                      <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-left text-[9px] text-blue-400 font-bold leading-relaxed flex gap-2 font-sans">
+                        <span className="text-sm">💡</span>
+                        <span>
+                          <strong>Naija Smart Tip:</strong> Generate voiceover speech in the <strong>Voice overs</strong> tab first. Your voice audio will automatically sync inside the timelines!
+                        </span>
                       </div>
                     )}
-
-                    <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 scrollbar-hide">
-                      {sourcedVideos.map((video, idx) => (
-                        <div key={video.id} className="relative rounded-2xl overflow-hidden group bg-slate-800 border border-white/5">
-                          <img src={video.image} className="w-full h-24 object-cover opacity-80" alt="" />
-                          <div className="absolute inset-0 flex flex-col justify-end p-2 bg-gradient-to-t from-black/80 to-transparent">
-                            <p className="text-[8px] font-black text-white uppercase">Clip {idx + 1}</p>
-                            <a href={video.video_files.find(f => f.quality === 'hd')?.link || video.video_files[0].link} target="_blank" rel="noopener noreferrer" className="mt-2 w-full py-2 bg-white/10 text-white rounded-lg text-center text-[8px] font-black uppercase" download>Get HD</a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                )}
-             </div>
+
+                  <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 scrollbar-hide">
+                    {sourcedVideos.map((video, idx) => (
+                      <div key={video.id} className="relative rounded-2xl overflow-hidden group bg-slate-800 border border-white/5">
+                        <img src={video.image} className="w-full h-24 object-cover opacity-80" alt="" />
+                        <div className="absolute inset-0 flex flex-col justify-end p-2 bg-gradient-to-t from-black/80 to-transparent">
+                          <p className="text-[8px] font-black text-white uppercase">Clip {idx + 1}</p>
+                          <a href={video.video_files.find(f => f.quality === 'hd')?.link || video.video_files[0].link} target="_blank" rel="noopener noreferrer" className="mt-2 w-full py-2 bg-white/10 text-white rounded-lg text-center text-[8px] font-black uppercase" download>Get HD</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CREATED VIDEO HISTORY GALLERY */}
+            <div className="bg-slate-900/40 rounded-[2.5rem] p-8 border border-white/10 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-clock-rotate-left text-slate-400"></i>
+                  <h3 className="text-[10px] font-black uppercase text-white tracking-widest">Studio Pack History</h3>
+                </div>
+                <span className="text-[9px] font-black uppercase text-ggd-orange px-2 py-0.5 bg-ggd-orange/10 rounded-full">{createdVideos.length} Saved</span>
+              </div>
+
+              {createdVideos.length === 0 ? (
+                <div className="p-10 text-center bg-black/20 rounded-2xl border border-white/5">
+                  <p className="text-[9px] text-slate-500 uppercase font-black tracking-wider leading-relaxed">No custom videos generated yet. Try autopilot above!</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {createdVideos.map((video) => (
+                    <div key={video.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col gap-3 hover:border-ggd-orange/20 transition-all">
+                      <div className="flex justify-between items-start">
+                        <div className="text-left space-y-1">
+                          <p className="text-[10px] font-black uppercase text-white truncate max-w-[180px]">{video.topic}</p>
+                          <p className="text-[8px] text-slate-500 font-bold">{video.date}</p>
+                        </div>
+                        <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${video.aspectRatio === 'vertical' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                          {video.aspectRatio === 'vertical' ? 'Portrait' : 'Landscape'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a 
+                          href={video.videoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2 bg-ggd-orange text-white text-[8px] font-black uppercase rounded-lg text-center tracking-wider hover:brightness-110"
+                        >
+                          Play Demo Video
+                        </a>
+                        <button 
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = video.videoUrl;
+                            link.download = `autopilot_video_${video.id}.mp4`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }} 
+                          className="p-2 bg-white/10 text-white hover:text-ggd-orange rounded-lg text-center text-xs"
+                          title="Download to Files"
+                        >
+                          <i className="fa-solid fa-download"></i>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const updated = createdVideos.filter(v => v.id !== video.id);
+                            setCreatedVideos(updated);
+                            localStorage.setItem('ggd_created_videos', JSON.stringify(updated));
+                          }} 
+                          className="p-2 bg-red-600/10 text-red-500 hover:bg-red-600/20 rounded-lg text-center text-xs"
+                          title="Delete"
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

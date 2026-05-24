@@ -17,6 +17,7 @@ interface VideoSequencerProps {
   scriptText: string;
   voiceoverBase64: string | null;
   sourcedVideos: SourcedVideo[];
+  onVideoCompiled?: (blobUrl: string, orientation: 'vertical' | 'horizontal') => void;
 }
 
 interface TimeWord {
@@ -41,6 +42,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   scriptText,
   voiceoverBase64,
   sourcedVideos,
+  onVideoCompiled,
 }) => {
   const [aspectRatio, setAspectRatio] = useState<'vertical' | 'horizontal'>('vertical');
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -547,6 +549,9 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         setCompiledBlobUrl(videoBlobUrl);
         setIsCompiling(false);
         setCompileProgress(100);
+        if (onVideoCompiled) {
+          onVideoCompiled(videoBlobUrl, aspectRatio);
+        }
       };
 
       // 3. Initiate Real-time Canvas Rendering compilation phase

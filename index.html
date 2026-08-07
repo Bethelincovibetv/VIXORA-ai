@@ -26,10 +26,10 @@
     <meta name="theme-color" content="#020617">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" type="image/jpeg" href="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg">
-    <link rel="apple-touch-icon" href="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg">
+    <link rel="icon" type="image/jpeg" href="/src/assets/images/vixora_logo_1786107851312.jpg">
+    <link rel="apple-touch-icon" href="/src/assets/images/vixora_logo_1786107851312.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         body { 
@@ -38,11 +38,216 @@
           background-color: #020617;
           color: #f8fafc;
           overflow-x: hidden;
+          transition: background-color 0.3s ease, color 0.3s ease;
         }
+
+        /* Light Mode Accessibility Overrides */
+        html.light-mode body {
+          background-color: #f8fafc;
+          color: #0f172a;
+        }
+
+        html.light-mode .mesh-container {
+          opacity: 0.1;
+        }
+
+        /* Convert dark card panels to clean white cards in light mode */
+        html.light-mode div[class*="bg-slate-900"],
+        html.light-mode div[class*="bg-slate-950"],
+        html.light-mode div[class*="bg-black/"],
+        html.light-mode div[class*="bg-slate-800"] {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          border-color: #e2e8f0 !important;
+          box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+        }
+
+        html.light-mode h1, 
+        html.light-mode h2, 
+        html.light-mode h3, 
+        html.light-mode h4,
+        html.light-mode p,
+        html.light-mode label,
+        html.light-mode span:not(.text-white):not(.btn-3d *):not(.bg-ggd-orange *):not(.bg-blue-600 *):not(.bg-purple-600 *):not(.bg-emerald-600 *):not(.bg-amber-500 *) {
+          color: #0f172a;
+        }
+
+        html.light-mode p.text-slate-400,
+        html.light-mode span.text-slate-400,
+        html.light-mode p.text-slate-500,
+        html.light-mode span.text-slate-500 {
+          color: #475569 !important;
+        }
+
+        /* Preserve bright white text inside colorful buttons, badges, pills in light mode */
+        html.light-mode .btn-3d,
+        html.light-mode .btn-3d *,
+        html.light-mode button[class*="bg-ggd-orange"],
+        html.light-mode button[class*="bg-ggd-orange"] *,
+        html.light-mode button[class*="bg-blue-"],
+        html.light-mode button[class*="bg-blue-"] *,
+        html.light-mode button[class*="bg-purple-"],
+        html.light-mode button[class*="bg-purple-"] *,
+        html.light-mode button[class*="bg-emerald-"],
+        html.light-mode button[class*="bg-emerald-"] *,
+        html.light-mode button[class*="bg-amber-"],
+        html.light-mode button[class*="bg-amber-"] *,
+        html.light-mode [class*="bg-gradient-"] span,
+        html.light-mode [class*="bg-gradient-"] p,
+        html.light-mode [class*="bg-gradient-"] i {
+          color: #ffffff !important;
+        }
+
+        /* Light mode input fields & dropdowns */
+        html.light-mode input, 
+        html.light-mode textarea, 
+        html.light-mode select {
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+        }
+
+        html.light-mode input::placeholder, 
+        html.light-mode textarea::placeholder {
+          color: #64748b !important;
+        }
+
+        /* Bottom Navigation Bar Light Mode styling */
+        html.light-mode nav.fixed {
+          background-color: rgba(255, 255, 255, 0.95) !important;
+          border-color: #cbd5e1 !important;
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12);
+        }
+
+        html.light-mode nav.fixed button span {
+          color: #64748b !important;
+        }
+
+        html.light-mode nav.fixed button.text-ggd-orange span {
+          color: #ea580c !important;
+        }
+
+        html.light-mode nav.fixed button.text-purple-400 span {
+          color: #9333ea !important;
+        }
+
+        html.light-mode nav.fixed button.text-orange-400 span {
+          color: #ea580c !important;
+        }
+
+        html.light-mode nav.fixed button.text-blue-400 span {
+          color: #2563eb !important;
+        }
+
+        html.light-mode nav.fixed button.text-amber-400 span {
+          color: #d97706 !important;
+        }
+
+        html.light-mode nav.fixed button.text-emerald-400 span {
+          color: #059669 !important;
+        }
+
+        /* Tactile Colorful 3D Buttons */
+        .btn-3d {
+          position: relative;
+          transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+          transform: translateY(0);
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          border-radius: 1.25rem;
+        }
+
+        .btn-3d-orange {
+          background: linear-gradient(135deg, #ff7700 0%, #ff4500 100%);
+          color: #ffffff !important;
+          border: 1px solid #ff6600;
+          box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #b33600, 0 8px 18px rgba(255, 85, 0, 0.35);
+        }
+        .btn-3d-orange:hover {
+          background: linear-gradient(135deg, #ff8811 0%, #ff5511 100%);
+        }
+        .btn-3d-orange:active {
+          transform: translateY(3px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #b33600, 0 2px 5px rgba(255, 85, 0, 0.2);
+        }
+
+        .btn-3d-purple {
+          background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+          color: #ffffff !important;
+          border: 1px solid #9333ea;
+          box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #581c87, 0 8px 18px rgba(168, 85, 247, 0.35);
+        }
+        .btn-3d-purple:hover {
+          background: linear-gradient(135deg, #b666f8 0%, #8b2bd7 100%);
+        }
+        .btn-3d-purple:active {
+          transform: translateY(3px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #581c87, 0 2px 5px rgba(168, 85, 247, 0.2);
+        }
+
+        .btn-3d-blue {
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          color: #ffffff !important;
+          border: 1px solid #2563eb;
+          box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #1e3a8a, 0 8px 18px rgba(59, 130, 246, 0.35);
+        }
+        .btn-3d-blue:hover {
+          background: linear-gradient(135deg, #4b92ff 0%, #255ce8 100%);
+        }
+        .btn-3d-blue:active {
+          transform: translateY(3px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #1e3a8a, 0 2px 5px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-3d-emerald {
+          background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+          color: #ffffff !important;
+          border: 1px solid #059669;
+          box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #064e3b, 0 8px 18px rgba(16, 185, 129, 0.35);
+        }
+        .btn-3d-emerald:hover {
+          background: linear-gradient(135deg, #22c55e 0%, #059669 100%);
+        }
+        .btn-3d-emerald:active {
+          transform: translateY(3px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #064e3b, 0 2px 5px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-3d-amber {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          color: #ffffff !important;
+          border: 1px solid #eab308;
+          box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #78350f, 0 8px 18px rgba(245, 158, 11, 0.35);
+        }
+        .btn-3d-amber:hover {
+          background: linear-gradient(135deg, #fbbf24 0%, #e5880a 100%);
+        }
+        .btn-3d-amber:active {
+          transform: translateY(3px);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 0 #78350f, 0 2px 5px rgba(245, 158, 11, 0.2);
+        }
+
+        /* High Contrast Accessibility Mode */
+        html.high-contrast body {
+          filter: contrast(125%);
+        }
+
+        /* Accessibility Large Text */
+        html.accessibility-large-text {
+          font-size: 112.5%;
+        }
+
         .glass-card { 
           background: rgba(15, 23, 42, 0.6); 
           backdrop-filter: blur(20px); 
           border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+
+        html.light-mode .glass-card {
+          background: rgba(255, 255, 255, 0.9);
+          border: 1px solid rgba(203, 213, 225, 0.8);
+          color: #0f172a;
         }
         
         /* Animated Mesh Background */
@@ -54,6 +259,7 @@
             height: 100%;
             z-index: -1;
             overflow: hidden;
+            transition: opacity 0.3s ease;
         }
 
         .mesh-orb {
@@ -87,7 +293,6 @@
         .text-ggd-orange { color: #ff6600; }
         .border-ggd-orange { border-color: #ff6600; }
     </style>
-    <link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div class="mesh-container">

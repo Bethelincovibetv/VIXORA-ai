@@ -16,6 +16,67 @@
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import https from 'https';
+
+// Mood of the script mapping lists
+const extractMoodFromScript = (text) => {
+  const content = text.toLowerCase();
+  if (content.includes('calm') || content.includes('peace') || content.includes('relax') || content.includes('nature') || content.includes('breathe') || content.includes('soothing')) {
+    return 'calm';
+  }
+  if (content.includes('upbeat') || content.includes('happy') || content.includes('joy') || content.includes('fun') || content.includes('exciting') || content.includes('bright')) {
+    return 'upbeat';
+  }
+  if (content.includes('dramatic') || content.includes('epic') || content.includes('scary') || content.includes('danger') || content.includes('sad') || content.includes('dark')) {
+    return 'dramatic';
+  }
+  if (content.includes('tech') || content.includes('future') || content.includes('cyber') || content.includes('space') || content.includes('cyberpunk')) {
+    return 'tech';
+  }
+  if (content.includes('corporate') || content.includes('business') || content.includes('professional') || content.includes('office') || content.includes('presentation')) {
+    return 'corporate';
+  }
+  return 'motivational';
+};
+
+const BGM_TRACKS = {
+  motivational: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  dramatic: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+  calm: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+  upbeat: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+  corporate: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+  tech: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3'
+};
+
+const downloadFile = (url, dest) => {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        // Handle redirect
+        https.get(response.headers.location, (redirResponse) => {
+          redirResponse.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            resolve(dest);
+          });
+        }).on('error', (err) => {
+          try { fs.unlinkSync(dest); } catch(e){}
+          reject(err);
+        });
+        return;
+      }
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve(dest);
+      });
+    }).on('error', (err) => {
+      try { fs.unlinkSync(dest); } catch(e){}
+      reject(err);
+    });
+  });
+};
 
 // Simple arguments parser
 const args = {};
@@ -159,6 +220,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     fs.writeFileSync(assFile, assHeader + assBody);
     console.log('[+] Advanced timed sub-captions file written successfully.');
 
+    // Auto-detect script mood theme & download background track loop safely
+    const detectedMood = extractMoodFromScript(script);
+    const bgmUrl = BGM_TRACKS[detectedMood] || BGM_TRACKS.motivational;
+    const bgmTempPath = path.join(path.dirname(outputPath) || '.', 'temp_bgm.mp3');
+
+    console.log(`[+] Auto-detected script mood theme: ${detectedMood.toUpperCase()}`);
+    console.log(`[+] Sourcing background music loops from: ${bgmUrl}`);
+    
+    try {
+      await downloadFile(bgmUrl, bgmTempPath);
+      console.log(`[+] Background loop track prepared and cached successfully.`);
+    } catch (bgmErr) {
+      console.error(`[-] Could not download BGM track loop, running voiceover compile fallback:`, bgmErr);
+    }
+
+    const hasBgm = fs.existsSync(bgmTempPath);
+
     // 2. Generate FFmpeg command scripts
     const w = orientation === 'vertical' ? 1080 : 1920;
     const h = orientation === 'vertical' ? 1920 : 1080;
@@ -174,9 +252,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     });
     // Add voiceover audio input
     inputs += ` -i "${audioPath}"`;
+    
+    if (hasBgm) {
+      // Add background music loop input
+      inputs += ` -stream_loop -1 -i "${bgmTempPath}"`;
+    }
 
     // Map each segment slot in timeline in order
     let sceneInputsCount = videoPaths.length;
+    let bmgInputIdx = sceneInputsCount + 1; // index in FFmpeg inputs array
     let mapStrs = '';
 
     timeline.forEach((seg, index) => {
@@ -189,10 +273,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     });
 
     filterComplex += `${mapStrs}concat=n=${timeline.length}:v=1:a=0[vmaster];`;
-    // Attach Subtitles track filter
-    filterComplex += `[vmaster]subtitles='${assFile.replace(/\\/g, '/')}'[vfinal]`;
+    
+    if (hasBgm) {
+      // Attach Subtitles track filter
+      filterComplex += `[vmaster]subtitles='${assFile.replace(/\\/g, '/')}'[vfinal];`;
+      // Audio Mixer Graph
+      filterComplex += `[${sceneInputsCount}:a]volume=1.0[vo];[${bmgInputIdx}:a]volume=0.15[bg];[vo][bg]amix=inputs=2:duration=first:dropout_transition=2[mixed_audio]`;
+    } else {
+      filterComplex += `[vmaster]subtitles='${assFile.replace(/\\/g, '/')}'[vfinal]`;
+    }
 
-    const finalCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vfinal]" -map ${sceneInputsCount}:a -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 192k "${outputPath}"`;
+    const finalCmd = hasBgm
+      ? `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vfinal]" -map "[mixed_audio]" -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 192k "${outputPath}"`
+      : `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vfinal]" -map ${sceneInputsCount}:a -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 192k "${outputPath}"`;
 
     console.log('[+] Run command pipeline generated:');
     console.log(`    ${finalCmd.slice(0, 500)}...`);
@@ -200,8 +293,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     console.log('[+] Compiling final media clips using FFmpeg wrapper. Please wait...');
     
     exec(finalCmd, (execErr, stdout, stderr) => {
-      // Clean temporary timing subtitles file
+      // Clean temporary timing subtitles and temporary download tracks
       try { fs.unlinkSync(assFile); } catch(e){}
+      try { if (hasBgm) fs.unlinkSync(bgmTempPath); } catch(e){}
 
       if (execErr) {
         console.error('[-] Compilation error: ', execErr);

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from "@google/genai";
 import { UserProfile, Bank } from './types';
 import { VideoSequencer } from './components/VideoSequencer';
-import { PRESET_MUSIC_TRACKS } from './constants';
+import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
+import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/supabaseService';
 import vixoraLogo from './src/assets/images/vixora_logo_1786107851312.jpg';
 import vixoraAgentAvatar from './src/assets/images/vixora_agent_avatar_1786108775324.jpg';
 import viralGrowthBanner from './src/assets/images/viral_growth_banner_1786110948420.jpg';
@@ -42,6 +43,8 @@ export const NICHE_OPTIONS = [
     id: 'finance', 
     name: 'Finance & Wealth', 
     icon: 'fa-sack-dollar', 
+    coverImage: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-amber-500 to-orange-600',
     promptSuffix: 'Write in a professional, wealth-building, high-retention tone focusing on finance, investing, passive income, and smart money habits.',
     suggestions: [
       "5 rules of wealth you must learn",
@@ -53,6 +56,8 @@ export const NICHE_OPTIONS = [
     id: 'motivation', 
     name: 'Motivation & Mindset', 
     icon: 'fa-fire-flame-curved', 
+    coverImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-orange-500 to-red-600',
     promptSuffix: 'Write in a deeply moving, highly inspirational, high-retention tone focusing on self-discipline, mindset shifting, morning habits, and relentless focus.',
     suggestions: [
       "How to build unbreakable discipline",
@@ -64,6 +69,8 @@ export const NICHE_OPTIONS = [
     id: 'tech', 
     name: 'Tech & Future AI', 
     icon: 'fa-microchip', 
+    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-cyan-500 to-blue-600',
     promptSuffix: 'Write in a fascinating, tech-forward, high-octane voice focusing on cutting-edge AI breakthroughs, futuristic tech, cyber developments, and smart gadgets.',
     suggestions: [
       "AI is evolving faster than you think",
@@ -75,6 +82,8 @@ export const NICHE_OPTIONS = [
     id: 'history', 
     name: 'Ancient History & Mythology', 
     icon: 'fa-scroll', 
+    coverImage: 'https://images.unsplash.com/photo-1568792923760-d70635a89fdc?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-amber-600 to-yellow-700',
     promptSuffix: 'Write in a suspenseful, epic storytelling vibe focusing on historic ancient wars, Roman/Greek secrets, and legendary mythological figures.',
     suggestions: [
       "The secret lives of Roman Gladiators",
@@ -84,8 +93,10 @@ export const NICHE_OPTIONS = [
   },
   { 
     id: 'psychology', 
-    name: 'Psychology & Relationships', 
+    name: 'Psychology & Human Mind', 
     icon: 'fa-brain', 
+    coverImage: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-purple-500 to-indigo-600',
     promptSuffix: 'Write in a curious, eye-opening psychological tone focusing on dark psychology facts, human behavior patterns, relationship dynamics, and mind reading.',
     suggestions: [
       "3 body language tricks to read anyone",
@@ -95,13 +106,41 @@ export const NICHE_OPTIONS = [
   },
   { 
     id: 'health', 
-    name: 'Health & Workout Longevity', 
+    name: 'Health & Biohacking', 
     icon: 'fa-heart-pulse', 
+    coverImage: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-emerald-500 to-teal-600',
     promptSuffix: 'Write in an energetic, health-conscious, informative style focusing on biohacking secrets, longevity workouts, superfoods, and holistic body wellness.',
     suggestions: [
       "Biohacking secrets to live 100 years",
       "The optimal daily workout for focus",
       "What happens to your body when you fast"
+    ]
+  },
+  { 
+    id: 'crime', 
+    name: 'True Crime & Mystery', 
+    icon: 'fa-user-ninja', 
+    coverImage: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-slate-700 to-slate-900',
+    promptSuffix: 'Write in a chilling, suspenseful, gripping documentary style focusing on unsolved mysteries, cold case investigations, and criminal psychology.',
+    suggestions: [
+      "The unrevealed mystery of the Lost Heist",
+      "3 cold cases that shocked the world",
+      "Inside the mind of a master deceiver"
+    ]
+  },
+  { 
+    id: 'luxury', 
+    name: 'Luxury & Lifestyle', 
+    icon: 'fa-gem', 
+    coverImage: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+    colorGradient: 'from-yellow-500 to-amber-600',
+    promptSuffix: 'Write in an opulent, high-status, mesmerizing tone focusing on billionaire lifestyle habits, hypercars, luxury watches, and elite private jets.',
+    suggestions: [
+      "How billionaires spend their first million",
+      "Inside the world's most expensive hypercars",
+      "The unspoken habits of the top 0.1%"
     ]
   }
 ];
@@ -240,6 +279,25 @@ const App: React.FC = () => {
   const [showPwaPrompt, setShowPwaPrompt] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  const triggerPwaInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsStandalone(true);
+        setShowPwaPrompt(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      alert("To install Vixora Studio on your device:\n\n1. Tap your browser menu (⋮ or share icon)\n2. Select 'Add to Home Screen' or 'Install App'\n3. Launch directly from your home screen!");
+    }
+  };
+
+  const dismissPwaPrompt = () => {
+    setShowPwaPrompt(false);
+    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
+  };
+
   // API Update State
   const [newApiKey, setNewApiKey] = useState('');
 
@@ -251,7 +309,8 @@ const App: React.FC = () => {
   
   // Voiceover State
   const [voiceoverText, setVoiceoverText] = useState('');
-  const [selectedVoice] = useState('Kore'); // Fixed to Vixora Voice (Kore)
+  const [selectedVoice, setSelectedVoice] = useState('Kore'); // Default Vixora Voice (Kore)
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [isGeneratingVoiceover, setIsGeneratingVoiceover] = useState(false);
   const [lastVoiceoverAudio, setLastVoiceoverAudio] = useState<string | null>(null);
   const [voiceoverHistory, setVoiceoverHistory] = useState<Array<{ id: string; text: string; audioBase64: string; date: string }>>(() => {
@@ -329,6 +388,50 @@ const App: React.FC = () => {
     stateRef.current = { activeTab, videoMode, scriptTopic, videoScriptInput, voiceoverText };
   }, [activeTab, videoMode, scriptTopic, videoScriptInput, voiceoverText]);
 
+  // Voice preview function
+  const handlePreviewVoice = async (voiceOption: typeof VOICE_AVATAR_OPTIONS[0]) => {
+    const activeApiKey = user?.apiKey || process.env.API_KEY;
+    if (!activeApiKey) {
+      setAppError("Gemini API Key required to preview voice.");
+      return;
+    }
+    setPreviewingVoiceId(voiceOption.id);
+    try {
+      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: voiceOption.sampleText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voiceOption.voiceName },
+            },
+          },
+        },
+      });
+
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        const pcmData = decode(base64Audio);
+        const wavHeader = createWavHeader(pcmData.length, 24000, 1, 16);
+        const audioFile = new Uint8Array(wavHeader.length + pcmData.length);
+        audioFile.set(wavHeader);
+        audioFile.set(pcmData, wavHeader.length);
+
+        const blob = new window.Blob([audioFile], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+        const previewAudio = new Audio(url);
+        previewAudio.play();
+      }
+    } catch (err) {
+      console.error("Voice preview failed:", err);
+      setAppError("Voice preview error. Please check your API key.");
+    } finally {
+      setPreviewingVoiceId(null);
+    }
+  };
+
   // --- INITIALIZATION ---
 
   useEffect(() => {
@@ -345,6 +448,14 @@ const App: React.FC = () => {
       }
     }
     setLoading(false);
+
+    // Sync remote data from Supabase or fallback
+    syncFetchCreatedVideos().then(vids => {
+      if (vids && vids.length > 0) setCreatedVideos(vids);
+    });
+    syncFetchVoiceovers().then(vos => {
+      if (vos && vos.length > 0) setVoiceoverHistory(vos);
+    });
 
     // Detect Standalone display mode / pre-installed app execution
     if (window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) {
@@ -406,22 +517,6 @@ const App: React.FC = () => {
       setIsPlayingPreview(false);
     };
   }, [activeTab, previewAudioRef]);
-
-  const triggerPwaInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsStandalone(true);
-      setShowPwaPrompt(false);
-    }
-    setDeferredPrompt(null);
-  };
-
-  const dismissPwaPrompt = () => {
-    setShowPwaPrompt(false);
-    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
-  };
 
   const updateApiKey = () => {
     if (!user) return;
@@ -713,12 +808,12 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Speak this script with a natural, professional female accent. No conversational filler: ${text.replace(/\*/g, '')}` }] }],
+        contents: [{ parts: [{ text: `Speak this script with a natural, professional accent. No conversational filler: ${text.replace(/\*/g, '')}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
+              prebuiltVoiceConfig: { voiceName: selectedVoice || 'Kore' },
             },
           },
         },
@@ -736,7 +831,7 @@ const App: React.FC = () => {
         };
         const updatedHistory = [newEntry, ...voiceoverHistory];
         setVoiceoverHistory(updatedHistory);
-        localStorage.setItem('vixora_voiceover_history', JSON.stringify(updatedHistory));
+        syncSaveVoiceover(newEntry);
 
         // Auto play generated audio using our player
         togglePlayVoiceoverItem(newId, base64Audio);
@@ -764,8 +859,8 @@ const App: React.FC = () => {
     };
     const updated = [newVideo, ...createdVideos];
     setCreatedVideos(updated);
-    localStorage.setItem('ggd_created_videos', JSON.stringify(updated));
-    alert("🎉 Ultimate Video compiled successfully & saved to your local Vixora Studio Gallery!");
+    syncSaveCreatedVideo(newVideo);
+    alert("🎉 Ultimate Video compiled successfully & saved to your Vixora Studio Gallery!");
   };
 
   const handleAutopilotVideoGeneration = async (topicToUse: string) => {
@@ -1456,20 +1551,86 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-1 text-left">
-                  <label className="text-[9px] font-black uppercase text-slate-400">AI Voice</label>
-                  <select 
-                    value={selectedVoice} 
-                    onChange={e => setSelectedVoice(e.target.value as any)}
-                    className={`w-full py-2.5 px-3 border rounded-xl text-xs font-bold outline-none focus:border-rose-500 ${themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-black/40 border-white/10 text-white'}`}
-                  >
-                    <option value="Aoede" className={themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>Aoede (Nigerian)</option>
-                    <option value="Kore" className={themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>Kore (Smooth Female)</option>
-                    <option value="Charon" className={themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>Charon (Deep Male)</option>
-                    <option value="Fenrir" className={themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>Fenrir (Energetic)</option>
-                    <option value="Puck" className={themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}>Puck (Friendly)</option>
-                  </select>
+              {/* VISUAL VOICE AVATAR SELECTION GRID FOR AUTOPILOT */}
+              <div className="space-y-2 pt-2 text-left">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1">
+                    <i className="fa-solid fa-microphone-lines"></i> Select Voice Avatar & Accent
+                  </label>
+                  <span className="text-[8px] font-black uppercase text-slate-400">Click avatar to select, click ▶ to preview voice</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {VOICE_AVATAR_OPTIONS.map((v) => {
+                    const isSelected = selectedVoice === v.voiceName;
+                    const isPreviewingThis = previewingVoiceId === v.id;
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => setSelectedVoice(v.voiceName)}
+                        className={`p-2.5 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between overflow-hidden ${
+                          isSelected
+                            ? 'bg-rose-500/15 border-rose-500 shadow-md ring-2 ring-rose-500/30'
+                            : themeMode === 'light'
+                              ? 'bg-white border-slate-200 hover:border-rose-300'
+                              : 'bg-black/30 border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="relative shrink-0">
+                            <img
+                              src={v.avatar}
+                              alt={v.name}
+                              className="w-10 h-10 rounded-full object-cover border border-rose-500/30 shadow-sm"
+                              referrerPolicy="no-referrer"
+                            />
+                            {v.isVixoraVoice && (
+                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-ggd-orange border border-white rounded-full flex items-center justify-center text-[7px] text-white font-black">
+                                ★
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-[10px] font-black uppercase truncate ${isSelected ? 'text-rose-500' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                              {v.name}
+                            </p>
+                            <p className={`text-[8px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                              {v.flag} {v.accent}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1 mt-1 pt-1.5 border-t border-white/5">
+                          <span className={`text-[7.5px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                            {v.gender} • {v.style}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isPreviewingThis}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreviewVoice(v);
+                            }}
+                            className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 transition-all shrink-0 ${
+                              isPreviewingThis
+                                ? 'bg-rose-500 text-white animate-pulse'
+                                : 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20'
+                            }`}
+                            title={`Preview ${v.name}'s voice`}
+                          >
+                            {isPreviewingThis ? (
+                              <i className="fa-solid fa-spinner animate-spin"></i>
+                            ) : (
+                              <i className="fa-solid fa-play text-[7px]"></i>
+                            )}
+                            <span>{isPreviewingThis ? 'Playing...' : 'Preview'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1603,26 +1764,71 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Niche Search Filter Chips */}
-              <div className={`pt-3 border-t space-y-2 ${themeMode === 'light' ? 'border-slate-200' : 'border-white/5'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-widest text-left ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Active Niche Filter</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button 
+              {/* PREVIOUSLY: Niche Search Filter Cards with Images */}
+              <div className={`pt-3 border-t space-y-3 ${themeMode === 'light' ? 'border-slate-200' : 'border-white/5'}`}>
+                <div className="flex items-center justify-between">
+                  <p className={`text-[10px] font-black uppercase tracking-widest text-left ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-200'}`}>
+                    <i className="fa-solid fa-photo-film text-ggd-orange mr-1"></i> Video Niche Categories
+                  </p>
+                  <span className="text-[8px] font-black uppercase text-slate-400">Select niche to filter HD footage</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div
                     onClick={() => setSelectedNicheFilter('all')}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-black uppercase transition-all ${selectedNicheFilter === 'all' ? 'bg-ggd-orange text-white border-ggd-orange' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-200'}`}
+                    className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between overflow-hidden relative min-h-[72px] ${
+                      selectedNicheFilter === 'all'
+                        ? 'bg-ggd-orange border-ggd-orange text-white shadow-md'
+                        : themeMode === 'light'
+                          ? 'bg-slate-100 border-slate-200 text-slate-800 hover:border-slate-300'
+                          : 'bg-black/30 border-white/10 text-slate-300 hover:border-white/20'
+                    }`}
                   >
-                    All Niches
-                  </button>
-                  {NICHE_OPTIONS.map(n => (
-                    <button 
-                      key={n.id}
-                      onClick={() => setSelectedNicheFilter(n.id)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-black uppercase flex items-center gap-1.5 transition-all ${selectedNicheFilter === n.id ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-black shadow-sm' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10'}`}
-                    >
-                      <i className={`fa-solid ${n.icon} text-xs`}></i>
-                      <span>{n.name}</span>
-                    </button>
-                  ))}
+                    <div className="flex items-center gap-1.5">
+                      <i className="fa-solid fa-shapes text-xs"></i>
+                      <span className="text-[10px] font-black uppercase truncate">All Niches</span>
+                    </div>
+                    <span className="text-[8px] font-bold uppercase opacity-80">Universal Footage</span>
+                  </div>
+
+                  {NICHE_OPTIONS.map(n => {
+                    const isSelected = selectedNicheFilter === n.id;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => setSelectedNicheFilter(n.id)}
+                        className={`group relative rounded-2xl border transition-all cursor-pointer overflow-hidden min-h-[76px] flex flex-col justify-end p-2.5 ${
+                          isSelected
+                            ? 'ring-2 ring-ggd-orange border-ggd-orange shadow-lg'
+                            : 'border-white/10 hover:border-ggd-orange/50'
+                        }`}
+                      >
+                        <img
+                          src={n.coverImage}
+                          alt={n.name}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent"></div>
+                        
+                        <div className="relative z-10 space-y-0.5 text-left">
+                          <div className="flex items-center gap-1 text-white">
+                            <i className={`fa-solid ${n.icon} text-[9px] text-ggd-orange`}></i>
+                            <span className="text-[9.5px] font-black uppercase tracking-tight text-white truncate">{n.name}</span>
+                          </div>
+                          <p className="text-[7.5px] text-slate-300 font-bold truncate">
+                            {n.suggestions[0]}
+                          </p>
+                        </div>
+
+                        {isSelected && (
+                          <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-ggd-orange text-white rounded-full flex items-center justify-center text-[8px] font-black shadow-md z-10">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1631,7 +1837,7 @@ const App: React.FC = () => {
                 <p className="text-[10px] font-black text-ggd-orange uppercase tracking-widest flex items-center gap-1.5 text-left">
                   <i className="fa-solid fa-lightbulb"></i> Recommended Niche Starters (Click to generate)
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {(selectedNicheFilter === 'all' 
                     ? NICHE_OPTIONS[0].suggestions.concat(NICHE_OPTIONS[1].suggestions).slice(0, 3)
                     : NICHE_OPTIONS.find(n => n.id === selectedNicheFilter)?.suggestions || []
@@ -1642,9 +1848,9 @@ const App: React.FC = () => {
                         setScriptTopic(suggestion);
                         setVideoScriptInput(suggestion);
                       }}
-                      className={`flex-1 p-2.5 rounded-xl border text-left text-xs font-bold uppercase leading-snug transition-all truncate ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-800 hover:border-ggd-orange hover:text-ggd-orange shadow-sm' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'}`}
+                      className={`p-2.5 rounded-xl border text-left text-xs font-bold uppercase leading-snug transition-all truncate ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-800 hover:border-ggd-orange hover:text-ggd-orange shadow-sm' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10 hover:text-white'}`}
                     >
-                      💡 {suggestion}
+                      ⚡ {suggestion}
                     </button>
                   ))}
                 </div>
@@ -1892,26 +2098,108 @@ const App: React.FC = () => {
              {/* VIXORA VOICE PROFILE & GENERATOR */}
              <div className={`rounded-2xl p-5 border space-y-4 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
                 
-                {/* VIXORA FEMALE VOICE AVATAR PROFILE CARD */}
-                <div className={`p-4 rounded-xl border flex items-center gap-3.5 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                  <div className="relative shrink-0">
-                    <img 
-                      src={vixoraAgentAvatar} 
-                      alt="Vixora Voice Avatar" 
-                      className="w-14 h-14 rounded-full object-cover border-2 border-ggd-orange shadow-md"
-                    />
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                {/* ACTIVE VOICE SELECTION BANNER */}
+                <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3.5 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                  {(() => {
+                    const currentVo = VOICE_AVATAR_OPTIONS.find(v => v.voiceName === selectedVoice) || VOICE_AVATAR_OPTIONS[0];
+                    return (
+                      <div className="flex items-center gap-3.5 text-left">
+                        <div className="relative shrink-0">
+                          <img 
+                            src={currentVo.avatar} 
+                            alt={currentVo.name} 
+                            className="w-14 h-14 rounded-full object-cover border-2 border-ggd-orange shadow-md"
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-black uppercase tracking-tight text-ggd-orange">{currentVo.name}</h3>
+                            <span className="px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
+                              {currentVo.flag} {currentVo.accent}
+                            </span>
+                          </div>
+                          <p className={`text-[9.5px] font-medium leading-tight ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                            {currentVo.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* VOICE AVATARS GRID SELECTION WITH PREVIEWS */}
+                <div className="space-y-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
+                      <i className="fa-solid fa-users"></i> Available Voice Avatars
+                    </label>
+                    <span className="text-[8px] font-black uppercase text-slate-400">Click avatar to select voice</span>
                   </div>
-                  <div className="space-y-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-black uppercase tracking-tight text-ggd-orange">Vixora Voice</h3>
-                      <span className="px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
-                        Official AI Voice
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-slate-400 font-medium leading-tight">
-                      Studio-grade natural narration voice engine tuned for viral video creators.
-                    </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {VOICE_AVATAR_OPTIONS.map((v) => {
+                      const isSelected = selectedVoice === v.voiceName;
+                      const isPreviewingThis = previewingVoiceId === v.id;
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={() => setSelectedVoice(v.voiceName)}
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-ggd-orange/15 border-ggd-orange shadow-md ring-2 ring-ggd-orange/30'
+                              : themeMode === 'light'
+                                ? 'bg-white border-slate-200 hover:border-ggd-orange/40'
+                                : 'bg-black/30 border-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <img
+                              src={v.avatar}
+                              alt={v.name}
+                              className="w-10 h-10 rounded-full object-cover border border-ggd-orange/30 shrink-0 shadow-sm"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className={`text-[10px] font-black uppercase truncate ${isSelected ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                                {v.name}
+                              </p>
+                              <p className={`text-[8px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                                {v.flag} {v.accent}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-white/5">
+                            <span className={`text-[7.5px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                              {v.gender}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isPreviewingThis}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreviewVoice(v);
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 transition-all shrink-0 ${
+                                isPreviewingThis
+                                  ? 'bg-ggd-orange text-white animate-pulse'
+                                  : 'bg-ggd-orange/10 text-ggd-orange hover:bg-ggd-orange hover:text-white border border-ggd-orange/20'
+                              }`}
+                              title={`Preview ${v.name}'s voice`}
+                            >
+                              {isPreviewingThis ? (
+                                <i className="fa-solid fa-spinner animate-spin"></i>
+                              ) : (
+                                <i className="fa-solid fa-play text-[7px]"></i>
+                              )}
+                              <span>{isPreviewingThis ? 'Playing...' : 'Preview'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

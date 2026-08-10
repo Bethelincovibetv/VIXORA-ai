@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.38.0",
+    "@supabase/supabase-js": "^2.112.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@google/genai": "^1.38.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

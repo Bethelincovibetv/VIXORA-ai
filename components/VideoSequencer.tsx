@@ -1473,9 +1473,40 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           })}
         </div>
 
-        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5'}`}>
-          <div className="flex-1 flex items-center gap-2.5">
-            <span className={`text-[9px] font-black uppercase shrink-0 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Music Volume:</span>
+        <div className={`flex flex-col gap-3 p-3.5 rounded-2xl border ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <span className={`text-[9px] font-black uppercase flex items-center gap-1.5 ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-200'}`}>
+              <i className="fa-solid fa-sliders text-ggd-orange"></i>
+              <span>Smart Audio Balance & Ducking Wizard</span>
+            </span>
+            <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
+              <i className="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Ducked
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setMusicVolume(0.08)}
+              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume <= 0.1 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+            >
+              Quiet Background (8%)
+            </button>
+            <button
+              onClick={() => setMusicVolume(0.18)}
+              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume > 0.1 && musicVolume <= 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+            >
+              Balanced Mix (18%)
+            </button>
+            <button
+              onClick={() => setMusicVolume(0.32)}
+              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume > 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+            >
+              Music Up (32%)
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <span className={`text-[9px] font-black uppercase shrink-0 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Volume Slider:</span>
             <input
               type="range"
               min="0"
@@ -1492,13 +1523,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               className="flex-1 accent-ggd-orange max-w-xs cursor-pointer"
             />
             <span className="text-[9px] font-mono text-ggd-orange font-bold shrink-0">{Math.round(musicVolume * 100)}%</span>
-            <span className={`text-[8px] font-bold uppercase ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>(15% is optimal)</span>
           </div>
-          {musicError && (
-            <p className="text-[8px] font-bold text-red-500 leading-tight shrink-0">
-              {musicError}
-            </p>
-          )}
         </div>
       </div>
 

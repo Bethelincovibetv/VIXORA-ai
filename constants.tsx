@@ -23,6 +23,72 @@ export interface PresetTrack {
   description: string;
 }
 
+export interface VoiceOption {
+  id: string;
+  name: string;
+  voiceName: string;
+  accent: string;
+  gender: 'Female' | 'Male';
+  avatar: string;
+  description: string;
+  sampleText: string;
+  badge?: string;
+}
+
+export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
+  {
+    id: 'kore_nigerian',
+    name: 'Vixora Voice (Kore)',
+    voiceName: 'Kore',
+    accent: 'Nigerian Female Accent',
+    gender: 'Female',
+    avatar: 'https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg',
+    description: 'Fluent, natural Nigerian female tone. Flagship Vixora Studio Voice Generator.',
+    sampleText: 'Hello! Welcome to Vixora Studio. I am your main AI voiceover generator.',
+    badge: 'DEFAULT VIXORA VOICE'
+  },
+  {
+    id: 'aoede_warm',
+    name: 'Aoede',
+    voiceName: 'Aoede',
+    accent: 'Warm Storytelling Accent',
+    gender: 'Female',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    description: 'Gentle, engaging female narrator tone for documentary and lifestyle shorts.',
+    sampleText: 'Empower your content with high-retention storytelling and effortless clarity.'
+  },
+  {
+    id: 'puck_high_energy',
+    name: 'Puck',
+    voiceName: 'Puck',
+    accent: 'High Energy Viral Accent',
+    gender: 'Male',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    description: 'Upbeat, fast-paced viral male voice ideal for TikTok and YouTube Shorts hooks.',
+    sampleText: 'Stop scrolling right now! Here are three secrets to build wealth before 30.'
+  },
+  {
+    id: 'charon_dramatic',
+    name: 'Charon',
+    voiceName: 'Charon',
+    accent: 'Deep Cinematic Accent',
+    gender: 'Male',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    description: 'Authoritative deep cinematic tone for true crime, history, and mysteries.',
+    sampleText: 'In a world driven by constant evolution, one historic truth remains untouched.'
+  },
+  {
+    id: 'fenrir_bold',
+    name: 'Fenrir',
+    voiceName: 'Fenrir',
+    accent: 'Bold & Direct Accent',
+    gender: 'Male',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80',
+    description: 'Strong, articulate male tone for tech reviews, news, and business breakdowns.',
+    sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough of the decade.'
+  }
+];
+
 export const PRESET_MUSIC_TRACKS: PresetTrack[] = [
   // Original 6 Core Tracks
   { id: 'motivational', name: 'Motivational Rise', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', mood: 'motivational', description: 'Energetic building rhythm' },

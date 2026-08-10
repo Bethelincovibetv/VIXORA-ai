@@ -2916,27 +2916,60 @@ const App: React.FC = () => {
                </div>
             </div>
 
-            <div className={`rounded-2xl p-4 sm:p-5 border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
-               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Creator Persona & Target Niche</h3>
-               <p className={`text-[9px] leading-normal ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Configure your primary target demographic and channel focus. Vixora automatically tailors script voice tones and footage search terms to dominate this audience.</p>
-               <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className={`rounded-2xl p-4 sm:p-5 border space-y-3.5 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
+               <div className="text-left">
+                 <h3 className="text-xs font-black uppercase tracking-widest text-ggd-orange flex items-center gap-1.5">
+                   <i className="fa-solid fa-cubes-stacked"></i> Creator Persona & Target Niche
+                 </h3>
+                 <p className={`text-[9px] leading-normal mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                   Configure your primary target demographic and channel focus. Vixora automatically tailors script voice tones and footage search terms to dominate this audience.
+                 </p>
+               </div>
+
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                  {NICHE_OPTIONS.map(n => {
                     const isSelected = (user as any)?.niche === n.id;
                     return (
                        <button 
                          key={n.id} 
+                         type="button"
                          onClick={() => {
                            if (!user) return;
                            const updated = { ...user, niche: n.id };
                            setUser(updated);
                            localStorage.setItem('ggd_creator_user', JSON.stringify(updated));
                          }}
-                         className={`p-2.5 rounded-xl border flex items-center gap-2 text-left transition-all ${isSelected ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300' : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/10'}`}
+                         className={`group relative p-3 rounded-2xl text-left transition-all duration-150 transform overflow-hidden cursor-pointer flex items-center gap-2.5 border-b-4 ${
+                           isSelected
+                             ? `bg-gradient-to-r ${n.colorGradient} text-white border-black/40 shadow-xl ring-2 ring-ggd-orange/60 scale-[1.02] translate-y-[-2px]`
+                             : themeMode === 'light'
+                               ? `bg-gradient-to-r ${n.colorGradient} text-white opacity-90 border-black/20 hover:opacity-100 hover:-translate-y-0.5 shadow-md`
+                               : `bg-gradient-to-r ${n.colorGradient} text-white opacity-85 border-black/40 hover:opacity-100 hover:-translate-y-0.5 shadow-md`
+                         } active:translate-y-1 active:border-b-2 active:shadow-inner`}
                        >
-                         <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-ggd-orange text-white' : themeMode === 'light' ? 'bg-slate-200 text-slate-600' : 'bg-black/40 text-slate-500'}`}>
-                           <i className={`fa-solid ${n.icon} text-xs`}></i>
-                         </span>
-                         <span className="text-[8.5px] font-black uppercase tracking-tight leading-tight truncate">{n.name}</span>
+                         {/* Background Glossy Shine Effect */}
+                         <div className="absolute -top-10 -left-10 w-24 h-24 bg-white/20 rounded-full blur-xl pointer-events-none group-hover:bg-white/35 transition-all"></div>
+
+                         {/* 3D Icon Badge */}
+                         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md border bg-white/20 text-white border-white/40">
+                           <i className={`fa-solid ${n.icon} text-sm drop-shadow`}></i>
+                         </div>
+
+                         <div className="min-w-0 flex-1 z-10">
+                           <span className="block text-[9.5px] font-black uppercase tracking-tight leading-tight truncate text-white drop-shadow-sm">
+                             {n.name}
+                           </span>
+                           <span className="block text-[7.5px] font-extrabold uppercase tracking-wider truncate opacity-90 text-white/90">
+                             {n.suggestions[0]}
+                           </span>
+                         </div>
+
+                         {/* 3D Selected Checkmark Pin */}
+                         {isSelected && (
+                           <span className="w-5 h-5 bg-white text-ggd-orange rounded-full flex items-center justify-center text-[10px] font-black shadow-lg border border-white shrink-0 z-10 animate-pulse">
+                             ✓
+                           </span>
+                         )}
                        </button>
                     );
                  })}

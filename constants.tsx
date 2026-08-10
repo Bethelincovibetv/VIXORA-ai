@@ -1,5 +1,10 @@
 
 import React from 'react';
+import vixoraAgentAvatar from './src/assets/images/vixora_agent_avatar_1786108775324.jpg';
+import voiceAvatarAoede from './src/assets/images/voice_avatar_aoede_1786345470638.jpg';
+import voiceAvatarPuck from './src/assets/images/voice_avatar_puck_1786345486751.jpg';
+import voiceAvatarCharon from './src/assets/images/voice_avatar_charon_1786345498254.jpg';
+import voiceAvatarFenrir from './src/assets/images/voice_avatar_fenrir_1786345507676.jpg';
 
 export const WHATSAPP_SUPPORT_NUMBER = '07043537401';
 export const SUPPORT_EMAIL = 'bethelgoodgift3@gmail.com';
@@ -33,6 +38,7 @@ export interface VoiceOption {
   description: string;
   sampleText: string;
   badge?: string;
+  isVixoraVoice?: boolean;
 }
 
 export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
@@ -42,10 +48,11 @@ export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
     voiceName: 'Kore',
     accent: 'Nigerian Female Accent',
     gender: 'Female',
-    avatar: 'https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg',
+    avatar: vixoraAgentAvatar,
     description: 'Fluent, natural Nigerian female tone. Flagship Vixora Studio Voice Generator.',
     sampleText: 'Hello! Welcome to Vixora Studio. I am your main AI voiceover generator.',
-    badge: 'DEFAULT VIXORA VOICE'
+    badge: 'DEFAULT VIXORA VOICE',
+    isVixoraVoice: true
   },
   {
     id: 'aoede_warm',
@@ -53,7 +60,7 @@ export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
     voiceName: 'Aoede',
     accent: 'Warm Storytelling Accent',
     gender: 'Female',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    avatar: voiceAvatarAoede,
     description: 'Gentle, engaging female narrator tone for documentary and lifestyle shorts.',
     sampleText: 'Empower your content with high-retention storytelling and effortless clarity.'
   },
@@ -63,7 +70,7 @@ export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
     voiceName: 'Puck',
     accent: 'High Energy Viral Accent',
     gender: 'Male',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    avatar: voiceAvatarPuck,
     description: 'Upbeat, fast-paced viral male voice ideal for TikTok and YouTube Shorts hooks.',
     sampleText: 'Stop scrolling right now! Here are three secrets to build wealth before 30.'
   },
@@ -73,7 +80,7 @@ export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
     voiceName: 'Charon',
     accent: 'Deep Cinematic Accent',
     gender: 'Male',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    avatar: voiceAvatarCharon,
     description: 'Authoritative deep cinematic tone for true crime, history, and mysteries.',
     sampleText: 'In a world driven by constant evolution, one historic truth remains untouched.'
   },
@@ -83,7 +90,7 @@ export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
     voiceName: 'Fenrir',
     accent: 'Bold & Direct Accent',
     gender: 'Male',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80',
+    avatar: voiceAvatarFenrir,
     description: 'Strong, articulate male tone for tech reviews, news, and business breakdowns.',
     sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough of the decade.'
   }

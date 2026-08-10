@@ -1,5 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreatedVideo, UserProfile } from '../types';
+import { 
+  syncFirebaseSaveVideo, 
+  syncFirebaseFetchVideos, 
+  syncFirebaseSaveVoiceover, 
+  syncFirebaseFetchVoiceovers 
+} from './firebaseService';
 
 // Read Supabase configuration from Vite environment or direct fallback
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://cilkybiebptqtuhbopyz.supabase.co';
@@ -31,6 +37,13 @@ export async function syncSaveCreatedVideo(video: CreatedVideo): Promise<void> {
     console.error("Error saving video to localStorage:", err);
   }
 
+  // Dual sync to Firebase Firestore
+  try {
+    await syncFirebaseSaveVideo(video);
+  } catch (err) {
+    console.warn("Firebase video sync note:", err);
+  }
+
   // Sync to Supabase if client available
   if (supabase) {
     try {
@@ -58,11 +71,20 @@ export async function syncFetchCreatedVideos(): Promise<CreatedVideo[]> {
     console.error("Error reading localStorage videos:", err);
   }
 
+  // Fetch from Firebase Firestore
+  let firebaseVideos: CreatedVideo[] = [];
+  try {
+    firebaseVideos = await syncFirebaseFetchVideos();
+  } catch (err) {
+    console.warn("Firebase fetch videos note:", err);
+  }
+
+  let supabaseVideos: CreatedVideo[] = [];
   if (supabase) {
     try {
       const { data, error } = await supabase.from('vixora_created_videos').select('*').order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
-        const remoteVideos: CreatedVideo[] = data.map(item => ({
+        supabaseVideos = data.map(item => ({
           id: item.id,
           topic: item.topic,
           scriptText: item.script_text,
@@ -70,19 +92,18 @@ export async function syncFetchCreatedVideos(): Promise<CreatedVideo[]> {
           date: item.date,
           aspectRatio: item.aspect_ratio || 'vertical'
         }));
-        // Merge remote and local without duplicates
-        const mergedMap = new Map<string, CreatedVideo>();
-        [...remoteVideos, ...localVideos].forEach(v => mergedMap.set(v.id, v));
-        const merged = Array.from(mergedMap.values());
-        localStorage.setItem('ggd_created_videos', JSON.stringify(merged));
-        return merged;
       }
     } catch (err) {
       console.warn("Supabase fetch fallback to local cache:", err);
     }
   }
 
-  return localVideos;
+  // Merge all sources seamlessly
+  const mergedMap = new Map<string, CreatedVideo>();
+  [...firebaseVideos, ...supabaseVideos, ...localVideos].forEach(v => mergedMap.set(v.id, v));
+  const merged = Array.from(mergedMap.values());
+  localStorage.setItem('ggd_created_videos', JSON.stringify(merged));
+  return merged;
 }
 
 // --- VOICEOVER HISTORY SYNC ---
@@ -94,6 +115,13 @@ export async function syncSaveVoiceover(voiceoverItem: { id: string; text: strin
     localStorage.setItem('vixora_voiceover_history', JSON.stringify(updated));
   } catch (err) {
     console.error("Local voiceover save error:", err);
+  }
+
+  // Dual sync to Firebase Firestore
+  try {
+    await syncFirebaseSaveVoiceover(voiceoverItem);
+  } catch (err) {
+    console.warn("Firebase voiceover sync note:", err);
   }
 
   if (supabase) {
@@ -120,26 +148,35 @@ export async function syncFetchVoiceovers(): Promise<Array<{ id: string; text: s
     console.error("Local voiceover read error:", err);
   }
 
+  // Fetch from Firebase Firestore
+  let firebaseItems: any[] = [];
+  try {
+    firebaseItems = await syncFirebaseFetchVoiceovers();
+  } catch (err) {
+    console.warn("Firebase fetch voiceovers note:", err);
+  }
+
+  let supabaseItems: any[] = [];
   if (supabase) {
     try {
       const { data, error } = await supabase.from('vixora_voiceovers').select('*').order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
-        const remoteItems = data.map(item => ({
+        supabaseItems = data.map(item => ({
           id: item.id,
           text: item.text,
           audioBase64: item.audio_base64,
           date: item.date
         }));
-        const map = new Map<string, any>();
-        [...remoteItems, ...localItems].forEach(item => map.set(item.id, item));
-        const merged = Array.from(map.values());
-        localStorage.setItem('vixora_voiceover_history', JSON.stringify(merged));
-        return merged;
       }
     } catch (err) {
       console.warn("Supabase fetch voiceovers fallback:", err);
     }
   }
 
-  return localItems;
+  const map = new Map<string, any>();
+  [...firebaseItems, ...supabaseItems, ...localItems].forEach(item => map.set(item.id, item));
+  const merged = Array.from(map.values());
+  localStorage.setItem('vixora_voiceover_history', JSON.stringify(merged));
+  return merged;
 }
+

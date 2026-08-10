@@ -1,0 +1,80 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidCreatedVideo(data) {
+      return data.keys().hasAll(['id', 'topic', 'scriptText']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.topic is string && data.topic.size() <= 1000 &&
+        data.scriptText is string && data.scriptText.size() <= 10000 &&
+        (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 5000)) &&
+        (!('date' in data) || (data.date is string && data.date.size() <= 100)) &&
+        (!('aspectRatio' in data) || (data.aspectRatio is string && data.aspectRatio.size() <= 50)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128));
+    }
+
+    function isValidVoiceover(data) {
+      return data.keys().hasAll(['id', 'text']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.text is string && data.text.size() <= 10000 &&
+        (!('audioBase64' in data) || (data.audioBase64 is string && data.audioBase64.size() <= 5000000)) &&
+        (!('date' in data) || (data.date is string && data.date.size() <= 100)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128));
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 255)) &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 255)) &&
+        (!('apiKey' in data) || (data.apiKey is string && data.apiKey.size() <= 255)) &&
+        (!('plan' in data) || (data.plan is string && data.plan.size() <= 100));
+    }
+
+    // Videos collection
+    match /videos/{videoId} {
+      allow read: if true;
+      allow create: if isValidId(videoId) && isValidCreatedVideo(incoming());
+      allow update: if isValidId(videoId) && isValidCreatedVideo(incoming());
+      allow delete: if isValidId(videoId);
+    }
+
+    // Voiceovers collection
+    match /voiceovers/{voiceoverId} {
+      allow read: if true;
+      allow create: if isValidId(voiceoverId) && isValidVoiceover(incoming());
+      allow update: if isValidId(voiceoverId) && isValidVoiceover(incoming());
+      allow delete: if isValidId(voiceoverId);
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isValidId(userId) && isValidUserProfile(incoming());
+      allow delete: if isValidId(userId);
+    }
+  }
+}

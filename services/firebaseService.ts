@@ -114,6 +114,11 @@ export async function requestNotificationPermission(): Promise<string | null> {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       console.log("Notification permission granted.");
+      // Trigger instant native phone push notification to confirm functionality
+      sendLocalPushNotification(
+        '🔔 Vixora Push Notifications Active!',
+        'You will now receive instant phone push alerts whenever a new Vixora feature update is published.'
+      );
       if (messagingInstance) {
         try {
           const token = await getToken(messagingInstance, {
@@ -154,7 +159,31 @@ export function setupForegroundMessageListener(callback: (payload: any) => void)
 }
 
 export async function sendLocalPushNotification(title: string, body: string, data?: any) {
-  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  
+  if (Notification.permission === 'granted') {
+    // 1. Trigger via ServiceWorker registration (Triggers native phone notification tray)
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && reg.showNotification) {
+          await reg.showNotification(title, {
+            body,
+            icon: '/icon-192.jpg',
+            badge: '/icon-192.jpg',
+            vibrate: [200, 100, 200, 100, 200],
+            tag: 'vixora-update-' + Date.now(),
+            renotify: true,
+            data
+          });
+          return;
+        }
+      }
+    } catch (swErr) {
+      console.warn("SW showNotification error fallback:", swErr);
+    }
+
+    // 2. PostMessage to ServiceWorker controller
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'SHOW_NOTIFICATION',
@@ -163,16 +192,17 @@ export async function sendLocalPushNotification(title: string, body: string, dat
         data
       });
     }
-    
+
+    // 3. Fallback direct window Notification API
     try {
       new Notification(title, {
         body,
-        icon: '/src/assets/images/vixora_logo_1786107851312.jpg',
-        badge: '/src/assets/images/vixora_logo_1786107851312.jpg',
+        icon: '/icon-192.jpg',
+        badge: '/icon-192.jpg',
         data
       });
     } catch (e) {
-      console.log("Direct notification construct fallback", e);
+      console.log("Direct notification construct fallback:", e);
     }
   }
 }

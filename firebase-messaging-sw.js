@@ -14,11 +14,12 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Vixora New Feature Update!';
+  const notificationTitle = payload.notification?.title || payload.data?.title || '🚀 Vixora New Feature Update!';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.message || 'A new update and feature advert was released in Vixora AI Studio!',
-    icon: '/src/assets/images/vixora_logo_1786107851312.jpg',
-    badge: '/src/assets/images/vixora_logo_1786107851312.jpg',
+    icon: '/icon-192.jpg',
+    badge: '/icon-192.jpg',
+    vibrate: [200, 100, 200, 100, 200],
     data: payload.data
   };
 

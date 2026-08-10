@@ -3,14 +3,16 @@
   "name": "Vixora - AI Video Creator & Voice Studio",
   "icons": [
     {
-      "src": "/src/assets/images/vixora_logo_1786107851312.jpg",
+      "src": "/icon-192.jpg",
       "type": "image/jpeg",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
-      "src": "/src/assets/images/vixora_logo_1786107851312.jpg",
+      "src": "/icon-512.jpg",
       "type": "image/jpeg",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",

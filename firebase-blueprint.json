@@ -40,9 +40,26 @@
         "displayName": { "type": "string", "maxLength": 255 },
         "apiKey": { "type": "string", "maxLength": 255 },
         "plan": { "type": "string", "maxLength": 100 },
+        "fcmToken": { "type": "string", "maxLength": 1000 },
         "updatedAt": { "type": "string", "maxLength": 100 }
       },
       "required": ["uid"]
+    },
+    "Announcement": {
+      "title": "Feature Announcement Advert",
+      "description": "New feature update announcement or advert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 500 },
+        "message": { "type": "string", "maxLength": 5000 },
+        "tag": { "type": "string", "maxLength": 100 },
+        "badgeText": { "type": "string", "maxLength": 100 },
+        "actionUrl": { "type": "string", "maxLength": 1000 },
+        "imageUrl": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "title", "message"]
     }
   },
   "firestore": {
@@ -57,6 +74,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
       "description": "User profiles and settings"
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "System feature announcements and update adverts"
     }
   }
 }

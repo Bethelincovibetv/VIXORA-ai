@@ -11,14 +11,38 @@ import {
   orderBy, 
   getDocFromServer 
 } from 'firebase/firestore';
+import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 import { CreatedVideo, UserProfile } from '../types';
+
+export interface FeatureAnnouncement {
+  id: string;
+  title: string;
+  message: string;
+  tag?: string;
+  badgeText?: string;
+  actionUrl?: string;
+  imageUrl?: string;
+  createdAt: string;
+}
 
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Initialize Firebase Messaging conditionally
+let messagingInstance: any = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      messagingInstance = getMessaging(app);
+    }
+  }).catch(() => {
+    console.log("Firebase Messaging not supported in this environment");
+  });
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -78,6 +102,129 @@ async function testConnection() {
   }
 }
 testConnection();
+
+// --- PWA & PUSH NOTIFICATIONS HELPERS ---
+export async function requestNotificationPermission(): Promise<string | null> {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn("Notifications not supported in this browser.");
+    return null;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      console.log("Notification permission granted.");
+      if (messagingInstance) {
+        try {
+          const token = await getToken(messagingInstance, {
+            vapidKey: 'BD3aJ0e7-placeholder-vapid-key' // Optional standard Web Push key
+          });
+          if (token) {
+            console.log("FCM Token obtained:", token);
+            if (auth.currentUser) {
+              await setDoc(doc(db, 'users', auth.currentUser.uid), { fcmToken: token }, { merge: true });
+            }
+            return token;
+          }
+        } catch (fcmErr) {
+          console.warn("FCM getToken fallback:", fcmErr);
+        }
+      }
+      return 'granted_web_push';
+    } else {
+      console.warn("Notification permission denied or dismissed.");
+      return null;
+    }
+  } catch (err) {
+    console.error("Error requesting notification permission:", err);
+    return null;
+  }
+}
+
+export function setupForegroundMessageListener(callback: (payload: any) => void) {
+  if (!messagingInstance) return;
+  try {
+    onMessage(messagingInstance, (payload) => {
+      console.log("Foreground message received:", payload);
+      callback(payload);
+    });
+  } catch (err) {
+    console.warn("Error attaching messaging listener:", err);
+  }
+}
+
+export async function sendLocalPushNotification(title: string, body: string, data?: any) {
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        title,
+        body,
+        data
+      });
+    }
+    
+    try {
+      new Notification(title, {
+        body,
+        icon: '/src/assets/images/vixora_logo_1786107851312.jpg',
+        badge: '/src/assets/images/vixora_logo_1786107851312.jpg',
+        data
+      });
+    } catch (e) {
+      console.log("Direct notification construct fallback", e);
+    }
+  }
+}
+
+// --- FEATURE ANNOUNCEMENTS / ADVERTS SYNC ---
+export async function syncFirebaseSaveAnnouncement(announcement: FeatureAnnouncement): Promise<void> {
+  const path = `announcements/${announcement.id}`;
+  try {
+    await setDoc(doc(db, 'announcements', announcement.id), {
+      id: announcement.id,
+      title: announcement.title,
+      message: announcement.message,
+      tag: announcement.tag || 'NEW UPDATE',
+      badgeText: announcement.badgeText || 'v3.0 Release',
+      actionUrl: announcement.actionUrl || '',
+      imageUrl: announcement.imageUrl || '',
+      createdAt: announcement.createdAt || new Date().toISOString()
+    });
+
+    // Also trigger push notification locally/system wide
+    sendLocalPushNotification(`🚀 ${announcement.title}`, announcement.message, announcement);
+  } catch (error) {
+    console.warn("Firestore save announcement error:", error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function syncFirebaseFetchAnnouncements(): Promise<FeatureAnnouncement[]> {
+  const path = 'announcements';
+  try {
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const announcements: FeatureAnnouncement[] = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      announcements.push({
+        id: data.id || docSnap.id,
+        title: data.title,
+        message: data.message,
+        tag: data.tag || 'NEW UPDATE',
+        badgeText: data.badgeText || 'v3.0 Release',
+        actionUrl: data.actionUrl || '',
+        imageUrl: data.imageUrl || '',
+        createdAt: data.createdAt
+      });
+    });
+    return announcements;
+  } catch (error) {
+    console.warn("Firestore fetch announcements fallback:", error);
+    return [];
+  }
+}
 
 // --- AUTH HELPERS ---
 export async function signInWithGoogle() {

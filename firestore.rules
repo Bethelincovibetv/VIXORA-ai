@@ -50,7 +50,19 @@ service cloud.firestore {
         (!('email' in data) || (data.email is string && data.email.size() <= 255)) &&
         (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 255)) &&
         (!('apiKey' in data) || (data.apiKey is string && data.apiKey.size() <= 255)) &&
+        (!('fcmToken' in data) || (data.fcmToken is string && data.fcmToken.size() <= 1000)) &&
         (!('plan' in data) || (data.plan is string && data.plan.size() <= 100));
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['id', 'title', 'message']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 500 &&
+        data.message is string && data.message.size() <= 5000 &&
+        (!('tag' in data) || (data.tag is string && data.tag.size() <= 100)) &&
+        (!('badgeText' in data) || (data.badgeText is string && data.badgeText.size() <= 100)) &&
+        (!('actionUrl' in data) || (data.actionUrl is string && data.actionUrl.size() <= 1000)) &&
+        (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2000));
     }
 
     // Videos collection
@@ -75,6 +87,14 @@ service cloud.firestore {
       allow create: if isValidId(userId) && isValidUserProfile(incoming());
       allow update: if isValidId(userId) && isValidUserProfile(incoming());
       allow delete: if isValidId(userId);
+    }
+
+    // Announcements collection
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow create: if isValidId(announcementId) && isValidAnnouncement(incoming());
+      allow update: if isValidId(announcementId) && isValidAnnouncement(incoming());
+      allow delete: if isValidId(announcementId);
     }
   }
 }

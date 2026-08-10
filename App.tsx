@@ -4,7 +4,14 @@ import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } f
 import { UserProfile, Bank } from './types';
 import { VideoSequencer } from './components/VideoSequencer';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
-import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/supabaseService';
+import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
+import { 
+  requestNotificationPermission, 
+  setupForegroundMessageListener, 
+  syncFirebaseSaveAnnouncement, 
+  syncFirebaseFetchAnnouncements, 
+  FeatureAnnouncement 
+} from './services/firebaseService';
 import vixoraLogo from './src/assets/images/vixora_logo_1786107851312.jpg';
 import vixoraAgentAvatar from './src/assets/images/vixora_agent_avatar_1786108775324.jpg';
 import viralGrowthBanner from './src/assets/images/viral_growth_banner_1786110948420.jpg';
@@ -298,6 +305,74 @@ const App: React.FC = () => {
     sessionStorage.setItem('pwa_prompt_dismissed', 'true');
   };
 
+  // Push Notifications & Feature Update Announcements State
+  const [notificationPermission, setNotificationPermission] = useState<string | null>(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : null
+  );
+  const [announcements, setAnnouncements] = useState<FeatureAnnouncement[]>([
+    {
+      id: 'init_v3_update',
+      title: '🚀 Vixora v3.0 PWA & Firebase Cloud Push Engine Launched!',
+      message: 'Vixora Studio is now a full Progressive Web App (PWA) with instant home screen installation, real-time Firebase Cloud Messaging push alerts for feature updates, and multi-voice TTS.',
+      tag: 'NEW FEATURE',
+      badgeText: 'v3.0 Release',
+      createdAt: new Date().toISOString()
+    }
+  ]);
+  const [showAnnouncementsDrawer, setShowAnnouncementsDrawer] = useState(false);
+  const [showNewAdvertModal, setShowNewAdvertModal] = useState(false);
+  const [activeAdvertPopup, setActiveAdvertPopup] = useState<FeatureAnnouncement | null>(null);
+  const [hasUnreadAnnouncements, setHasUnreadAnnouncements] = useState(true);
+
+  // New Advert Form State
+  const [newAdvertTitle, setNewAdvertTitle] = useState('');
+  const [newAdvertMessage, setNewAdvertMessage] = useState('');
+  const [newAdvertTag, setNewAdvertTag] = useState('NEW FEATURE');
+  const [newAdvertBadge, setNewAdvertBadge] = useState('v3.1 Update');
+  const [isPublishingAdvert, setIsPublishingAdvert] = useState(false);
+
+  const handleEnableNotifications = async () => {
+    const perm = await requestNotificationPermission();
+    setNotificationPermission(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'granted');
+    if (perm) {
+      alert("🔔 Firebase Push Notifications enabled! You will receive instant update adverts when new Vixora features are launched.");
+    } else {
+      alert("Notification permission was not granted or blocked by browser.");
+    }
+  };
+
+  const handlePublishNewFeatureAdvert = async () => {
+    if (!newAdvertTitle.trim() || !newAdvertMessage.trim()) {
+      setAppError("Please enter both update title and announcement description.");
+      return;
+    }
+
+    setIsPublishingAdvert(true);
+    const newAnn: FeatureAnnouncement = {
+      id: 'ann_' + Date.now(),
+      title: newAdvertTitle.trim(),
+      message: newAdvertMessage.trim(),
+      tag: newAdvertTag || 'NEW UPDATE',
+      badgeText: newAdvertBadge || 'v3.0 Update',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await syncFirebaseSaveAnnouncement(newAnn);
+      setAnnouncements(prev => [newAnn, ...prev]);
+      setActiveAdvertPopup(newAnn);
+      setHasUnreadAnnouncements(true);
+      setShowNewAdvertModal(false);
+      setNewAdvertTitle('');
+      setNewAdvertMessage('');
+    } catch (err) {
+      console.error("Error publishing announcement:", err);
+      setAppError("Failed to publish feature update announcement.");
+    } finally {
+      setIsPublishingAdvert(false);
+    }
+  };
+
   // API Update State
   const [newApiKey, setNewApiKey] = useState('');
 
@@ -449,12 +524,38 @@ const App: React.FC = () => {
     }
     setLoading(false);
 
-    // Sync remote data from Supabase or fallback
+    // Sync remote data from Firestore or fallback
     syncFetchCreatedVideos().then(vids => {
       if (vids && vids.length > 0) setCreatedVideos(vids);
     });
     syncFetchVoiceovers().then(vos => {
       if (vos && vos.length > 0) setVoiceoverHistory(vos);
+    });
+    syncFirebaseFetchAnnouncements().then(anns => {
+      if (anns && anns.length > 0) {
+        setAnnouncements(prev => {
+          const map = new Map();
+          [...anns, ...prev].forEach(a => map.set(a.id, a));
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    // Listen to real-time foreground FCM push messages
+    setupForegroundMessageListener((payload) => {
+      const title = payload.notification?.title || payload.data?.title || 'Vixora Feature Advert Update';
+      const body = payload.notification?.body || payload.data?.message || 'Check out our newly updated feature!';
+      const incomingAnn: FeatureAnnouncement = {
+        id: 'push_' + Date.now(),
+        title,
+        message: body,
+        tag: 'LIVE ADVERT',
+        badgeText: 'New Update',
+        createdAt: new Date().toISOString()
+      };
+      setAnnouncements(prev => [incomingAnn, ...prev]);
+      setActiveAdvertPopup(incomingAnn);
+      setHasUnreadAnnouncements(true);
     });
 
     // Detect Standalone display mode / pre-installed app execution
@@ -1382,6 +1483,32 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* PWA INSTALL QUICK BUTTON */}
+          <button 
+            onClick={triggerPwaInstall}
+            title="Install Vixora PWA App"
+            className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-orange-50 border-orange-200 text-orange-600 hover:bg-orange-100' : 'bg-orange-950/40 border-orange-500/30 text-orange-400 hover:bg-orange-900/40'}`}
+          >
+            <i className="fa-solid fa-download text-xs"></i>
+          </button>
+
+          {/* PUSH NOTIFICATION & ANNOUNCEMENT BELL BUTTON */}
+          <button 
+            onClick={() => {
+              setShowAnnouncementsDrawer(true);
+              setHasUnreadAnnouncements(false);
+            }} 
+            title="Feature Update Announcements & Adverts"
+            className={`relative w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100' : 'bg-purple-950/40 border-purple-500/30 text-purple-400 hover:bg-purple-900/40'}`}
+          >
+            <i className="fa-solid fa-bell text-xs"></i>
+            {hasUnreadAnnouncements && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 border-2 border-slate-900 rounded-full flex items-center justify-center text-[7px] font-black text-white animate-bounce">
+                •
+              </span>
+            )}
+          </button>
+
           {/* ACCESSIBILITY MODAL QUICK TRIGGER */}
           <button 
             onClick={() => setShowAccessibilityModal(true)} 
@@ -3011,6 +3138,225 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* 1. FEATURE ADVERT POPUP MODAL (GLOSSY 3D STYLE) */}
+      {activeAdvertPopup && (
+        <div className="fixed inset-0 z-[400] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
+          <div className={`w-full max-w-sm rounded-[2.5rem] p-6 border text-left relative shadow-2xl overflow-hidden ${themeMode === 'light' ? 'bg-white border-purple-200 text-slate-900' : 'bg-slate-900 border-purple-500/30 text-white'}`}>
+            {/* Top Glossy Gradient Accent */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500"></div>
+
+            <button 
+              onClick={() => setActiveAdvertPopup(null)} 
+              className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}
+            >
+              <i className="fa-solid fa-xmark text-xs"></i>
+            </button>
+
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[8px] font-black uppercase rounded-lg shadow-md tracking-wider">
+                  {activeAdvertPopup.tag || 'NEW UPDATE'}
+                </span>
+                <span className="text-[8px] font-bold text-purple-400 uppercase tracking-widest">
+                  {activeAdvertPopup.badgeText || 'Vixora Feature Advert'}
+                </span>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 text-xl shadow-inner">
+                  <i className="fa-solid fa-bullhorn animate-pulse"></i>
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-tight leading-snug">
+                    {activeAdvertPopup.title}
+                  </h3>
+                  <p className="text-[8px] text-slate-400 font-medium mt-0.5">
+                    {new Date(activeAdvertPopup.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-2xl border text-xs leading-relaxed ${themeMode === 'light' ? 'bg-purple-50/50 border-purple-100 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+                {activeAdvertPopup.message}
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button 
+                  onClick={() => setActiveAdvertPopup(null)} 
+                  className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black uppercase text-xs tracking-wider shadow-lg active:scale-95 transition-all text-center"
+                >
+                  Explore Feature Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. ANNOUNCEMENTS & PWA DRAWER */}
+      {showAnnouncementsDrawer && (
+        <div className="fixed inset-0 z-[350] bg-slate-950/80 backdrop-blur-md flex justify-end animate-rise">
+          <div className={`w-full max-w-md h-full flex flex-col p-5 shadow-2xl border-l ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <i className="fa-solid fa-bullhorn text-sm"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider">Feature Updates & PWA</h3>
+                  <p className="text-[8px] text-slate-400 font-bold">App Adverts & Push Notifications</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAnnouncementsDrawer(false)} 
+                className={`w-8 h-8 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}
+              >
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="py-4 space-y-3 border-b border-white/10">
+              {/* Push Notification Permission Toggle */}
+              <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${themeMode === 'light' ? 'bg-purple-50 border-purple-200' : 'bg-purple-950/30 border-purple-500/20'}`}>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fa-solid fa-bell text-purple-400"></i>
+                    <span>Firebase Push Notifications</span>
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-medium">Get instant adverts when new features launch</p>
+                </div>
+                <button 
+                  onClick={handleEnableNotifications}
+                  className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95 ${notificationPermission === 'granted' ? 'bg-emerald-500 text-white' : 'bg-purple-600 text-white'}`}
+                >
+                  {notificationPermission === 'granted' ? 'Enabled ✓' : 'Enable Push'}
+                </button>
+              </div>
+
+              {/* Native PWA Install Banner Button */}
+              {deferredPrompt && (
+                <button 
+                  onClick={triggerPwaInstall}
+                  className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <i className="fa-solid fa-download"></i>
+                  <span>Install Vixora PWA App to Home Screen</span>
+                </button>
+              )}
+
+              {/* Broadcast Advert Button */}
+              <button 
+                onClick={() => setShowNewAdvertModal(true)}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-plus-circle"></i>
+                <span>Publish New Feature Update Advert</span>
+              </button>
+            </div>
+
+            {/* Announcements List */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-3">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">System Advert Announcements</p>
+              
+              {announcements.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-6">No feature update announcements yet.</p>
+              ) : (
+                announcements.map((ann) => (
+                  <div 
+                    key={ann.id}
+                    onClick={() => setActiveAdvertPopup(ann)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 hover:border-purple-300' : 'bg-white/5 border-white/5 hover:border-purple-500/40'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[7.5px] font-black uppercase rounded-md">
+                        {ann.tag || 'UPDATE'}
+                      </span>
+                      <span className="text-[7.5px] text-slate-400 font-medium">
+                        {new Date(ann.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-black uppercase mb-1 line-clamp-1">{ann.title}</h4>
+                    <p className={`text-[10px] line-clamp-2 leading-relaxed ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {ann.message}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. BROADCAST NEW ADVERT MODAL */}
+      {showNewAdvertModal && (
+        <div className="fixed inset-0 z-[400] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
+          <div className={`w-full max-w-sm rounded-[2.5rem] p-6 border text-left space-y-4 relative shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
+            <div className="flex items-center justify-between border-b border-slate-200/20 pb-3">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-paper-plane text-purple-500 text-sm"></i>
+                <h3 className="text-xs font-black uppercase tracking-wider">Broadcast Feature Advert</h3>
+              </div>
+              <button 
+                onClick={() => setShowNewAdvertModal(false)}
+                className={`w-7 h-7 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}
+              >
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Update Title</label>
+                <input 
+                  type="text"
+                  value={newAdvertTitle}
+                  onChange={e => setNewAdvertTitle(e.target.value)}
+                  placeholder="e.g. ⚡ AI Voice cloning & PWA Offline mode!"
+                  className={`w-full p-3 rounded-xl border outline-none font-bold text-xs ${themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-white/5 border-white/10 text-white'}`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Badge Tag</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['NEW FEATURE', 'UPDATE', 'PROMO'].map(t => (
+                    <button 
+                      key={t}
+                      type="button"
+                      onClick={() => setNewAdvertTag(t)}
+                      className={`py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${newAdvertTag === t ? 'bg-purple-600 text-white border-purple-500' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Advert Message & Details</label>
+                <textarea 
+                  rows={3}
+                  value={newAdvertMessage}
+                  onChange={e => setNewAdvertMessage(e.target.value)}
+                  placeholder="Describe the new feature or update for your users..."
+                  className={`w-full p-3 rounded-xl border outline-none font-medium text-xs leading-relaxed ${themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-white/5 border-white/10 text-white'}`}
+                />
+              </div>
+
+              <button 
+                disabled={isPublishingAdvert}
+                onClick={handlePublishNewFeatureAdvert}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-black uppercase text-xs tracking-wider shadow-lg active:scale-95 transition-all text-center"
+              >
+                {isPublishingAdvert ? 'Broadcasting...' : 'Publish & Send Push Notification'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className={`fixed bottom-3 left-3 right-3 max-w-md mx-auto rounded-2xl p-1 flex items-center justify-between z-50 border shadow-2xl backdrop-blur-2xl ${themeMode === 'light' ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-900/95 border-white/10 text-white'}`}>
          <button onClick={() => setActiveTab('studio')} className={`flex-1 py-1.5 flex flex-col items-center gap-0.5 transition-all active:scale-95 ${activeTab === 'studio' ? 'text-ggd-orange font-bold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}>

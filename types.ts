@@ -43,3 +43,12 @@ export interface Bank {
   id: number;
   slug?: string;
 }
+
+export interface LearnedSkill {
+  id: string;
+  name: string;
+  description: string;
+  preferenceData?: string;
+  category?: 'format' | 'voice' | 'style' | 'custom';
+  createdAt: string;
+}

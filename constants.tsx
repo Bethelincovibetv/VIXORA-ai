@@ -44,14 +44,14 @@ export interface VoiceOption {
 export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
   {
     id: 'kore_nigerian',
-    name: 'Vixora Voice (Kore)',
+    name: 'Vixora Voice (Kore - Highly Energetic Lady)',
     voiceName: 'Kore',
-    accent: 'Nigerian Female Accent',
+    accent: 'Highly Energetic Nigerian Female Accent',
     gender: 'Female',
     avatar: vixoraAgentAvatar,
-    description: 'Fluent, natural Nigerian female tone. Flagship Vixora Studio Voice Generator.',
-    sampleText: 'Hello! Welcome to Vixora Studio. I am your main AI voiceover generator.',
-    badge: 'DEFAULT VIXORA VOICE',
+    description: 'Vibrant, highly energetic, natural Nigerian female AI tone. Energetic, witty, warm flagship Vixora Studio voice.',
+    sampleText: 'Welcome to Vixora Studio! I am your energetic Nigerian AI partner, ready to cook viral videos with you!',
+    badge: 'FLAGSHIP HIGHLY ENERGETIC NIGERIAN VOICE',
     isVixoraVoice: true
   },
   {

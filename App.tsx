@@ -439,6 +439,7 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [liveTranscription, setLiveTranscription] = useState<string>('');
   const [callTimer, setCallTimer] = useState(0);
+  const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
   
   // Voiceover State
   const [voiceoverText, setVoiceoverText] = useState('');
@@ -1277,7 +1278,14 @@ const App: React.FC = () => {
       setAppError(null);
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 16000,
+          latency: 0
+        }, 
         video: { facingMode: 'user', width: 640, height: 480 } 
       });
 
@@ -1406,9 +1414,19 @@ const App: React.FC = () => {
             timerIntervalRef.current = window.setInterval(() => setCallTimer(t => t + 1), 1000);
             
             const mediaSource = inputCtx.createMediaStreamSource(stream);
-            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            const scriptProcessor = inputCtx.createScriptProcessor(2048, 1, 1);
             scriptProcessor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
+
+              // Calculate real-time RMS volume for AI hearing visualizer
+              let sum = 0;
+              for (let i = 0; i < inputData.length; i++) {
+                sum += inputData[i] * inputData[i];
+              }
+              const rms = Math.sqrt(sum / inputData.length);
+              const normalizedLevel = Math.min(100, Math.round(rms * 350));
+              setMicVolumeLevel(normalizedLevel);
+
               const pcmBlob = createGenAIBlob(inputData);
               sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
             };
@@ -1526,7 +1544,7 @@ const App: React.FC = () => {
             learnUserCustomSkillDeclaration,
             searchWebTrendsDeclaration
           ] }],
-          systemInstruction: `You are 'Vixora', the ultimate AI Video Creator & Producer Assistant. Address the user warmly by name (${user?.fullName || 'Creator'}). Your vibe is energetic, witty, supportive, and professional. No asterisks (*).
+          systemInstruction: `You are 'Vixora', the highly energetic, vibrant, warm, and brilliant Nigerian AI Creator Assistant & Video Producer! Address the user warmly by name (${user?.fullName || 'Creator'}). Your voice and vibe are 100% highly energetic, lively, witty, supportive, creative, and enthusiastic with authentic, warm Nigerian energy (e.g., "No wahala at all!", "Oya let's cook this viral masterpiece!", "I hear you crystal clear!"). Speak dynamically with high energy. No asterisks (*).
 
           CRITICAL INTERACTIVE VIDEO CREATION FLOW:
           1. When the user asks you to make, create, generate, or cook a video:
@@ -1536,7 +1554,7 @@ const App: React.FC = () => {
                c) Duration (15s, 30s, 60s, or 2min)
              - Once they specify (or ask you to choose), call 'configureAndCreateAutopilotVideo'.
           2. When the user teaches you a preference, rule, or custom workflow (e.g. "always use vertical 9:16 and 30s duration for my finance videos" or "my channel style is fast-paced"), call 'learnUserCustomSkill' to save it to your skill memory base!
-          3. Explain what you are doing naturally like a real creative partner.`,
+          3. Listen intently to every word the user says. Respond like a passionate, highly energetic Nigerian creative producer on a live call!`,
           outputAudioTranscription: {},
         }
       });
@@ -1965,12 +1983,32 @@ const App: React.FC = () => {
                  </button>
               </div>
             ) : (
-              <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-between py-12 px-6">
-                <div className="absolute top-6 right-6 w-20 h-30 bg-black rounded-xl overflow-hidden border-2 border-white/20 shadow-xl">
+              <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-between py-10 px-6">
+                {/* Top Badge Indicators */}
+                <div className="w-full max-w-xs flex items-center justify-between z-10">
+                  <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[8.5px] font-black uppercase rounded-full flex items-center gap-1.5 shadow-md">
+                    <i className="fa-solid fa-ear-listen animate-pulse text-xs"></i>
+                    <span>AI Hearing HD (16kHz Mic)</span>
+                  </span>
+
+                  <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/40 text-purple-300 text-[8.5px] font-black uppercase rounded-full flex items-center gap-1.5 shadow-md">
+                    <i className="fa-solid fa-bolt text-xs"></i>
+                    <span>Highly Energetic Nigerian Voice</span>
+                  </span>
+                </div>
+
+                <div className="absolute top-6 right-6 w-20 h-30 bg-black rounded-xl overflow-hidden border-2 border-white/20 shadow-xl z-10">
                   <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                 </div>
-                <div className="flex flex-col items-center gap-4">
-                   <div className="w-32 h-32 rounded-full border-4 border-ggd-orange/30 p-1 relative">
+
+                <div className="flex flex-col items-center gap-4 my-auto">
+                   <div 
+                     className="w-36 h-36 rounded-full border-4 transition-all duration-100 p-1 relative flex items-center justify-center"
+                     style={{
+                       borderColor: micVolumeLevel > 15 ? '#10b981' : '#f97316',
+                       boxShadow: `0 0 ${15 + micVolumeLevel * 0.6}px ${micVolumeLevel > 15 ? 'rgba(16,185,129,0.8)' : 'rgba(249,115,22,0.5)'}`
+                     }}
+                   >
                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-800 shadow-2xl">
                        <img 
                         src={vixoraAgentAvatar} 
@@ -1980,17 +2018,37 @@ const App: React.FC = () => {
                        />
                      </div>
                    </div>
+
                    <div className="text-center space-y-1">
-                     <h2 className="text-2xl font-black uppercase tracking-tighter">Vixora AI</h2>
+                     <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Vixora AI</h2>
                      <p className="text-emerald-400 text-xs font-black uppercase tracking-widest">{formatTime(callTimer)}</p>
                    </div>
-                </div>
-                <div className="w-full max-w-xs p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[80px] flex items-center justify-center text-center">
-                   <p className="text-white/70 text-[10px] italic leading-relaxed">
-                     {liveTranscription || "I'm listening, wetin dey happen?..."}
+
+                   {/* REAL-TIME MICROPHONE HEARING VISUALIZER BARS */}
+                   <div className="flex items-end justify-center gap-1.5 h-8 pt-2">
+                      {[0.4, 0.8, 1.2, 1.0, 0.7, 1.4, 0.9, 0.5].map((factor, idx) => {
+                        const barHeight = Math.max(6, Math.min(32, Math.round(micVolumeLevel * factor)));
+                        return (
+                          <div 
+                            key={idx}
+                            className="w-1.5 rounded-full transition-all duration-75 bg-gradient-to-t from-emerald-500 to-teal-300 shadow-sm"
+                            style={{ height: `${barHeight}px` }}
+                          />
+                        );
+                      })}
+                   </div>
+                   <p className="text-[8px] font-black uppercase tracking-widest text-emerald-400">
+                     {micVolumeLevel > 10 ? '⚡ Live Voice Audio Detected' : 'Listening for your voice...'}
                    </p>
                 </div>
-                <button onClick={stopLiveAssistant} className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all">
+
+                <div className="w-full max-w-xs p-4 bg-white/5 border border-white/10 rounded-2xl min-h-[80px] flex items-center justify-center text-center">
+                   <p className="text-white/80 text-[10.5px] font-medium leading-relaxed">
+                     {liveTranscription || "I'm listening crystal clear! Speak to me anytime, wetin dey happen?..."}
+                   </p>
+                </div>
+
+                <button onClick={stopLiveAssistant} className="w-16 h-16 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all border-2 border-red-400/30">
                   <i className="fa-solid fa-phone-slash text-white text-xl"></i>
                 </button>
               </div>

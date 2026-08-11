@@ -217,7 +217,10 @@ CORE DIRECTIVES:
       const coachMsg: CoachMessage = {
         id: 'vx_' + Date.now(),
         sender: 'sister_vixora',
-        text: responseText.replace(/\[TEMPLATE_JSON\][\s\S]*?\[\/TEMPLATE_JSON\]/g, '').trim(),
+        text: responseText
+          .replace(/\[TEMPLATE_JSON\][\s\S]*?\[\/TEMPLATE_JSON\]/g, '')
+          .replace(/\*/g, '')
+          .trim(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         generatedTemplate
       };
@@ -530,7 +533,7 @@ Return strictly valid JSON in this exact format:
                         ? 'bg-white border-slate-200 text-slate-900 shadow-sm rounded-tl-none'
                         : 'bg-slate-900 border-white/10 text-slate-100 rounded-tl-none'
                   }`}>
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    <p className="whitespace-pre-wrap">{msg.text.replace(/\*/g, '')}</p>
                     <p className={`text-[8px] mt-1 font-mono ${msg.sender === 'user' ? 'text-amber-100' : 'text-slate-400'}`}>
                       {msg.timestamp}
                     </p>

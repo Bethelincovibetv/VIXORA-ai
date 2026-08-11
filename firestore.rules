@@ -65,6 +65,33 @@ service cloud.firestore {
         (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2000));
     }
 
+    function isValidVideoTemplate(data) {
+      return data.keys().hasAll(['id', 'title']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 255 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+        (!('niche' in data) || (data.niche is string && data.niche.size() <= 100)) &&
+        (!('aspectRatio' in data) || (data.aspectRatio is string && data.aspectRatio.size() <= 50)) &&
+        (!('targetDuration' in data) || (data.targetDuration is string && data.targetDuration.size() <= 50)) &&
+        (!('captionTemplate' in data) || (data.captionTemplate is string && data.captionTemplate.size() <= 100)) &&
+        (!('sfxEnabled' in data) || (data.sfxEnabled is string && data.sfxEnabled.size() <= 50)) &&
+        (!('bgMusicUrl' in data) || (data.bgMusicUrl is string && data.bgMusicUrl.size() <= 2000)) &&
+        (!('scriptStyle' in data) || (data.scriptStyle is string && data.scriptStyle.size() <= 1000)) &&
+        (!('createdBy' in data) || (data.createdBy is string && data.createdBy.size() <= 128));
+    }
+
+    function isValidContentRoadmap(data) {
+      return data.keys().hasAll(['id', 'title']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 255 &&
+        (!('niche' in data) || (data.niche is string && data.niche.size() <= 100)) &&
+        (!('platform' in data) || (data.platform is string && data.platform.size() <= 100)) &&
+        (!('goal' in data) || (data.goal is string && data.goal.size() <= 500)) &&
+        (!('roadmapItemsJson' in data) || (data.roadmapItemsJson is string && data.roadmapItemsJson.size() <= 20000)) &&
+        (!('faithAlignment' in data) || (data.faithAlignment is string && data.faithAlignment.size() <= 2000)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128));
+    }
+
     // Videos collection
     match /videos/{videoId} {
       allow read: if true;
@@ -95,6 +122,22 @@ service cloud.firestore {
       allow create: if isValidId(announcementId) && isValidAnnouncement(incoming());
       allow update: if isValidId(announcementId) && isValidAnnouncement(incoming());
       allow delete: if isValidId(announcementId);
+    }
+
+    // Templates collection
+    match /templates/{templateId} {
+      allow read: if true;
+      allow create: if isValidId(templateId) && isValidVideoTemplate(incoming());
+      allow update: if isValidId(templateId) && isValidVideoTemplate(incoming());
+      allow delete: if isValidId(templateId);
+    }
+
+    // Roadmaps collection
+    match /roadmaps/{roadmapId} {
+      allow read: if true;
+      allow create: if isValidId(roadmapId) && isValidContentRoadmap(incoming());
+      allow update: if isValidId(roadmapId) && isValidContentRoadmap(incoming());
+      allow delete: if isValidId(roadmapId);
     }
   }
 }

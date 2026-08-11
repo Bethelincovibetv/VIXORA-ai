@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from "@google/genai";
 import { UserProfile, Bank } from './types';
 import { VideoSequencer } from './components/VideoSequencer';
+import { VixoraContentMaster } from './components/VixoraContentMaster';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
 import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
 import { 
@@ -232,7 +233,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<(UserProfile & { apiKey?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact' | 'coach'>('studio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
@@ -1644,6 +1645,13 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+            <button onClick={() => { setActiveTab('coach'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'coach' ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#78350f] border border-amber-300/40">
+                <i className="fa-solid fa-cross text-xs"></i>
+              </div>
+              <span>Sister Vixora Coach</span>
+            </button>
+
             <button onClick={() => { setActiveTab('studio'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'studio' ? 'bg-orange-500/10 border-orange-500/40 text-orange-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#b33600] border border-orange-300/40">
                 <i className="fa-solid fa-microphone-lines text-xs"></i>
@@ -2053,6 +2061,22 @@ const App: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'coach' && (
+          <div className="animate-rise space-y-4">
+            <VixoraContentMaster 
+              themeMode={themeMode}
+              onGenerateScriptForStudio={(scriptHook, topicTitle) => {
+                setScriptTopic(topicTitle || scriptHook);
+                setVideoScriptInput(scriptHook);
+                setActiveTab('videos');
+              }}
+              onUseTemplateInStudio={(tpl) => {
+                setActiveTab('videos');
+              }}
+            />
           </div>
         )}
 
@@ -4214,6 +4238,7 @@ const App: React.FC = () => {
 
       <nav className={`fixed bottom-3 left-3 right-3 max-w-md mx-auto rounded-3xl p-1.5 flex items-center justify-between z-50 border shadow-2xl backdrop-blur-2xl ${themeMode === 'light' ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-950/95 border-white/10 text-white'}`}>
         {[
+          { id: 'coach', label: 'Coach', icon: 'fa-cross', activeBg: 'from-amber-500 to-orange-600 border-amber-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#78350f,0_6px_12px_rgba(245,158,11,0.35)]', activeText: 'text-amber-400' },
           { id: 'studio', label: 'Studio', icon: 'fa-microphone-lines', activeBg: 'from-orange-500 to-amber-600 border-orange-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#b33600,0_6px_12px_rgba(255,102,0,0.35)]', activeText: 'text-orange-500' },
           { id: 'autopilot', label: 'Autopilot', icon: 'fa-wand-magic-sparkles', activeBg: 'from-rose-500 to-pink-600 border-rose-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#9f1239,0_6px_12px_rgba(244,63,94,0.35)]', activeText: 'text-rose-500' },
           { id: 'scripts', label: 'Scripts', icon: 'fa-scroll', activeBg: 'from-purple-500 to-indigo-600 border-purple-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#581c87,0_6px_12px_rgba(168,85,247,0.35)]', activeText: 'text-purple-500' },

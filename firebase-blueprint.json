@@ -60,6 +60,43 @@
         "createdAt": { "type": "string", "maxLength": 100 }
       },
       "required": ["id", "title", "message"]
+    },
+    "VideoTemplate": {
+      "title": "Video Production Template",
+      "description": "Custom reusable video production template preset",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 255 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "niche": { "type": "string", "maxLength": 100 },
+        "aspectRatio": { "type": "string", "maxLength": 50 },
+        "targetDuration": { "type": "string", "maxLength": 50 },
+        "captionTemplate": { "type": "string", "maxLength": 100 },
+        "sfxEnabled": { "type": "string", "maxLength": 50 },
+        "bgMusicUrl": { "type": "string", "maxLength": 2000 },
+        "scriptStyle": { "type": "string", "maxLength": 1000 },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "title"]
+    },
+    "ContentRoadmap": {
+      "title": "Creator Content Roadmap",
+      "description": "Sister Vixora Content Master strategic roadmap plan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 255 },
+        "niche": { "type": "string", "maxLength": 100 },
+        "platform": { "type": "string", "maxLength": 100 },
+        "goal": { "type": "string", "maxLength": 500 },
+        "roadmapItemsJson": { "type": "string", "maxLength": 20000 },
+        "faithAlignment": { "type": "string", "maxLength": 2000 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "title"]
     }
   },
   "firestore": {
@@ -78,6 +115,14 @@
     "/announcements/{announcementId}": {
       "schema": { "$ref": "#/entities/Announcement" },
       "description": "System feature announcements and update adverts"
+    },
+    "/templates/{templateId}": {
+      "schema": { "$ref": "#/entities/VideoTemplate" },
+      "description": "Video production templates collection"
+    },
+    "/roadmaps/{roadmapId}": {
+      "schema": { "$ref": "#/entities/ContentRoadmap" },
+      "description": "Content Coach roadmaps and strategies"
     }
   }
 }

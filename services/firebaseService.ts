@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
-import { CreatedVideo, UserProfile } from '../types';
+import { CreatedVideo, UserProfile, VideoTemplate, ContentRoadmap } from '../types';
 
 export interface FeatureAnnouncement {
   id: string;
@@ -377,3 +377,112 @@ export async function syncFirebaseUserProfile(profile: UserProfile): Promise<voi
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+// --- VIDEO TEMPLATES SYNC TO FIRESTORE ---
+export async function syncFirebaseSaveTemplate(template: VideoTemplate): Promise<void> {
+  const path = `templates/${template.id}`;
+  try {
+    await setDoc(doc(db, 'templates', template.id), {
+      id: template.id,
+      title: template.title,
+      description: template.description || '',
+      niche: template.niche || 'General',
+      aspectRatio: template.aspectRatio || 'vertical',
+      targetDuration: template.targetDuration || '30s',
+      captionTemplate: template.captionTemplate || 'bold-yellow',
+      sfxEnabled: template.sfxEnabled ? 'true' : 'false',
+      bgMusicUrl: template.bgMusicUrl || '',
+      scriptStyle: template.scriptStyle || '',
+      createdBy: auth.currentUser?.uid || 'system',
+      createdAt: template.createdAt || new Date().toISOString()
+    });
+  } catch (error) {
+    console.warn("Firestore save template error:", error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function syncFirebaseFetchTemplates(): Promise<VideoTemplate[]> {
+  const path = 'templates';
+  try {
+    const q = query(collection(db, 'templates'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const templates: VideoTemplate[] = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      templates.push({
+        id: data.id || docSnap.id,
+        title: data.title,
+        description: data.description || '',
+        niche: data.niche || 'General',
+        aspectRatio: data.aspectRatio || 'vertical',
+        targetDuration: data.targetDuration || '30s',
+        captionTemplate: data.captionTemplate || 'bold-yellow',
+        sfxEnabled: data.sfxEnabled === 'true' || data.sfxEnabled === true,
+        bgMusicUrl: data.bgMusicUrl || '',
+        scriptStyle: data.scriptStyle || '',
+        createdBy: data.createdBy,
+        createdAt: data.createdAt
+      });
+    });
+    return templates;
+  } catch (error) {
+    console.warn("Firestore fetch templates fallback:", error);
+    return [];
+  }
+}
+
+// --- CONTENT ROADMAPS SYNC TO FIRESTORE ---
+export async function syncFirebaseSaveRoadmap(roadmap: ContentRoadmap): Promise<void> {
+  const path = `roadmaps/${roadmap.id}`;
+  try {
+    await setDoc(doc(db, 'roadmaps', roadmap.id), {
+      id: roadmap.id,
+      title: roadmap.title,
+      niche: roadmap.niche || 'General',
+      platform: roadmap.platform || 'Multi-Platform',
+      goal: roadmap.goal || '',
+      roadmapItemsJson: JSON.stringify(roadmap.roadmapItems || []),
+      faithAlignment: roadmap.faithAlignment || '',
+      userId: auth.currentUser?.uid || 'anonymous',
+      createdAt: roadmap.createdAt || new Date().toISOString()
+    });
+  } catch (error) {
+    console.warn("Firestore save roadmap error:", error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function syncFirebaseFetchRoadmaps(): Promise<ContentRoadmap[]> {
+  const path = 'roadmaps';
+  try {
+    const q = query(collection(db, 'roadmaps'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const roadmaps: ContentRoadmap[] = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      let parsedItems = [];
+      try {
+        parsedItems = JSON.parse(data.roadmapItemsJson || '[]');
+      } catch (e) {
+        parsedItems = [];
+      }
+      roadmaps.push({
+        id: data.id || docSnap.id,
+        title: data.title,
+        niche: data.niche || 'General',
+        platform: data.platform || 'Multi-Platform',
+        goal: data.goal || '',
+        roadmapItems: parsedItems,
+        faithAlignment: data.faithAlignment || '',
+        userId: data.userId,
+        createdAt: data.createdAt
+      });
+    });
+    return roadmaps;
+  } catch (error) {
+    console.warn("Firestore fetch roadmaps fallback:", error);
+    return [];
+  }
+}
+

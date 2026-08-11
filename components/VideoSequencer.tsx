@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { PRESET_MUSIC_TRACKS } from '../constants';
+import { PRESET_SFX_CATALOG, playProceduralSFX } from '../sfxLibrary';
+import { SFXPlacement, VideoTemplate } from '../types';
+import { syncFirebaseSaveTemplate } from '../services/firebaseService';
 
 export interface SourcedVideo {
   id: number;
@@ -135,6 +138,25 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [fontSize, setFontSize] = useState<number>(24);
   const [captionTemplate, setCaptionTemplate] = useState<string>('bold-yellow');
   const [aiEmojiMode, setAiEmojiMode] = useState<boolean>(true);
+
+  // --- SOUND EFFECTS (SFX) STATE ---
+  const [sfxPlacements, setSfxPlacements] = useState<SFXPlacement[]>([
+    { id: 'sfx_init_1', sfxId: 'sfx_whoosh', name: 'Fast Air Whoosh', synthType: 'whoosh', timestamp: 0.1 },
+    { id: 'sfx_init_2', sfxId: 'sfx_pop', name: 'Bubble Pop', synthType: 'pop', timestamp: 2.2 },
+    { id: 'sfx_init_3', sfxId: 'sfx_sparkle', name: 'Magic Glint / Chime', synthType: 'sparkle', timestamp: 4.8 }
+  ]);
+  const [autoSfxEnabled, setAutoSfxEnabled] = useState<boolean>(true);
+  const [showSfxModal, setShowSfxModal] = useState<boolean>(false);
+  const [selectedSfxId, setSelectedSfxId] = useState<string>('sfx_whoosh');
+  const lastTriggeredSfxRef = useRef<Set<string>>(new Set());
+
+  // --- SAVE VIDEO TEMPLATE STATE ---
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState<boolean>(false);
+  const [templateTitle, setTemplateTitle] = useState<string>('');
+  const [templateDesc, setTemplateDesc] = useState<string>('');
+  const [templateNiche, setTemplateNiche] = useState<string>('General');
+  const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
+  const [templateSavedMsg, setTemplateSavedMsg] = useState<string | null>(null);
 
   const [alignedWords, setAlignedWords] = useState<TimeWord[] | null>(null);
   const [isAligning, setIsAligning] = useState<boolean>(false);
@@ -1147,6 +1169,26 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         } else {
           setCurrentTime(nextTime);
           drawFrame(nextTime);
+
+          // Real-time SFX Trigger checks
+          sfxPlacements.forEach(sfx => {
+            if (Math.abs(nextTime - sfx.timestamp) < 0.15 && !lastTriggeredSfxRef.current.has(sfx.id)) {
+              lastTriggeredSfxRef.current.add(sfx.id);
+              playProceduralSFX(sfx.synthType);
+            }
+          });
+
+          // Auto-SFX scene transition triggers
+          if (autoSfxEnabled && segments.length > 1) {
+            segments.slice(1).forEach(seg => {
+              const boundaryKey = `scene_transition_${seg.start}`;
+              if (Math.abs(nextTime - seg.start) < 0.15 && !lastTriggeredSfxRef.current.has(boundaryKey)) {
+                lastTriggeredSfxRef.current.add(boundaryKey);
+                playProceduralSFX('whoosh');
+              }
+            });
+          }
+
           animationFrameRef.current = requestAnimationFrame(run);
         }
       };
@@ -1179,6 +1221,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       setCurrentTime(0);
       audioPauseOffsetRef.current = 0;
     }
+    lastTriggeredSfxRef.current.clear();
     setIsPlaying(!isPlaying);
   };
 
@@ -1186,12 +1229,14 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     setIsPlaying(false);
     audioPauseOffsetRef.current = 0;
     setCurrentTime(0);
+    lastTriggeredSfxRef.current.clear();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = parseFloat(e.target.value);
     setCurrentTime(target);
     audioPauseOffsetRef.current = target;
+    lastTriggeredSfxRef.current.clear();
     if (isPlaying) {
       audioStartTimeRef.current = performance.now();
       playVoiceoverNode(target);
@@ -1351,6 +1396,14 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           <p className={`text-[10px] font-bold uppercase mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Auto-sync Voiceover, HD Footage & Subtitle Aesthetics</p>
         </div>
         <div className={`flex items-center gap-1 p-1 rounded-2xl border shrink-0 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'}`}>
+          <button
+            onClick={() => setShowSaveTemplateModal(true)}
+            className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30 hover:bg-ggd-orange hover:text-white`}
+            title="Save this video setup as a reusable template to Firebase"
+          >
+            <i className="fa-solid fa-cloud-arrow-up text-[10px]"></i>
+            <span>Save Template</span>
+          </button>
           <button 
             onClick={() => setAspectRatio('vertical')} 
             className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'vertical' ? 'bg-ggd-orange text-white' : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
@@ -1744,6 +1797,82 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             </div>
           </div>
 
+          {/* Sound Effects (SFX) Track Manager Panel */}
+          <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-indigo-50/60 border-indigo-200' : 'bg-indigo-950/30 border-indigo-500/20'}`} id="sfx-timeline-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${themeMode === 'light' ? 'text-indigo-950' : 'text-indigo-300'}`}>
+                  <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i>
+                  SFX Library & Timeline ({sfxPlacements.length})
+                </h3>
+                <p className={`text-[8px] mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Synthesize whooshes, pops, transition chimes & impact drops
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAutoSfxEnabled(!autoSfxEnabled)}
+                  className={`px-2 py-1 rounded-xl text-[8px] font-black uppercase border transition-all flex items-center gap-1 ${
+                    autoSfxEnabled 
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400' 
+                      : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
+                  }`}
+                  title="Toggle auto-triggering transition whooshes between video scenes"
+                >
+                  <i className={`fa-solid ${autoSfxEnabled ? 'fa-bolt text-emerald-500' : 'fa-power-off'}`}></i>
+                  Auto Scene SFX: {autoSfxEnabled ? 'ON' : 'OFF'}
+                </button>
+
+                <button
+                  onClick={() => setShowSfxModal(true)}
+                  className="px-2.5 py-1 bg-ggd-orange text-white text-[9px] font-black uppercase rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <i className="fa-solid fa-plus text-[8px]"></i> Add SFX
+                </button>
+              </div>
+            </div>
+
+            {/* Active SFX Placements list */}
+            {sfxPlacements.length === 0 ? (
+              <p className={`text-[9px] italic text-center py-2 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                No custom sound effects added yet. Click "+ Add SFX" to place sound effects on the timeline.
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-hide">
+                {sfxPlacements.map((sfx) => (
+                  <div 
+                    key={sfx.id} 
+                    className={`p-2 rounded-xl border flex items-center justify-between gap-2 ${
+                      themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <button
+                        onClick={() => playProceduralSFX(sfx.synthType)}
+                        className="w-6 h-6 rounded-lg bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white flex items-center justify-center text-[9px] transition-all shrink-0"
+                        title="Preview this sound effect"
+                      >
+                        <i className="fa-solid fa-play"></i>
+                      </button>
+                      <div className="overflow-hidden text-left">
+                        <p className={`text-[9px] font-black uppercase truncate ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{sfx.name}</p>
+                        <p className="text-[8px] text-ggd-orange font-mono font-bold">At timestamp: {sfx.timestamp.toFixed(1)}s</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSfxPlacements(prev => prev.filter(p => p.id !== sfx.id))}
+                      className="text-slate-400 hover:text-red-400 p-1 text-[10px] transition-all"
+                      title="Remove SFX"
+                    >
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Export Action block */}
           <div className="space-y-2">
             {!isCompiling ? (
@@ -1787,6 +1916,195 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         muted 
         playsInline
       />
+
+      {/* ADD SFX MODAL */}
+      {showSfxModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className={`w-full max-w-md p-6 rounded-3xl border space-y-4 shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight flex items-center gap-2">
+                  <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i> Add Sound Effect
+                </h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Place sound effect at playhead time ({currentTime.toFixed(1)}s)</p>
+              </div>
+              <button onClick={() => setShowSfxModal(false)} className="text-slate-400 hover:text-white p-1">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1 scrollbar-hide">
+              {PRESET_SFX_CATALOG.map((sfx) => (
+                <div 
+                  key={sfx.id} 
+                  onClick={() => setSelectedSfxId(sfx.id)}
+                  className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
+                    selectedSfxId === sfx.id 
+                      ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold' 
+                      : themeMode === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-slate-100' : 'bg-white/5 border-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playProceduralSFX(sfx.synthType);
+                      }}
+                      className="w-8 h-8 rounded-xl bg-ggd-orange text-white flex items-center justify-center text-xs shadow-md hover:scale-105 active:scale-95 transition-all shrink-0"
+                      title="Test SFX Sound"
+                    >
+                      <i className="fa-solid fa-play"></i>
+                    </button>
+                    <div>
+                      <p className={`text-xs font-black uppercase ${selectedSfxId === sfx.id ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{sfx.name}</p>
+                      <p className="text-[9px] text-slate-500">{sfx.category} • {sfx.description}</p>
+                    </div>
+                  </div>
+                  {selectedSfxId === sfx.id && <i className="fa-solid fa-circle-check text-ggd-orange text-sm"></i>}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowSfxModal(false)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase ${themeMode === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-slate-300'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const sfxObj = PRESET_SFX_CATALOG.find(s => s.id === selectedSfxId);
+                  if (sfxObj) {
+                    const newPlacement: SFXPlacement = {
+                      id: 'sfx_' + Date.now(),
+                      sfxId: sfxObj.id,
+                      name: sfxObj.name,
+                      synthType: sfxObj.synthType,
+                      timestamp: currentTime
+                    };
+                    setSfxPlacements(prev => [...prev, newPlacement]);
+                    playProceduralSFX(sfxObj.synthType);
+                  }
+                  setShowSfxModal(false);
+                }}
+                className="px-5 py-2 bg-ggd-orange text-white rounded-xl text-xs font-black uppercase shadow-lg active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                <i className="fa-solid fa-check"></i> Place at {currentTime.toFixed(1)}s
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SAVE VIDEO TEMPLATE MODAL */}
+      {showSaveTemplateModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className={`w-full max-w-md p-6 rounded-3xl border space-y-4 shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-tight flex items-center gap-2">
+                  <i className="fa-solid fa-cloud-arrow-up text-ggd-orange"></i> Save Video Template
+                </h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Persist settings to Firebase for instant AI reuse</p>
+              </div>
+              <button onClick={() => setShowSaveTemplateModal(false)} className="text-slate-400 hover:text-white p-1">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+
+            {templateSavedMsg ? (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center space-y-2">
+                <i className="fa-solid fa-circle-check text-emerald-500 text-2xl"></i>
+                <p className="text-xs font-black uppercase text-emerald-400">{templateSavedMsg}</p>
+                <button
+                  onClick={() => {
+                    setTemplateSavedMsg(null);
+                    setShowSaveTemplateModal(false);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Template Title *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. High Impact Viral TikTok Layout"
+                    value={templateTitle}
+                    onChange={(e) => setTemplateTitle(e.target.value)}
+                    className={`w-full p-3 rounded-xl border text-xs font-semibold focus:outline-none focus:border-ggd-orange ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-white/5 border-white/10 text-white'}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Category / Niche</label>
+                  <select
+                    value={templateNiche}
+                    onChange={(e) => setTemplateNiche(e.target.value)}
+                    className={`w-full p-3 rounded-xl border text-xs font-semibold focus:outline-none focus:border-ggd-orange ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-800 border-white/10 text-white'}`}
+                  >
+                    <option value="General">General / All-Purpose</option>
+                    <option value="Faith & Purpose">Faith & Purpose (Christian)</option>
+                    <option value="Business & Finance">Business & Finance</option>
+                    <option value="Lifestyle & Vlog">Lifestyle & Vlog</option>
+                    <option value="Tech & AI">Tech & AI Innovation</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Description (Optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Brief description of script style, pacing, and visual look..."
+                    value={templateDesc}
+                    onChange={(e) => setTemplateDesc(e.target.value)}
+                    className={`w-full p-3 rounded-xl border text-xs focus:outline-none focus:border-ggd-orange ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-white/5 border-white/10 text-white'}`}
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowSaveTemplateModal(false)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase ${themeMode === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-slate-300'}`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!templateTitle.trim() || isSavingTemplate}
+                    onClick={async () => {
+                      if (!templateTitle.trim()) return;
+                      setIsSavingTemplate(true);
+                      const newTemplate: VideoTemplate = {
+                        id: 'tpl_' + Date.now(),
+                        title: templateTitle.trim(),
+                        description: templateDesc,
+                        niche: templateNiche,
+                        aspectRatio,
+                        targetDuration: `${totalDuration.toFixed(0)}s`,
+                        captionTemplate,
+                        sfxEnabled: autoSfxEnabled || sfxPlacements.length > 0,
+                        bgMusicUrl: selectedMusicUrl,
+                        createdAt: new Date().toISOString()
+                      };
+                      await syncFirebaseSaveTemplate(newTemplate);
+                      setIsSavingTemplate(false);
+                      setTemplateSavedMsg("Video Template successfully saved to Firebase!");
+                    }}
+                    className="px-5 py-2 bg-ggd-orange text-white rounded-xl text-xs font-black uppercase shadow-lg disabled:opacity-50 active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    {isSavingTemplate ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-cloud-arrow-up"></i>}
+                    Save to Firebase
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

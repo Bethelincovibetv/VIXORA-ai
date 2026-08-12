@@ -59,7 +59,7 @@ export interface VideoTemplate {
   description: string;
   niche: string;
   aspectRatio: 'vertical' | 'horizontal' | 'square';
-  targetDuration: '15s' | '30s' | '60s' | '2min';
+  targetDuration: '15s' | '30s' | '60s' | '1min' | '2min' | '3min' | '5min';
   captionTemplate: string;
   sfxEnabled: boolean;
   bgMusicUrl: string;

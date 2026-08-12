@@ -6,6 +6,7 @@ import { VideoSequencer } from './components/VideoSequencer';
 import { VixoraContentMaster } from './components/VixoraContentMaster';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
 import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
+import { scoreAndFetchBeatVisual } from './services/stockSourcingService';
 import { 
   requestNotificationPermission, 
   setupForegroundMessageListener, 
@@ -748,9 +749,54 @@ const App: React.FC = () => {
     setWizardStep(3);
   };
 
+  // --- DURATION AND SCENE SOURCING HELPERS ---
+  const getDurationScriptInstruction = (dur: string) => {
+    switch (dur) {
+      case '15s':
+        return `CRITICAL TARGET DURATION: Exactly 15 Seconds (~30 to 35 spoken words max).
+Keep it ultra concise and punchy: 1 line Hook (3s), 2 short facts (9s), 1 line CTA (3s).`;
+      case '30s':
+        return `CRITICAL TARGET DURATION: Exactly 30 Seconds (~65 to 75 spoken words).
+Structure: Instant Hook (5s), 2 core insights (20s), Clear CTA (5s).`;
+      case '60s':
+      case '1min':
+        return `CRITICAL TARGET DURATION: Exactly 1 Minute / 60 Seconds (~130 to 150 spoken words).
+Structure: Viral Hook (8s), 3 structured key points with real-world impact (45s), Strong CTA (7s).`;
+      case '2min':
+        return `CRITICAL TARGET DURATION: Exactly 2 Minutes (~260 to 300 spoken words).
+Structure: Story Hook (12s), 4 in-depth insights / steps (95s), Summary & Call to action (13s).`;
+      case '3min':
+        return `CRITICAL TARGET DURATION: Exactly 3 Minutes (~390 to 450 spoken words).
+Structure: Mini-Documentary format. Introduction (20s), 5 detailed educational pillars with examples (140s), Conclusion & CTA (20s).`;
+      case '5min':
+        return `CRITICAL TARGET DURATION: Exactly 5 Minutes (~650 to 750 spoken words).
+Structure: Full Masterclass / In-depth Documentary Script.
+1. High-Stakes Hook & Prologue (30s)
+2. Chapter 1: The Core Problem & Misconceptions (60s)
+3. Chapter 2: Deep Dive Analysis & Principles (90s)
+4. Chapter 3: Practical Execution & Case Studies (90s)
+5. Conclusion, Final Mindset Shift & Powerful Call To Action (30s)`;
+      default:
+        return `CRITICAL TARGET DURATION: Exactly 30 Seconds (~65 to 75 spoken words).`;
+    }
+  };
+
+  const getTargetSceneCount = (dur: string): number => {
+    switch (dur) {
+      case '15s': return 3;
+      case '30s': return 5;
+      case '60s':
+      case '1min': return 8;
+      case '2min': return 12;
+      case '3min': return 18;
+      case '5min': return 25;
+      default: return 5;
+    }
+  };
+
   // --- VIDEO SOURCER (FACELESS VIDEO CREATOR) ---
 
-  const handleSourceVideos = async (overrideScript?: string) => {
+  const handleSourceVideos = async (overrideScript?: string, overrideDuration?: string) => {
     const input = overrideScript || videoScriptInput;
     if (!input.trim()) {
       setAppError("Please enter a script or topic to source videos.");
@@ -769,14 +815,17 @@ const App: React.FC = () => {
 
     try {
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
-      
-      // Intelligent scene-by-scene keyword extraction matching topic & script narrative
+      const currentDuration = overrideDuration || targetVideoDuration || '30s';
+      const sceneCount = getTargetSceneCount(currentDuration);
+
+      // Intelligent scene-by-scene keyword extraction matching exact duration and script narrative
       const keywordResponse = await ai.models.generateContent({
         model: "gemini-3.6-flash",
         contents: `Analyze this video script: "${input}". 
-        Break it down into 4 sequential scenes that correspond to what is taught in each section.
-        For each scene, provide 2 precise stock video search keywords that match the scene's visual topic.
-        Return ONLY a JSON array of strings, e.g. ["forex trading charts", "luxury mansion interior", "businessman typing laptop", "rocket launch space"].`,
+        The target video duration is ${currentDuration}.
+        Break the script down into EXACTLY ${sceneCount} sequential scene queries corresponding to what is being spoken in each scene.
+        For each scene, provide a highly specific 3-5 word stock video search visual query matching the exact mood and subject matter (e.g. "trader studying forex chart screen", "luxury mansion living room", "young woman smiling at laptop office").
+        Return ONLY a JSON array of ${sceneCount} strings.`,
         config: {
           responseMimeType: "application/json"
         }
@@ -792,22 +841,46 @@ const App: React.FC = () => {
         sceneQueries = [input.split(' ').slice(0, 3).join(' ')];
       }
 
-      // Parallel fetch matching HD clips for each scene
-      const fetchPromises = sceneQueries.map(q => 
-        fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=3&orientation=${videoRatio === 'vertical' ? 'portrait' : 'landscape'}`, {
-          headers: { Authorization: PEXELS_API_KEY }
-        }).then(res => res.ok ? res.json() : { videos: [] }).catch(() => ({ videos: [] }))
-      );
+      const orientationParam = videoRatio === 'vertical' ? 'portrait' : videoRatio === 'horizontal' ? 'landscape' : 'square';
 
-      const responses = await Promise.all(fetchPromises);
-      const allClips = responses.flatMap(r => r.videos || []);
-      
-      // Deduplicate by video id
-      const uniqueClips = Array.from(new Map(allClips.map(v => [v.id, v])).values());
-      setSourcedVideos(uniqueClips);
+      // Split script into sentence beats matching sceneQueries
+      const sentenceBeats = input.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
 
-      if (uniqueClips.length === 0) {
-        setAppError("No matching videos found. Try different keywords.");
+      const usedIds = new Set<number | string>();
+      const matchedClips: SourcedVideo[] = [];
+
+      for (let i = 0; i < sceneQueries.length; i++) {
+        const query = sceneQueries[i];
+        const beatText = sentenceBeats[i] || sentenceBeats[i % Math.max(1, sentenceBeats.length)] || input;
+        
+        const { clip } = await scoreAndFetchBeatVisual(
+          beatText,
+          query,
+          orientationParam,
+          PEXELS_API_KEY,
+          usedIds,
+          i
+        );
+
+        matchedClips.push({
+          id: typeof clip.id === 'number' ? clip.id : parseInt(String(clip.id).replace(/\D/g, '') || String(1000 + i)),
+          url: clip.url,
+          image: clip.image,
+          duration: clip.duration,
+          video_files: clip.video_files,
+          title: clip.title,
+          mediaType: clip.mediaType,
+          matchScore: clip.matchScore,
+          searchQuery: query,
+          confidence: clip.confidence,
+          fallbackUsed: clip.fallbackUsed
+        } as any);
+      }
+
+      setSourcedVideos(matchedClips);
+
+      if (matchedClips.length === 0) {
+        setAppError("No matching visuals found. Try different keywords.");
       }
     } catch (err) {
       console.error("Video sourcing error:", err);
@@ -909,7 +982,11 @@ const App: React.FC = () => {
 
   // --- SCRIPT GENERATION ---
 
-  const handleGenerateScript = async (overrideTopic?: string, useWebSearch?: boolean) => {
+  const handleGenerateScript = async (
+    overrideTopic?: string, 
+    useWebSearch?: boolean,
+    overrideDuration?: string
+  ) => {
     const topic = overrideTopic || scriptTopic;
     if (!topic.trim()) {
       setAppError("Please enter a topic for the script.");
@@ -931,20 +1008,26 @@ const App: React.FC = () => {
       const activeNicheConfig = NICHE_OPTIONS.find(n => n.id === userNiche) || NICHE_OPTIONS[0];
       const nicheSuffix = activeNicheConfig.promptSuffix;
       const userNameGreeting = user?.fullName ? `Personalize and tailor this video script for content creator "${user.fullName}".` : '';
+      const targetDur = overrideDuration || targetVideoDuration || '30s';
+      const durationGuideline = getDurationScriptInstruction(targetDur);
 
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
       
       let contents = `Write a professional, viral-optimized YouTube script for a FACELESS channel about "${topic}". 
       
       ${userNameGreeting}
+
       NICHE VOICE GUIDELINES:
       - ${nicheSuffix}
 
-      REQUIREMENTS:
-      - Go direct to the point. No introductory talk.
-      - Do NOT use asterisks (*) or markdown bolding (**).
-      - Structure: HOOK, BODY, CTA.
-      - Return ONLY the script content.`;
+      EXACT DURATION SPECIFICATION:
+      ${durationGuideline}
+
+      CRITICAL FORMATTING REQUIREMENTS:
+      - Go direct to the point. No introductory chit-chat ("Hey guys welcome back...").
+      - Strictly do NOT use asterisks (*) or markdown bolding (**). Write purely clean plain text.
+      - Maintain standard speaker pacing (~130-150 words per minute) so the speech timing matches the duration requested.
+      - Return ONLY the script text ready for narration.`;
 
       let config: any = {};
 
@@ -956,12 +1039,15 @@ const App: React.FC = () => {
         NICHE VOICE GUIDELINES:
         - ${nicheSuffix}
 
-        REQUIREMENTS:
+        EXACT DURATION SPECIFICATION:
+        ${durationGuideline}
+
+        CRITICAL FORMATTING REQUIREMENTS:
         - Incorporate specific real-time web facts or viral trend data found from your search.
         - Go direct to the point.
-        - Do NOT use asterisks (*) or markdown bolding (**).
-        - Structure: HOOK, BODY, CTA.
-        - Return ONLY the script content.`;
+        - Strictly do NOT use asterisks (*) or markdown bolding (**). Write purely clean plain text.
+        - Maintain standard speaker pacing (~130-150 words per minute) so the speech timing matches the duration requested.
+        - Return ONLY the script text ready for narration.`;
 
         config = {
           tools: [{ googleSearch: {} }]
@@ -1165,7 +1251,9 @@ const App: React.FC = () => {
         1
       );
 
-      const scriptText = await handleGenerateScript(topicToUse, shouldWebSearch);
+      const currentDur = durationToUse || targetVideoDuration || '30s';
+
+      const scriptText = await handleGenerateScript(topicToUse, shouldWebSearch, currentDur);
       if (!scriptText) throw new Error("Could not formulate script.");
 
       setProgressWithMsg(
@@ -1206,13 +1294,16 @@ const App: React.FC = () => {
       setVideoScriptInput(scriptText);
       
       const currentRatio = ratioToUse || videoRatio;
+      const targetSceneCount = getTargetSceneCount(currentDur);
       const orientationParam = currentRatio === 'vertical' ? 'portrait' : currentRatio === 'horizontal' ? 'landscape' : 'square';
 
       const keywordResponse = await ai.models.generateContent({
         model: "gemini-3.6-flash",
         contents: `Analyze this video script: "${scriptText}". 
-        Break it down into 4 sequential scenes. For each scene, provide 2 precise stock video search keywords.
-        Return ONLY a JSON array of strings, e.g. ["forex trading charts", "businessman laptop", "luxury mansion", "rocket launch"].`,
+        The target video duration is ${currentDur}.
+        Break the script down into EXACTLY ${targetSceneCount} sequential scene visual queries corresponding to what is being spoken in each section.
+        For each scene, provide a highly specific 3-5 word stock video search visual query matching the exact mood and subject matter (e.g. "trader studying forex chart screen", "luxury mansion living room", "young woman smiling at laptop office").
+        Return ONLY a JSON array of ${targetSceneCount} strings.`,
         config: { responseMimeType: "application/json" }
       });
 
@@ -1224,16 +1315,41 @@ const App: React.FC = () => {
         sceneQueries = [scriptText.split(' ').slice(0, 3).join(' ')];
       }
 
-      const fetchPromises = sceneQueries.map(q => 
-        fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=3&orientation=${orientationParam}`, {
-          headers: { Authorization: PEXELS_API_KEY }
-        }).then(res => res.ok ? res.json() : { videos: [] }).catch(() => ({ videos: [] }))
-      );
+      // Split script into sentence beats matching sceneQueries
+      const sentenceBeats = scriptText.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
 
-      const responses = await Promise.all(fetchPromises);
-      const allClips = responses.flatMap(r => r.videos || []);
-      const uniqueClips = Array.from(new Map(allClips.map(v => [v.id, v])).values());
-      setSourcedVideos(uniqueClips);
+      const usedIds = new Set<number | string>();
+      const matchedClips: SourcedVideo[] = [];
+
+      for (let i = 0; i < sceneQueries.length; i++) {
+        const query = sceneQueries[i];
+        const beatText = sentenceBeats[i] || sentenceBeats[i % Math.max(1, sentenceBeats.length)] || scriptText;
+        
+        const { clip } = await scoreAndFetchBeatVisual(
+          beatText,
+          query,
+          orientationParam,
+          PEXELS_API_KEY,
+          usedIds,
+          i
+        );
+
+        matchedClips.push({
+          id: typeof clip.id === 'number' ? clip.id : parseInt(String(clip.id).replace(/\D/g, '') || String(1000 + i)),
+          url: clip.url,
+          image: clip.image,
+          duration: clip.duration,
+          video_files: clip.video_files,
+          title: clip.title,
+          mediaType: clip.mediaType,
+          matchScore: clip.matchScore,
+          searchQuery: query,
+          confidence: clip.confidence,
+          fallbackUsed: clip.fallbackUsed
+        } as any);
+      }
+
+      setSourcedVideos(matchedClips);
 
       setProgressWithMsg(
         88,
@@ -2073,7 +2189,14 @@ const App: React.FC = () => {
                 setVideoScriptInput(scriptHook);
                 setActiveTab('videos');
               }}
+              onCookAutopilotVideo={(topic, platform) => {
+                setScriptTopic(topic);
+                handleAutopilotVideoGeneration(topic);
+              }}
               onUseTemplateInStudio={(tpl) => {
+                if (tpl.targetDuration) setTargetVideoDuration(tpl.targetDuration);
+                if (tpl.aspectRatio) setVideoRatio(tpl.aspectRatio);
+                if (tpl.topic) setScriptTopic(tpl.topic);
                 setActiveTab('videos');
               }}
             />
@@ -2183,13 +2306,13 @@ const App: React.FC = () => {
                       <span>Target Video Duration</span>
                       <span className="text-[8px] text-amber-400 font-bold">{targetVideoDuration}</span>
                     </label>
-                    <div className="grid grid-cols-4 gap-1">
-                      {['15s', '30s', '60s', '2min'].map((dur) => (
+                    <div className="grid grid-cols-6 gap-1">
+                      {['15s', '30s', '1min', '2min', '3min', '5min'].map((dur) => (
                         <button 
                           key={dur}
                           type="button"
                           onClick={() => setTargetVideoDuration(dur)}
-                          className={`py-2 rounded-xl text-[8.5px] font-black uppercase border transition-all ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-400'}`}
+                          className={`py-2 rounded-xl text-[8px] sm:text-[8.5px] font-black uppercase border transition-all ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-black/40 border-white/10 text-slate-400 hover:bg-white/10'}`}
                         >
                           {dur}
                         </button>

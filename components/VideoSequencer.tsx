@@ -4,12 +4,19 @@ import { PRESET_MUSIC_TRACKS } from '../constants';
 import { PRESET_SFX_CATALOG, playProceduralSFX } from '../sfxLibrary';
 import { SFXPlacement, VideoTemplate } from '../types';
 import { syncFirebaseSaveTemplate } from '../services/firebaseService';
+import { scoreAndFetchBeatVisual, BeatAuditLog, VisualClipCandidate } from '../services/stockSourcingService';
 
 export interface SourcedVideo {
-  id: number;
+  id: number | string;
   url: string;
   image: string;
   duration: number;
+  mediaType?: 'video' | 'photo';
+  title?: string;
+  matchScore?: number;
+  searchQuery?: string;
+  confidence?: 'high' | 'medium' | 'low_confidence';
+  fallbackUsed?: boolean;
   video_files: Array<{
     link: string;
     quality: string;
@@ -47,8 +54,14 @@ interface Segment {
   start: number;
   end: number;
   videoUrl: string;
-  videoId: number;
+  videoId: number | string;
   thumbnail: string;
+  mediaType?: 'video' | 'photo';
+  title?: string;
+  matchScore?: number;
+  searchQuery?: string;
+  confidence?: 'high' | 'medium' | 'low_confidence';
+  fallbackUsed?: boolean;
   speed?: number;
 }
 
@@ -178,6 +191,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [extractedMood, setExtractedMood] = useState<string>('motivational');
   const [musicTracks] = useState(PRESET_MUSIC_TRACKS);
 
+  const [isReSourcingBeatId, setIsReSourcingBeatId] = useState<number | null>(null);
+
   const setSegmentSpeed = (id: number, speed: number) => {
     setSegments(prev => prev.map(seg => {
       if (seg.id === id) {
@@ -185,6 +200,59 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       }
       return seg;
     }));
+  };
+
+  const handleReSourceBeat = async (segId: number) => {
+    const targetSeg = segments.find(s => s.id === segId);
+    if (!targetSeg) return;
+
+    setIsReSourcingBeatId(segId);
+
+    try {
+      const orientationParam = aspectRatio === 'vertical' ? 'portrait' : aspectRatio === 'horizontal' ? 'landscape' : 'square';
+      const usedIds = new Set(segments.map(s => s.videoId));
+      const activeKey = (window as any).PEXELS_API_KEY || process.env.API_KEY || '';
+
+      const { clip } = await scoreAndFetchBeatVisual(
+        targetSeg.text,
+        targetSeg.searchQuery || targetSeg.text.slice(0, 30),
+        orientationParam,
+        activeKey,
+        usedIds,
+        segId
+      );
+
+      const hdFile = clip.video_files.find(f => f.quality === 'hd') || clip.video_files[0];
+      const newVideoUrl = hdFile?.link || clip.image || clip.url;
+
+      setSegments(prev => prev.map(s => {
+        if (s.id === segId) {
+          return {
+            ...s,
+            videoUrl: newVideoUrl,
+            videoId: clip.id,
+            thumbnail: clip.image,
+            mediaType: clip.mediaType,
+            title: clip.title,
+            matchScore: clip.matchScore,
+            searchQuery: clip.searchQuery,
+            confidence: clip.confidence,
+            fallbackUsed: clip.fallbackUsed
+          };
+        }
+        return s;
+      }));
+
+      if (clip.image) {
+        const img = new Image();
+        img.src = clip.image;
+        thumbnailImgCacheRef.current[clip.image] = img;
+      }
+    } catch (err) {
+      console.error(`Failed to re-source beat #${segId}:`, err);
+    } finally {
+      setIsReSourcingBeatId(null);
+    }
   };
 
   const activeSeg = segments.find(seg => currentTime >= seg.start && currentTime <= seg.end) 
@@ -730,7 +798,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             const videoIndex = index % Math.max(1, sourcedVideos.length);
             const video = sourcedVideos[videoIndex] || null;
             const hdFile = video?.video_files.find(f => f.quality === 'hd') || video?.video_files[0] || null;
-            const videoUrl = hdFile?.link || "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4";
+            const videoUrl = hdFile?.link || video?.image || video?.url || "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4";
 
             const existing = prev.find(p => p.id === index);
             const speed = existing && existing.speed !== undefined ? existing.speed : 1.0;
@@ -744,12 +812,18 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               videoUrl,
               videoId: video?.id || 0,
               thumbnail: video?.image || '',
+              mediaType: video?.mediaType || (videoUrl.includes('.mp4') ? 'video' : 'photo'),
+              title: video?.title || `Beat ${index + 1}`,
+              matchScore: video?.matchScore || 0.85,
+              searchQuery: video?.searchQuery || sentence.slice(0, 30),
+              confidence: video?.confidence || 'high',
+              fallbackUsed: video?.fallbackUsed || false,
               speed,
             };
           });
         });
       } else {
-        // --- SYNTHESIZED FALLBACK TIMING (INSTANT PREVIEW) ---
+        // --- SYNTHESIZED FALLBACK TIMING (PUNCTUATION WEIGHTED) ---
         const totalChars = RawSentences.reduce((acc, s) => acc + s.length, 0);
         let elapsed = 0;
 
@@ -764,14 +838,23 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             const videoIndex = index % Math.max(1, sourcedVideos.length);
             const video = sourcedVideos[videoIndex] || null;
             const hdFile = video?.video_files.find(f => f.quality === 'hd') || video?.video_files[0] || null;
-            const videoUrl = hdFile?.link || "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4";
+            const videoUrl = hdFile?.link || video?.image || video?.url || "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4";
 
             const words = sentence.split(/\s+/);
-            const wordsTotalChars = words.reduce((acc, w) => acc + w.length, 0);
+            let wordsTotalWeight = 0;
+            const wordWeights = words.map(w => {
+              let pauseBonus = 0;
+              if (/[.,!?]$/.test(w)) pauseBonus = 0.25;
+              else if (/[,;:]$/.test(w)) pauseBonus = 0.12;
+              const weight = Math.max(1, w.length) + (pauseBonus * 10);
+              wordsTotalWeight += weight;
+              return weight;
+            });
+
             let wordElapsed = segStart;
 
             const timeWords: TimeWord[] = words.map((word, wIdx) => {
-              const wordWeight = word.length / Math.max(1, wordsTotalChars);
+              const wordWeight = wordWeights[wIdx] / Math.max(1, wordsTotalWeight);
               const wordDuration = wordWeight * segmentDuration;
               const wordStart = wordElapsed;
               const wordEnd = wordElapsed + wordDuration;
@@ -796,6 +879,12 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               videoUrl,
               videoId: video?.id || 0,
               thumbnail: video?.image || '',
+              mediaType: video?.mediaType || (videoUrl.includes('.mp4') ? 'video' : 'photo'),
+              title: video?.title || `Beat ${index + 1}`,
+              matchScore: video?.matchScore || 0.85,
+              searchQuery: video?.searchQuery || sentence.slice(0, 30),
+              confidence: video?.confidence || 'high',
+              fallbackUsed: video?.fallbackUsed || false,
               speed,
             };
           });
@@ -964,8 +1053,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             console.warn("Non-fatal video state synchronization warning:", videoError);
           }
 
-          // Check if video is loaded and ready
-          const isVideoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+          // Check if video is loaded and ready or photo mode
+          const isVideoReady = activeSeg.mediaType !== 'photo' && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
           const cachedImg = activeSeg.thumbnail ? thumbnailImgCacheRef.current[activeSeg.thumbnail] : null;
 
           if (isVideoReady) {
@@ -995,7 +1084,10 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             }
           } else if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
             try {
-              // Fallback to preloaded static scene thumbnail cover instantly so we never show empty black screens
+              // Ken Burns Motion Effect for Photos or preloaded thumbnails
+              const segDuration = Math.max(0.1, activeSeg.end - activeSeg.start);
+              const p = Math.max(0, Math.min(1, (time - activeSeg.start) / segDuration));
+
               const imgW = cachedImg.naturalWidth;
               const imgH = cachedImg.naturalHeight;
               const targetRatio = width / height;
@@ -1013,13 +1105,19 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
                 sy = (imgH - sHeight) / 2;
               }
 
-              ctx.drawImage(cachedImg, sx, sy, sWidth, sHeight, 0, 0, width, height);
+              ctx.save();
+              // Smooth Ken Burns slow zoom (1.0 -> 1.14) & cinematic camera pan
+              const zoomScale = 1.0 + p * 0.14;
+              const panX = (p - 0.5) * (width * 0.04);
+              const panY = Math.sin(p * Math.PI) * (height * 0.02);
 
-              // Subtle overlay dark layer for aesthetic visual loading aesthetics
-              ctx.fillStyle = 'rgba(2, 6, 23, 0.45)';
-              ctx.fillRect(0, 0, width, height);
+              ctx.translate(width / 2 + panX, height / 2 + panY);
+              ctx.scale(zoomScale, zoomScale);
+
+              ctx.drawImage(cachedImg, sx, sy, sWidth, sHeight, -width / 2, -height / 2, width, height);
+              ctx.restore();
             } catch (imgErr) {
-              console.error("Failed to draw cached thumbnail:", imgErr);
+              console.error("Failed to draw cached thumbnail with Ken Burns:", imgErr);
               drawFallbackBackground(ctx, width, height);
             }
           } else {
@@ -1044,101 +1142,132 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         }
       }
 
-      // 3. Render Premium Snappy Word-by-Word Captains
+      // 3. Render CapCut-Style Word-Synced Animated Captions
       if (activeSeg && activeSeg.words && activeSeg.words.length > 0) {
         try {
-          const activeWord = activeSeg.words.find(word => time >= word.start && time <= word.end);
-          
-          if (activeWord) {
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+          const activeWordIndex = activeSeg.words.findIndex(w => time >= w.start && time <= w.end);
+          const activeWord = activeWordIndex !== -1 ? activeSeg.words[activeWordIndex] : (time > activeSeg.end ? activeSeg.words[activeSeg.words.length - 1] : activeSeg.words[0]);
 
+          if (activeWord) {
             const activeTemplateInfo = CAPCUT_TEMPLATES.find(t => t.id === captionTemplate) || CAPCUT_TEMPLATES[0];
             const fontSelected = activeTemplateInfo.font;
             const highlightColor = captionColor || activeTemplateInfo.color;
 
-            // Scale active word up for extreme high impact short-form reading retention
-            const scaleFont = fontSize * (width / 500) * 1.35; 
+            const scaleFont = fontSize * (width / 500) * 1.30;
             ctx.font = `900 ${scaleFont}px ${fontSelected}`;
 
             const capX = width / 2;
-            const capY = height * 0.78; // Perfect lower-third positioning
+            const capY = height * 0.78; // Lower-third positioning
 
-            const textToDraw = activeTemplateInfo.id === 'toktok-neon' ? activeWord.text.toUpperCase() : activeWord.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
 
-            // Draw dark backdrop pill box for minimalist dark box aesthetics
-            if (activeTemplateInfo.id === 'darkbox') {
-              const textWidth = ctx.measureText(textToDraw).width;
-              const paddingX = scaleFont * 0.45;
-              const paddingY = scaleFont * 0.22;
-              
-              ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
-              const radius = scaleFont * 0.25;
-              ctx.beginPath();
-              if (ctx.roundRect) {
-                ctx.roundRect(capX - textWidth / 2 - paddingX, capY - scaleFont / 2 - paddingY, textWidth + paddingX * 2, scaleFont + paddingY * 2, radius);
-              } else {
-                ctx.rect(capX - textWidth / 2 - paddingX, capY - scaleFont / 2 - paddingY, textWidth + paddingX * 2, scaleFont + paddingY * 2);
-              }
-              ctx.fill();
-            }
+            // --- STYLE 1: KARAOKE WORD HIGHLIGHT ---
+            if (captionTemplate === 'karaoke-grad') {
+              const phraseSize = 3;
+              const phraseStartIndex = Math.floor((activeWordIndex >= 0 ? activeWordIndex : 0) / phraseSize) * phraseSize;
+              const phraseWords = activeSeg.words.slice(phraseStartIndex, phraseStartIndex + phraseSize);
 
-            ctx.save();
+              const wordWidths = phraseWords.map(w => ctx.measureText(w.text + ' ').width);
+              const totalPhraseWidth = wordWidths.reduce((a, b) => a + b, 0);
+              let startX = capX - totalPhraseWidth / 2;
 
-            // Set up borders, glows & contours
-            if (activeTemplateInfo.id === 'cyber-future') {
-              ctx.strokeStyle = '#06b6d4'; // Glowing cyberpunk cyan contour
-              ctx.lineWidth = scaleFont * 0.22;
-              ctx.shadowColor = '#06b6d4';
-              ctx.shadowBlur = scaleFont * 0.4;
-            } else if (activeTemplateInfo.id === 'darkbox') {
-              ctx.strokeStyle = 'transparent';
-              ctx.lineWidth = 0;
-              ctx.shadowBlur = 0;
-            } else if (activeTemplateInfo.id === 'karaoke-grad') {
-              ctx.strokeStyle = '#000000';
-              ctx.lineWidth = scaleFont * 0.18;
-              ctx.shadowColor = '#f59e0b';
-              ctx.shadowBlur = scaleFont * 0.3;
-            } else {
-              // High contrast thick black border
-              ctx.strokeStyle = '#000000';
-              ctx.lineWidth = scaleFont * 0.25;
-              ctx.lineJoin = 'round';
-              ctx.miterLimit = 2;
-              ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-              ctx.shadowBlur = scaleFont * 0.15;
-              ctx.shadowOffsetX = 0;
-              ctx.shadowOffsetY = scaleFont * 0.05;
-            }
+              phraseWords.forEach((pw, pIdx) => {
+                const wWidth = wordWidths[pIdx];
+                const wordCenterX = startX + wWidth / 2;
+                const isActive = activeWordIndex >= 0 && (phraseStartIndex + pIdx === activeWordIndex);
 
-            // Render outlines
-            if (activeTemplateInfo.id !== 'darkbox') {
-              ctx.strokeText(textToDraw, capX, capY);
-            }
-
-            // Fill text with design accent
-            ctx.fillStyle = highlightColor;
-            ctx.fillText(textToDraw, capX, capY);
-
-            // Float float bounce emoji floating above the spoken word
-            if (aiEmojiMode) {
-              const emoji = getSemanticEmoji(activeWord.text);
-              if (emoji) {
-                ctx.restore();
                 ctx.save();
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.font = `${scaleFont * 1.3}px "Inter", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-                const floatY = capY - scaleFont * 1.45 + Math.sin(performance.now() / 140) * (scaleFont * 0.1);
-                ctx.shadowColor = '#000000';
-                ctx.shadowBlur = scaleFont * 0.15;
-                ctx.strokeText(emoji, capX, floatY);
-                ctx.fillText(emoji, capX, floatY);
-              }
-            }
+                if (isActive) {
+                  const padX = scaleFont * 0.25;
+                  const padY = scaleFont * 0.15;
+                  ctx.fillStyle = 'rgba(245, 158, 11, 0.95)'; // Gold highlight
+                  const r = scaleFont * 0.2;
+                  ctx.beginPath();
+                  if (ctx.roundRect) ctx.roundRect(wordCenterX - wWidth / 2 - padX / 2, capY - scaleFont / 2 - padY / 2, wWidth + padX, scaleFont + padY, r);
+                  else ctx.rect(wordCenterX - wWidth / 2 - padX / 2, capY - scaleFont / 2 - padY / 2, wWidth + padX, scaleFont + padY);
+                  ctx.fill();
 
-            ctx.restore();
+                  ctx.fillStyle = '#020617';
+                  ctx.fillText(pw.text, wordCenterX, capY);
+                } else {
+                  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+                  ctx.lineWidth = scaleFont * 0.14;
+                  ctx.strokeText(pw.text, wordCenterX, capY);
+                  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+                  ctx.fillText(pw.text, wordCenterX, capY);
+                }
+                ctx.restore();
+
+                startX += wWidth;
+              });
+
+            } else {
+              // --- STYLE 2 & 3: BOUNCE / POP-IN PER WORD & NEON / CYBER / DARKBOX ---
+              const textToDraw = captionTemplate === 'toktok-neon' ? activeWord.text.toUpperCase() : activeWord.text;
+
+              // Calculate elastic spring pop scale factor
+              const elapsedInWord = Math.max(0, time - activeWord.start);
+              const popDuration = 0.13;
+              const popScale = elapsedInWord < popDuration
+                ? 0.75 + Math.sin((elapsedInWord / popDuration) * Math.PI) * 0.42
+                : 1.0;
+
+              ctx.save();
+              ctx.translate(capX, capY);
+              ctx.scale(popScale, popScale);
+
+              // Darkbox pill box
+              if (captionTemplate === 'darkbox') {
+                const textWidth = ctx.measureText(textToDraw).width;
+                const paddingX = scaleFont * 0.45;
+                const paddingY = scaleFont * 0.22;
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.82)';
+                const radius = scaleFont * 0.25;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(-textWidth / 2 - paddingX, -scaleFont / 2 - paddingY, textWidth + paddingX * 2, scaleFont + paddingY * 2, radius);
+                else ctx.rect(-textWidth / 2 - paddingX, -scaleFont / 2 - paddingY, textWidth + paddingX * 2, scaleFont + paddingY * 2);
+                ctx.fill();
+              }
+
+              // Set up borders & glows
+              if (captionTemplate === 'cyber-future') {
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = scaleFont * 0.22;
+                ctx.shadowColor = '#06b6d4';
+                ctx.shadowBlur = scaleFont * 0.4;
+              } else if (captionTemplate !== 'darkbox') {
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = scaleFont * 0.25;
+                ctx.lineJoin = 'round';
+                ctx.miterLimit = 2;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                ctx.shadowBlur = scaleFont * 0.15;
+                ctx.shadowOffsetY = scaleFont * 0.05;
+              }
+
+              if (captionTemplate !== 'darkbox') {
+                ctx.strokeText(textToDraw, 0, 0);
+              }
+
+              ctx.fillStyle = highlightColor;
+              ctx.fillText(textToDraw, 0, 0);
+
+              // Floating AI Emoji
+              if (aiEmojiMode) {
+                const emoji = getSemanticEmoji(activeWord.text);
+                if (emoji) {
+                  ctx.font = `${scaleFont * 1.3}px "Inter", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+                  const floatY = -scaleFont * 1.45 + Math.sin(performance.now() / 140) * (scaleFont * 0.1);
+                  ctx.shadowColor = '#000000';
+                  ctx.shadowBlur = scaleFont * 0.15;
+                  ctx.strokeText(emoji, 0, floatY);
+                  ctx.fillText(emoji, 0, floatY);
+                }
+              }
+
+              ctx.restore();
+            }
           }
         } catch (captionErr) {
           console.error("Failed to render snappy captions on canvas:", captionErr);
@@ -1769,14 +1898,19 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           )}
 
           <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/30 border-white/5'}`} id="timeline-clips-panel">
-            <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-400'}`}>Clips Timeline ({segments.length})</h3>
-            <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scrollbar-hide">
+            <div className="flex items-center justify-between">
+              <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-400'}`}>Clips Timeline & Visual Beat Sourcing ({segments.length})</h3>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange flex items-center gap-1">
+                <i className="fa-solid fa-layer-group"></i> 1 Clip per Beat
+              </span>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1 scrollbar-hide">
               {segments.map((seg, idx) => (
                 <div 
                   key={seg.id} 
                   id={`timeline-scene-item-${seg.id}`}
                   onClick={() => { setCurrentTime(seg.start); audioPauseOffsetRef.current = seg.start; }}
-                  className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                  className={`p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all ${
                     currentTime >= seg.start && currentTime <= seg.end 
                       ? 'bg-ggd-orange/15 border-ggd-orange shadow-sm' 
                       : themeMode === 'light'
@@ -1784,13 +1918,91 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
                         : 'bg-transparent border-white/5 hover:bg-white/5'
                   }`}
                 >
-                  <div className="w-12 h-8 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-white/10 bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${seg.thumbnail})` }} />
-                  <div className="overflow-hidden flex-1 text-left">
-                    <div className="flex items-center justify-between">
-                      <p className={`text-[10px] font-black truncate uppercase ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>Scene {idx + 1}</p>
-                      <span className="text-[8px] font-mono font-bold text-ggd-orange shrink-0">{(seg.speed || 1.0).toFixed(1)}x</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-10 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-white/10 bg-cover bg-center shrink-0 relative" style={{ backgroundImage: `url(${seg.thumbnail})` }}>
+                      {seg.mediaType === 'photo' && (
+                        <span className="absolute bottom-0.5 right-0.5 text-[7px] font-black bg-amber-500 text-black px-1 rounded">PHOTO</span>
+                      )}
                     </div>
-                    <p className={`text-[8px] font-medium truncate italic text-left ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>"{seg.text}"</p>
+                    <div className="overflow-hidden flex-1 text-left">
+                      <div className="flex items-center justify-between">
+                        <p className={`text-[10px] font-black truncate uppercase ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          Beat #{idx + 1}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          {seg.matchScore !== undefined && (
+                            <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                              seg.matchScore >= 0.8 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {Math.round(seg.matchScore * 100)}% Match
+                            </span>
+                          )}
+                          <span className="text-[8px] font-mono font-bold text-ggd-orange shrink-0">{(seg.speed || 1.0).toFixed(1)}x</span>
+                        </div>
+                      </div>
+                      <p className={`text-[8px] font-medium truncate italic text-left ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>"{seg.text}"</p>
+                    </div>
+                  </div>
+
+                  {/* Beat Audit Query & Sourcing Controls */}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-white/5 text-[8px]">
+                    <div className="truncate text-slate-400 font-mono flex items-center gap-1">
+                      <i className="fa-solid fa-magnifying-glass text-ggd-orange"></i>
+                      <span className="truncate max-w-[150px]">{seg.searchQuery || seg.text.slice(0, 25)}</span>
+                      {seg.fallbackUsed && (
+                        <span className="text-amber-400 font-semibold">(Ken Burns Photo)</span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isReSourcingBeatId === seg.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReSourceBeat(seg.id);
+                      }}
+                      className="px-2 py-0.5 bg-ggd-orange/20 hover:bg-ggd-orange text-ggd-orange hover:text-black font-black uppercase text-[8px] rounded border border-ggd-orange/30 transition-all flex items-center gap-1"
+                    >
+                      {isReSourcingBeatId === seg.id ? (
+                        <>
+                          <i className="fa-solid fa-circle-notch fa-spin"></i> Sourcing...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-arrows-rotate"></i> Re-source Beat
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Semantic Beat Audit Trail Inspector Box */}
+          <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-slate-900/90 border-slate-700'}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
+                <i className="fa-solid fa-clipboard-check"></i>
+                Semantic Beat Sourcing Audit Log
+              </h3>
+              <span className="text-[8px] font-mono text-slate-400">Pexels Engine Audit</span>
+            </div>
+
+            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 text-[8px] font-mono">
+              {segments.map((seg, idx) => (
+                <div key={seg.id} className="p-2 bg-slate-950/60 rounded border border-white/5 space-y-0.5">
+                  <div className="flex items-center justify-between text-slate-300 font-bold">
+                    <span>BEAT #{idx + 1} | ID: {seg.videoId || 'PEXELS_CLIP'}</span>
+                    <span className={seg.matchScore && seg.matchScore >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}>
+                      SCORE: {seg.matchScore ? Math.round(seg.matchScore * 100) : 85}%
+                    </span>
+                  </div>
+                  <p className="text-slate-400 italic">"{seg.text}"</p>
+                  <div className="text-ggd-orange flex items-center gap-2">
+                    <span>QUERY: [{seg.searchQuery || seg.text.slice(0, 25)}]</span>
+                    <span>TYPE: {seg.mediaType?.toUpperCase() || 'VIDEO'}</span>
+                    {seg.fallbackUsed && <span className="text-amber-300">[KEN BURNS FALLBACK]</span>}
                   </div>
                 </div>
               ))}

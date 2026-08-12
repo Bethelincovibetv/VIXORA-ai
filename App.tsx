@@ -831,21 +831,36 @@ Structure: Full Masterclass / In-depth Documentary Script.
         }
       });
 
+      // Split script into sentence beats matching target scene count
+      const sentenceBeats = input.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
+      console.log(`[BEAT_SPLITTING] Input script split into ${sentenceBeats.length} distinct sentence beats:`, sentenceBeats);
+
       let sceneQueries: string[] = [];
       try {
-        const json = JSON.parse(keywordResponse.text || "[]");
+        const cleanJson = (keywordResponse.text || "[]")
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        const json = JSON.parse(cleanJson);
         if (Array.isArray(json) && json.length > 0) {
           sceneQueries = json;
         }
-      } catch {
-        sceneQueries = [input.split(' ').slice(0, 3).join(' ')];
+      } catch (jsonErr) {
+        console.warn("[!] JSON parse failed for sceneQueries, expanding beat-based search queries:", jsonErr);
       }
 
+      // Ensure every beat gets a distinct search query
+      const targetQueryCount = Math.max(sentenceBeats.length, sceneCount);
+      for (let b = sceneQueries.length; b < targetQueryCount; b++) {
+        const beatSentence = sentenceBeats[b % Math.max(1, sentenceBeats.length)] || input;
+        const fallbackWords = beatSentence.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+        const generatedQuery = fallbackWords.slice(0, 4).join(' ') || `scene ${b + 1}`;
+        sceneQueries.push(generatedQuery);
+      }
+
+      console.log(`[SCENE_QUERIES_GENERATED] ${sceneQueries.length} scene queries ready for stock API fetching:`, sceneQueries);
+
       const orientationParam = videoRatio === 'vertical' ? 'portrait' : videoRatio === 'horizontal' ? 'landscape' : 'square';
-
-      // Split script into sentence beats matching sceneQueries
-      const sentenceBeats = input.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
-
       const usedIds = new Set<number | string>();
       const matchedClips: SourcedVideo[] = [];
 
@@ -876,6 +891,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
           fallbackUsed: clip.fallbackUsed
         } as any);
       }
+
+      console.log(`[SOURCED_CLIPS_SUMMARY] Successfully sourced ${matchedClips.length} distinct video clips:`, matchedClips.map((c, idx) => ({
+        beatIndex: idx + 1,
+        id: c.id,
+        title: c.title,
+        query: c.searchQuery,
+        mediaType: c.mediaType,
+        url: c.video_files?.[0]?.link || c.image
+      })));
 
       setSourcedVideos(matchedClips);
 
@@ -1307,16 +1331,32 @@ Structure: Full Masterclass / In-depth Documentary Script.
         config: { responseMimeType: "application/json" }
       });
 
+      // Split script into sentence beats matching target scene count
+      const sentenceBeats = scriptText.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
+      console.log(`[BEAT_SPLITTING] Autopilot script split into ${sentenceBeats.length} distinct sentence beats:`, sentenceBeats);
+
       let sceneQueries: string[] = [];
       try {
-        const json = JSON.parse(keywordResponse.text || "[]");
+        const cleanJson = (keywordResponse.text || "[]")
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        const json = JSON.parse(cleanJson);
         if (Array.isArray(json) && json.length > 0) sceneQueries = json;
-      } catch {
-        sceneQueries = [scriptText.split(' ').slice(0, 3).join(' ')];
+      } catch (jsonErr) {
+        console.warn("[!] Autopilot JSON parse warning for sceneQueries, expanding beat-based search queries:", jsonErr);
       }
 
-      // Split script into sentence beats matching sceneQueries
-      const sentenceBeats = scriptText.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 3);
+      // Ensure every beat gets a distinct search query
+      const targetQueryCount = Math.max(sentenceBeats.length, targetSceneCount);
+      for (let b = sceneQueries.length; b < targetQueryCount; b++) {
+        const beatSentence = sentenceBeats[b % Math.max(1, sentenceBeats.length)] || scriptText;
+        const fallbackWords = beatSentence.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+        const generatedQuery = fallbackWords.slice(0, 4).join(' ') || `scene ${b + 1}`;
+        sceneQueries.push(generatedQuery);
+      }
+
+      console.log(`[SCENE_QUERIES_GENERATED] ${sceneQueries.length} scene queries ready for stock API fetching:`, sceneQueries);
 
       const usedIds = new Set<number | string>();
       const matchedClips: SourcedVideo[] = [];
@@ -1348,6 +1388,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
           fallbackUsed: clip.fallbackUsed
         } as any);
       }
+
+      console.log(`[SOURCED_CLIPS_SUMMARY] Successfully sourced ${matchedClips.length} distinct video clips for Autopilot:`, matchedClips.map((c, idx) => ({
+        beatIndex: idx + 1,
+        id: c.id,
+        title: c.title,
+        query: c.searchQuery,
+        mediaType: c.mediaType,
+        url: c.video_files?.[0]?.link || c.image
+      })));
 
       setSourcedVideos(matchedClips);
 

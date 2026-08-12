@@ -770,12 +770,15 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
       if (RawSentences.length === 0) return;
 
+      console.log(`[SEQUENCER_BEATS] ${RawSentences.length} distinct beat objects generated for script:`, RawSentences.map((s, i) => ({ beatId: i + 1, text: s })));
+      console.log(`[SEQUENCER_SOURCED_VIDEOS] ${sourcedVideos.length} distinct sourced clips received by VideoSequencer:`, sourcedVideos.map((v, i) => ({ clipIndex: i + 1, id: v.id, title: v.title, query: v.searchQuery })));
+
       // 3. Map Sentences to Timeline segment window
       if (alignedWords && alignedWords.length > 0) {
         // --- HIGH FIDELITY AI SYNCHRONIZED ALIGNMENT ---
         let wordPointer = 0;
         setSegments(prev => {
-          return RawSentences.map((sentence, index) => {
+          const updated = RawSentences.map((sentence, index) => {
             const sentenceWordsText = sentence.split(/\s+/);
             const matchedWords: TimeWord[] = [];
             
@@ -803,6 +806,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             const existing = prev.find(p => p.id === index);
             const speed = existing && existing.speed !== undefined ? existing.speed : 1.0;
 
+            console.log(`[FINAL_RENDER_MAPPING] Beat #${index + 1} ("${sentence.slice(0, 25)}...") -> Assigned Video ID: ${video?.id || 'FALLBACK'}, Title: "${video?.title || 'Default Space'}", URL: ${videoUrl}`);
+
             return {
               id: index,
               text: sentence,
@@ -821,6 +826,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               speed,
             };
           });
+          return updated;
         });
       } else {
         // --- SYNTHESIZED FALLBACK TIMING (PUNCTUATION WEIGHTED) ---
@@ -828,7 +834,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         let elapsed = 0;
 
         setSegments(prev => {
-          return RawSentences.map((sentence, index) => {
+          const updated = RawSentences.map((sentence, index) => {
             const charWeight = sentence.length / totalChars;
             const segmentDuration = charWeight * duration;
             const segStart = elapsed;
@@ -870,6 +876,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             const existing = prev.find(p => p.id === index);
             const speed = existing && existing.speed !== undefined ? existing.speed : 1.0;
 
+            console.log(`[FINAL_RENDER_MAPPING] Beat #${index + 1} ("${sentence.slice(0, 25)}...") -> Assigned Video ID: ${video?.id || 'FALLBACK'}, Title: "${video?.title || 'Default Space'}", URL: ${videoUrl}`);
+
             return {
               id: index,
               text: sentence,
@@ -888,6 +896,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               speed,
             };
           });
+          return updated;
         });
       }
     };

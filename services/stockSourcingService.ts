@@ -54,6 +54,7 @@ export async function scoreAndFetchBeatVisual(
   usedIds: Set<number | string>,
   beatIndex: number = 0
 ): Promise<{ clip: VisualClipCandidate; audit: BeatAuditLog }> {
+  console.log(`[STOCK_API_CALL] Beat ID: ${beatIndex + 1} | Query: "${searchQuery}" | Orientation: ${orientation}`);
   const beatKeywords = extractKeywords(`${beatText} ${searchQuery}`);
 
   // Attempt 1: Fetch Video Candidates from Pexels Video API

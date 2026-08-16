@@ -31,7 +31,11 @@ interface VideoSequencerProps {
   sourcedVideos: SourcedVideo[];
   aspectRatio?: 'vertical' | 'horizontal' | 'square';
   onAspectRatioChange?: (ratio: 'vertical' | 'horizontal' | 'square') => void;
-  onVideoCompiled?: (blobUrl: string, orientation: 'vertical' | 'horizontal' | 'square') => void;
+  onVideoCompiled?: (
+    blobUrl: string, 
+    orientation: 'vertical' | 'horizontal' | 'square', 
+    metadata?: { duration?: string; resolution?: string; format?: string }
+  ) => void;
   selectedMusicUrl?: string;
   onSelectedMusicUrlChange?: (url: string) => void;
   musicVolume?: number;
@@ -147,6 +151,10 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileProgress, setCompileProgress] = useState(0);
   const [compiledBlobUrl, setCompiledBlobUrl] = useState<string | null>(null);
+  const [exportResolution, setExportResolution] = useState<'720p' | '1080p' | '4K'>('1080p');
+  const [exportFormat, setExportFormat] = useState<'mp4' | 'webm'>('mp4');
+  const [formatFallbackNote, setFormatFallbackNote] = useState<string | null>(null);
+  const hasAutoCompiledRef = useRef<boolean>(false);
   const [captionColor, setCaptionColor] = useState<string>('#facc15'); // Yellow fallback
   const [fontSize, setFontSize] = useState<number>(24);
   const [captionTemplate, setCaptionTemplate] = useState<string>('bold-yellow');
@@ -170,6 +178,9 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [templateNiche, setTemplateNiche] = useState<string>('General');
   const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
   const [templateSavedMsg, setTemplateSavedMsg] = useState<string | null>(null);
+
+  // --- MOBILE EDITOR TAB DOCK STATE ---
+  const [activeEditorTab, setActiveEditorTab] = useState<'timeline' | 'audio' | 'captions' | 'speed' | 'export'>('timeline');
 
   const [alignedWords, setAlignedWords] = useState<TimeWord[] | null>(null);
   const [isAligning, setIsAligning] = useState<boolean>(false);
@@ -904,6 +915,29 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     prepareTimeline();
   }, [scriptText, voiceoverBase64, sourcedVideos, alignedWords]);
 
+  // --- AUTOMATIC COMPILATION TRIGGER ---
+  useEffect(() => {
+    hasAutoCompiledRef.current = false;
+  }, [scriptText, voiceoverBase64]);
+
+  useEffect(() => {
+    if (
+      segments.length > 0 &&
+      voiceoverBase64 &&
+      !isCompiling &&
+      !compiledBlobUrl &&
+      !hasAutoCompiledRef.current &&
+      !isAligning
+    ) {
+      hasAutoCompiledRef.current = true;
+      console.log("[⚡ AUTO-COMPILE] Automatically triggering video compilation...");
+      const timer = setTimeout(() => {
+        handleCompileVideo();
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [segments, voiceoverBase64, isCompiling, compiledBlobUrl, isAligning]);
+
   // --- AUDIO PLAYBACK CORE ---
 
   const playVoiceoverNode = (startOffset: number) => {
@@ -1397,9 +1431,19 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     }
 
     try {
-      // 1. Prepare visual canvas stream (30 frames per second standard)
-      const width = aspectRatio === 'vertical' ? 1080 : 1920;
-      const height = aspectRatio === 'vertical' ? 1920 : 1080;
+      // 1. Prepare visual canvas stream based on resolution selection (30 fps standard)
+      let width = 1080;
+      let height = 1920;
+      if (exportResolution === '4K') {
+        width = aspectRatio === 'vertical' ? 2160 : aspectRatio === 'square' ? 2160 : 3840;
+        height = aspectRatio === 'vertical' ? 3840 : aspectRatio === 'square' ? 2160 : 2160;
+      } else if (exportResolution === '720p') {
+        width = aspectRatio === 'vertical' ? 720 : aspectRatio === 'square' ? 720 : 1280;
+        height = aspectRatio === 'vertical' ? 1280 : aspectRatio === 'square' ? 720 : 720;
+      } else {
+        width = aspectRatio === 'vertical' ? 1080 : aspectRatio === 'square' ? 1080 : 1920;
+        height = aspectRatio === 'vertical' ? 1920 : aspectRatio === 'square' ? 1080 : 1080;
+      }
       canvas.width = width;
       canvas.height = height;
 
@@ -1449,26 +1493,67 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
       const outStream = new MediaStream(compositeTracks);
       
-      // Determine device supported media recorder containers
+      // Determine device supported media recorder containers with format preference
       let selectedMimeType = '';
-      const options = [
-        'video/mp4;codecs=h264,aac',
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm',
-        'video/ogg'
-      ];
-      
-      for (const mime of options) {
-        if (MediaRecorder.isTypeSupported(mime)) {
-          selectedMimeType = mime;
-          break;
+      let fallbackNote: string | null = null;
+
+      if (exportFormat === 'mp4') {
+        const mp4Options = [
+          'video/mp4;codecs=h264,aac',
+          'video/mp4;codecs=avc1,mp4a.40.2',
+          'video/mp4',
+        ];
+        for (const mime of mp4Options) {
+          if (MediaRecorder.isTypeSupported(mime)) {
+            selectedMimeType = mime;
+            break;
+          }
+        }
+        if (!selectedMimeType) {
+          fallbackNote = "Your browser doesn't support direct MP4 recording; recorded in WebM format.";
+          const webmOptions = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm'
+          ];
+          for (const mime of webmOptions) {
+            if (MediaRecorder.isTypeSupported(mime)) {
+              selectedMimeType = mime;
+              break;
+            }
+          }
+        }
+      } else {
+        const webmOptions = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm'
+        ];
+        for (const mime of webmOptions) {
+          if (MediaRecorder.isTypeSupported(mime)) {
+            selectedMimeType = mime;
+            break;
+          }
+        }
+        if (!selectedMimeType) {
+          fallbackNote = "Your browser doesn't support WebM recording; recorded in MP4 format.";
+          const mp4Options = ['video/mp4;codecs=h264,aac', 'video/mp4'];
+          for (const mime of mp4Options) {
+            if (MediaRecorder.isTypeSupported(mime)) {
+              selectedMimeType = mime;
+              break;
+            }
+          }
         }
       }
 
+      setFormatFallbackNote(fallbackNote);
+
+      const targetBitrate = exportResolution === '4K' ? 14000000 : exportResolution === '720p' ? 3500000 : 7000000;
+
       const recorder = new MediaRecorder(outStream, {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: 6000000, // 6Mbps high-fidelity HD studio packaging
+        mimeType: selectedMimeType || undefined,
+        videoBitsPerSecond: targetBitrate,
       });
 
       const chunks: Blob[] = [];
@@ -1485,14 +1570,19 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           } catch (e) {}
           compileMusicSourceRef.current = null;
         }
-        const mimeOut = selectedMimeType.includes('mp4') ? 'video/mp4' : 'video/webm';
+        const finalExt = selectedMimeType.includes('mp4') ? 'mp4' : 'webm';
+        const mimeOut = finalExt === 'mp4' ? 'video/mp4' : 'video/webm';
         const finalBlob = new Blob(chunks, { type: mimeOut });
         const videoBlobUrl = URL.createObjectURL(finalBlob);
         setCompiledBlobUrl(videoBlobUrl);
         setIsCompiling(false);
         setCompileProgress(100);
         if (onVideoCompiled) {
-          onVideoCompiled(videoBlobUrl, aspectRatio);
+          onVideoCompiled(videoBlobUrl, aspectRatio, {
+            duration: `${totalDuration.toFixed(0)}s`,
+            resolution: exportResolution,
+            format: finalExt
+          });
         }
       };
 
@@ -1527,53 +1617,64 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   };
 
   return (
-    <div className={`p-5 border rounded-3xl space-y-5 text-left relative overflow-hidden shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/80 border-white/10 text-white'}`} id="sequencer-studio">
-      <div className="flex items-center justify-between">
+    <div className={`p-3 sm:p-5 border rounded-3xl space-y-4 text-left relative overflow-hidden shadow-2xl transition-all ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/90 border-white/10 text-white'}`} id="sequencer-studio">
+      {/* HEADER BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-white/10">
         <div>
-          <h2 className={`text-base font-black uppercase tracking-tight ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>CapCut Render Studio</h2>
-          <p className={`text-[10px] font-bold uppercase mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Auto-sync Voiceover, HD Footage & Subtitle Aesthetics</p>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-ggd-orange animate-ping"></span>
+            <h2 className={`text-base font-black uppercase tracking-tight ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>CapCut Render Studio</h2>
+          </div>
+          <p className={`text-[10px] font-bold uppercase mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+            Auto-sync Voiceover, HD Footage & Subtitle Aesthetics
+          </p>
         </div>
-        <div className={`flex items-center gap-1 p-1 rounded-2xl border shrink-0 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'}`}>
+
+        {/* QUICK ASPECT RATIO & TEMPLATE CONTROLS */}
+        <div className={`flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border shrink-0 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/5'}`}>
           <button
             onClick={() => setShowSaveTemplateModal(true)}
-            className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30 hover:bg-ggd-orange hover:text-white`}
+            className="px-2.5 py-1.5 text-[10px] font-black uppercase rounded-xl flex items-center gap-1.5 transition-all bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30 hover:bg-ggd-orange hover:text-white shrink-0 min-h-[36px]"
             title="Save this video setup as a reusable template to Firebase"
           >
-            <i className="fa-solid fa-cloud-arrow-up text-[10px]"></i>
-            <span>Save Template</span>
+            <i className="fa-solid fa-cloud-arrow-up text-xs"></i>
+            <span>Template</span>
           </button>
-          <button 
-            onClick={() => setAspectRatio('vertical')} 
-            className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'vertical' ? 'bg-ggd-orange text-white' : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            title="Vertical format (9:16)"
-          >
-            <i className="fa-solid fa-mobile-screen-button"></i>
-            <span>9:16</span>
-          </button>
-          <button 
-            onClick={() => setAspectRatio('horizontal')} 
-            className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'horizontal' ? 'bg-ggd-orange text-white' : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            title="Landscape format (16:9)"
-          >
-            <i className="fa-solid fa-desktop"></i>
-            <span>16:9</span>
-          </button>
-          <button 
-            onClick={() => setAspectRatio('square')} 
-            className={`px-2.5 py-1.5 text-xs font-black uppercase rounded-xl flex items-center gap-1 transition-all ${aspectRatio === 'square' ? 'bg-ggd-orange text-white' : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}
-            title="Square format (1:1)"
-          >
-            <i className="fa-solid fa-square-full text-[9px]"></i>
-            <span>1:1</span>
-          </button>
+
+          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-xl border border-white/10">
+            <button 
+              onClick={() => setAspectRatio('vertical')} 
+              className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg flex items-center gap-1 transition-all min-h-[32px] ${aspectRatio === 'vertical' ? 'bg-ggd-orange text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              title="Vertical format (9:16)"
+            >
+              <i className="fa-solid fa-mobile-screen-button"></i>
+              <span>9:16</span>
+            </button>
+            <button 
+              onClick={() => setAspectRatio('horizontal')} 
+              className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg flex items-center gap-1 transition-all min-h-[32px] ${aspectRatio === 'horizontal' ? 'bg-ggd-orange text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              title="Landscape format (16:9)"
+            >
+              <i className="fa-solid fa-desktop"></i>
+              <span>16:9</span>
+            </button>
+            <button 
+              onClick={() => setAspectRatio('square')} 
+              className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg flex items-center gap-1 transition-all min-h-[32px] ${aspectRatio === 'square' ? 'bg-ggd-orange text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              title="Square format (1:1)"
+            >
+              <i className="fa-solid fa-square-full text-[8px]"></i>
+              <span>1:1</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* AI Alignment Status Indicator Banner */}
+      {/* AI ALIGNMENT STATUS INDICATOR BANNER */}
       {(isAligning || alignmentError || alignedWords) && (
-        <div className="mb-4 animate-fadeIn">
+        <div className="animate-fadeIn">
           {isAligning && (
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
               <div className="w-3 h-3 rounded-full border-2 border-t-transparent border-blue-500 animate-spin shrink-0"></div>
               <p className="text-[10px] font-black uppercase text-blue-300 tracking-wider">
                 Syncing exact word captions from audio via Gemini AI...
@@ -1581,7 +1682,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             </div>
           )}
           {alignmentError && (
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-2xl">
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-2xl">
               <i className="fa-solid fa-triangle-exclamation text-red-500 text-[10px] shrink-0"></i>
               <p className="text-[10px] font-bold text-red-400">
                 AI Alignment Fallback: {alignmentError}. Showing standard synced captions.
@@ -1589,7 +1690,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             </div>
           )}
           {alignedWords && !isAligning && (
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
               <i className="fa-solid fa-circle-check text-emerald-500 text-[10px] shrink-0"></i>
               <p className="text-[10px] font-black uppercase text-emerald-300 tracking-wider">
                 ✨ High-Fidelity Word-Level AI Sync Active ({alignedWords.length} words matched!)
@@ -1599,531 +1700,678 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         </div>
       )}
 
-      {/* Premium Royalty-Free Background Music Assistant Core */}
-      <div className={`p-4 border rounded-2xl space-y-3.5 mb-4 animate-fadeIn ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-950/75 border-white/5 text-white'}`} id="sequencer-music-panel">
-        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2.5 ${themeMode === 'light' ? 'border-slate-200' : 'border-white/5'}`}>
-          <div>
-            <h3 className={`text-xs font-black uppercase flex items-center gap-1.5 ${themeMode === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>
-              <i className="fa-solid fa-music text-ggd-orange"></i>
-              <span>Royalty-Free AI Background Music Search</span>
-            </h3>
-            <p className={`text-[9px] font-bold uppercase mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-              Detected Mood Theme: <span className="text-ggd-orange font-black text-[9px] tracking-wide">{extractedMood.toUpperCase()}</span> (from video script)
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {musicLoading && (
-              <span className="text-[8px] font-black uppercase text-blue-500 animate-pulse bg-blue-500/10 px-2 py-1 rounded-xl border border-blue-500/20">
-                ⬇️ Preparing High Quality Loop...
-              </span>
-            )}
-            {!musicLoading && musicBuffer && !musicError && (
-              <span className="text-[8px] font-black uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-xl border border-emerald-500/20 flex items-center gap-1">
-                <i className="fa-solid fa-circle-check"></i> Connected & Synced
-              </span>
-            )}
-            {musicError && (
-              <span className="text-[8px] font-bold text-red-500 bg-red-400/10 px-2 py-1 rounded-xl border border-red-500/20">
-                ⚠️ Loaded Default Loop
-              </span>
-            )}
-          </div>
-        </div>
+      {/* TOP VIDEO CANVAS STAGE (PREVIEW AREA) */}
+      <div className="w-full flex flex-col items-center justify-center space-y-3 bg-black/40 p-3 sm:p-4 rounded-3xl border border-white/5 shadow-inner relative">
+        <div className={`relative w-full overflow-hidden rounded-2xl bg-black border border-white/10 shadow-2xl flex items-center justify-center transition-all ${
+          aspectRatio === 'vertical' ? 'aspect-[9/16] max-w-[280px] sm:max-w-[300px]' : aspectRatio === 'square' ? 'aspect-square max-w-[320px] sm:max-w-[360px]' : 'aspect-video max-w-full sm:max-w-[540px]'
+        }`}>
+          <canvas 
+            ref={playerCanvasRef} 
+            className="max-h-full max-w-full object-contain"
+          />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {musicTracks.map((track) => {
-            const isActive = selectedMusicUrl === track.url;
-            return (
-              <button
-                key={track.id}
-                onClick={() => {
-                  setSelectedMusicUrl(track.url);
-                  setExtractedMood(track.mood);
-                }}
-                className={`p-2.5 rounded-xl text-left transition-all border outline-none cursor-pointer flex flex-col justify-between ${
-                  isActive 
-                    ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold shadow-sm' 
-                    : themeMode === 'light'
-                      ? 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
-                      : 'bg-slate-900/40 border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className={`text-[10px] font-black uppercase truncate leading-none mb-1 ${isActive ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                    {track.name}
-                  </div>
-                  <div className={`text-[8px] font-bold uppercase tracking-wider truncate leading-none ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                    Mood: {track.mood}
-                  </div>
-                </div>
-                <div className={`text-[8px] font-medium truncate w-full mt-1.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                  {track.description}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          {!isPlaying && (
+            <button 
+              onClick={togglePlayPause} 
+              className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-ggd-orange/90 backdrop-blur-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white shadow-2xl border border-white/20 z-20"
+              aria-label="Play Video"
+            >
+              <i className="fa-solid fa-play text-xl ml-1"></i>
+            </button>
+          )}
 
-        <div className={`flex flex-col gap-3 p-3.5 rounded-2xl border ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5'}`}>
-          <div className="flex items-center justify-between gap-2">
-            <span className={`text-[9px] font-black uppercase flex items-center gap-1.5 ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-200'}`}>
-              <i className="fa-solid fa-sliders text-ggd-orange"></i>
-              <span>Smart Audio Balance & Ducking Wizard</span>
+          <div className="absolute top-3 left-3 flex gap-1.5 z-10 pointer-events-none">
+            <span className="px-2 py-0.5 bg-black/80 backdrop-blur-md rounded-lg text-[8px] font-black uppercase text-glow border border-white/10">
+              {aspectRatio === 'vertical' ? '9:16 Vertical' : aspectRatio === 'square' ? '1:1 Square' : '16:9 Landscape'}
             </span>
-            <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
-              <i className="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Ducked
+            <span className="px-2 py-0.5 bg-ggd-orange/90 rounded-lg text-[8px] font-black uppercase text-white shadow-md">
+              Live Preview
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setMusicVolume(0.08)}
-              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume <= 0.1 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
-            >
-              Quiet Background (8%)
-            </button>
-            <button
-              onClick={() => setMusicVolume(0.18)}
-              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume > 0.1 && musicVolume <= 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
-            >
-              Balanced Mix (18%)
-            </button>
-            <button
-              onClick={() => setMusicVolume(0.32)}
-              className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-xl border transition-all ${musicVolume > 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-sm' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
-            >
-              Music Up (32%)
-            </button>
+          <div className="absolute bottom-3 left-3 px-2 py-0.5 bg-black/80 rounded-lg text-[8.5px] font-black uppercase text-white/90 border border-white/10 z-10">
+            {currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s
           </div>
+        </div>
 
+        {/* COMPACT PLAYER TIMELINE & PLAY/PAUSE SCRUBBER */}
+        <div className="w-full max-w-md space-y-2">
           <div className="flex items-center gap-2.5">
-            <span className={`text-[9px] font-black uppercase shrink-0 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Volume Slider:</span>
-            <input
-              type="range"
-              min="0"
-              max="0.4"
-              step="0.01"
-              value={musicVolume}
-              onChange={(e) => {
-                const vol = parseFloat(e.target.value);
-                setMusicVolume(vol);
-                if (musicGainNodeRef.current && audioCtxRef.current) {
-                  musicGainNodeRef.current.gain.setValueAtTime(vol, audioCtxRef.current.currentTime);
-                }
-              }}
-              className="flex-1 accent-ggd-orange max-w-xs cursor-pointer"
+            <button 
+              onClick={togglePlayPause} 
+              className="w-11 h-11 rounded-2xl bg-white text-slate-950 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all font-bold shrink-0 shadow-lg min-h-[44px]"
+            >
+              {isPlaying ? <i className="fa-solid fa-pause text-base"></i> : <i className="fa-solid fa-play text-base ml-0.5"></i>}
+            </button>
+
+            <button 
+              onClick={stopPlayback} 
+              className="w-11 h-11 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center border border-white/10 shrink-0 min-h-[44px]"
+              title="Stop & Reset"
+            >
+              <i className="fa-solid fa-stop text-sm"></i>
+            </button>
+
+            <input 
+              type="range" 
+              min="0" 
+              max={totalDuration} 
+              step="0.05" 
+              value={currentTime} 
+              onChange={handleSeek} 
+              className="flex-1 accent-ggd-orange h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
             />
-            <span className="text-[9px] font-mono text-ggd-orange font-bold shrink-0">{Math.round(musicVolume * 100)}%</span>
           </div>
         </div>
       </div>
 
-      {/* Primary HTML Live Renderer Stage */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Playback Canvas Previewer Shield */}
-        <div className="flex-1 flex flex-col items-center">
-          <div className={`relative w-full overflow-hidden rounded-3xl bg-black border border-white/10 shadow-2xl flex items-center justify-center ${aspectRatio === 'vertical' ? 'aspect-[9/16] max-w-[280px]' : aspectRatio === 'square' ? 'aspect-square max-w-[320px]' : 'aspect-video'}`}>
-            <canvas 
-              ref={playerCanvasRef} 
-              className="max-h-full max-w-full object-contain"
-            />
-            {/* Ambient indicator */}
-            {!isPlaying && (
-              <button 
-                onClick={togglePlayPause} 
-                className="absolute inset-x-0 inset-y-0 m-auto w-16 h-16 rounded-full bg-ggd-orange/80 backdrop-blur-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white shadow-2xl border border-white/20"
-              >
-                <i className="fa-solid fa-play text-xl ml-1"></i>
-              </button>
-            )}
-            
-            <div className="absolute top-4 left-4 flex gap-2">
-              <span className="px-2 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[8px] font-black uppercase text-glow border border-white/5">
-                {aspectRatio === 'vertical' ? 'Vertical 9:16' : aspectRatio === 'square' ? 'Square 1:1' : 'Horizontal 16:9'}
-              </span>
-              <span className="px-2 py-1 bg-ggd-orange/80 rounded-lg text-[8px] font-black uppercase text-glow">
-                Live Studio
-              </span>
-            </div>
-            
-            <div className="absolute bottom-4 left-4 px-2.5 py-1 bg-black/60 rounded-lg text-[8px] font-black uppercase text-white/80">
-              {currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s
-            </div>
-          </div>
+      {/* CAPCUT MOBILE EDITOR TOOL DOCK BAR (STICKY / TABBED BOTTOM TOOLBAR) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-1 overflow-x-auto p-1.5 rounded-2xl border bg-black/40 border-white/10 scrollbar-hide">
+          <button
+            onClick={() => setActiveEditorTab('timeline')}
+            className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
+              activeEditorTab === 'timeline'
+                ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <i className="fa-solid fa-layer-group text-xs"></i>
+            <span>Clips ({segments.length})</span>
+          </button>
 
-          {/* Simple Timeline Player UI Controls */}
-          <div className="w-full max-w-sm mt-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={togglePlayPause} 
-                className="w-10 h-10 rounded-xl bg-white text-slate-950 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all font-bold"
-              >
-                {isPlaying ? <i className="fa-solid fa-pause"></i> : <i className="fa-solid fa-play ml-0.5"></i>}
-              </button>
+          <button
+            onClick={() => setActiveEditorTab('audio')}
+            className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
+              activeEditorTab === 'audio'
+                ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <i className="fa-solid fa-music text-xs"></i>
+            <span>Music</span>
+          </button>
 
-              <button 
-                onClick={stopPlayback} 
-                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center border border-white/10"
-              >
-                <i className="fa-solid fa-stop text-xs"></i>
-              </button>
+          <button
+            onClick={() => setActiveEditorTab('captions')}
+            className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
+              activeEditorTab === 'captions'
+                ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <i className="fa-solid fa-closed-captioning text-xs"></i>
+            <span>Captions</span>
+          </button>
 
-              <input 
-                type="range" 
-                min="0" 
-                max={totalDuration} 
-                step="0.05" 
-                value={currentTime} 
-                onChange={handleSeek} 
-                className="flex-1 accent-ggd-orange h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-          </div>
+          <button
+            onClick={() => setActiveEditorTab('speed')}
+            className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
+              activeEditorTab === 'speed'
+                ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <i className="fa-solid fa-gauge-high text-xs"></i>
+            <span>Speed & SFX</span>
+          </button>
+
+          <button
+            onClick={() => setActiveEditorTab('export')}
+            className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
+              activeEditorTab === 'export'
+                ? 'bg-emerald-600 text-white shadow-lg border border-emerald-500'
+                : 'text-emerald-400 hover:text-white hover:bg-emerald-500/10'
+            }`}
+          >
+            <i className="fa-solid fa-download text-xs"></i>
+            <span>Export</span>
+          </button>
         </div>
 
-        {/* Timeline Inspector + Styling controls */}
-        <div className="w-full md:w-64 space-y-4">
-          <div className={`rounded-2xl p-4 border space-y-3 ms-0 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/30 border-white/5'}`}>
-            <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-400'}`}>Style Options</h3>
-            
-            <div className="space-y-2">
-              <label className={`text-[9px] font-bold uppercase block tracking-wider ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>1. Caption Style Preset</label>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-hide">
-                {CAPCUT_TEMPLATES.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setCaptionTemplate(t.id);
-                      setCaptionColor(t.color);
-                    }}
-                    className={`w-full p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all ${
-                      captionTemplate === t.id 
-                        ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold shadow-sm' 
-                        : themeMode === 'light'
-                          ? 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
-                          : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/10'
-                    }`}
-                  >
-                    <span className="w-3.5 h-3.5 rounded-full border border-white/15 flex items-center justify-center text-[7px] font-bold mt-0.5 shrink-0" style={{ backgroundColor: t.color }}>
-                      {captionTemplate === t.id && <i className="fa-solid fa-check text-slate-950 text-[6px]"></i>}
-                    </span>
-                    <div className="overflow-hidden">
-                      <p className={`text-[9px] font-black uppercase tracking-tight ${captionTemplate === t.id ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{t.name}</p>
-                      <p className={`text-[8px] leading-snug font-medium truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>{t.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className={`flex justify-between items-center text-[9px] font-bold uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                <span>2. Font Sizing</span>
-                <span className={`font-mono ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{fontSize}px</span>
-              </div>
-              <input 
-                type="range" 
-                min="16" 
-                max="36" 
-                value={fontSize} 
-                onChange={(e) => setFontSize(parseInt(e.target.value))} 
-                className="w-full accent-ggd-orange cursor-pointer"
-              />
-            </div>
-
-            <div className={`pt-2.5 border-t flex items-center justify-between ${themeMode === 'light' ? 'border-slate-200' : 'border-white/5'}`}>
-              <div className="text-left shrink-0 max-w-[140px]">
-                <p className={`text-xs font-black uppercase tracking-wider flex items-center gap-1 ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}><i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i> AI Emoji</p>
-                <p className={`text-[8px] ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Auto-inject interactive emojis above spoken words</p>
-              </div>
-              <button
-                onClick={() => setAiEmojiMode(!aiEmojiMode)}
-                className={`w-9 h-5 rounded-full transition-all relative p-0.5 flex items-center border cursor-pointer ${aiEmojiMode ? 'bg-ggd-orange border-ggd-orange' : themeMode === 'light' ? 'bg-slate-200 border-slate-300' : 'bg-white/5 border-white/15'}`}
-              >
-                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform ${aiEmojiMode ? 'translate-x-4' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          </div>
-
-          {/* Active Clip Speed Control Box */}
-          {activeSeg && (
-            <div className={`p-4 border rounded-2xl space-y-3 ${themeMode === 'light' ? 'bg-amber-500/5 border-amber-500/20 text-slate-900' : 'bg-slate-900/80 border-ggd-orange/20 text-white'}`} id="active-clip-speed-panel">
-              <div className="flex justify-between items-center">
-                <p className="text-[10px] font-black uppercase text-ggd-orange tracking-widest flex items-center gap-1">
-                  <i className="fa-solid fa-gauge-high"></i> Scene {activeSeg.id + 1} speed
-                </p>
-                <span className="text-[9px] px-2 py-0.5 bg-ggd-orange/15 text-ggd-orange rounded-md font-mono font-bold">
-                  {(activeSeg.speed || 1.0).toFixed(2)}x
+        {/* CONTEXTUAL PANEL 1: CLIPS & TIMELINE */}
+        {activeEditorTab === 'timeline' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/30 border-white/5'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-300'}`}>
+                  Clips Timeline & Visual Beat Sourcing ({segments.length})
+                </h3>
+                <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
+                  <i className="fa-solid fa-layer-group mr-1"></i> 1 Clip per Beat
                 </span>
               </div>
-              <p className={`text-[8px] leading-snug ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                Adjust this clip's speed to sync movement perfectly with the spoken voiceover text pacing.
-              </p>
-              <div className="flex items-center gap-2">
-                <span className={`text-[8px] font-semibold uppercase ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>0.25x</span>
-                <input 
-                  type="range" 
-                  min="0.25" 
-                  max="3.0" 
-                  step="0.05"
-                  value={activeSeg.speed || 1.0} 
-                  onChange={(e) => setSegmentSpeed(activeSeg.id, parseFloat(e.target.value))} 
-                  className="flex-1 accent-ggd-orange h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer"
-                  id={`speed-slider-${activeSeg.id}`}
-                />
-                <span className={`text-[8px] font-semibold uppercase ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>3.0x</span>
-              </div>
-              <div className="flex gap-1">
-                <button 
-                  id={`speed-btn-slow-${activeSeg.id}`}
-                  onClick={() => setSegmentSpeed(activeSeg.id, 0.5)} 
-                  className={`flex-1 py-1 rounded-md text-[8px] font-black uppercase border transition-all ${activeSeg.speed === 0.5 ? 'bg-ggd-orange/20 border-ggd-orange text-ggd-orange font-bold' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10'}`}
-                >
-                  Slow (0.5x)
-                </button>
-                <button 
-                  id={`speed-btn-normal-${activeSeg.id}`}
-                  onClick={() => setSegmentSpeed(activeSeg.id, 1.0)} 
-                  className={`flex-1 py-1 rounded-md text-[8px] font-black uppercase border transition-all ${(activeSeg.speed || 1.0) === 1.0 ? 'bg-ggd-orange/20 border-ggd-orange text-ggd-orange font-bold' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10'}`}
-                >
-                  Normal
-                </button>
-                <button 
-                  id={`speed-btn-fast-${activeSeg.id}`}
-                  onClick={() => setSegmentSpeed(activeSeg.id, 1.5)} 
-                  className={`flex-1 py-1 rounded-md text-[8px] font-black uppercase border transition-all ${activeSeg.speed === 1.5 ? 'bg-ggd-orange/20 border-ggd-orange text-ggd-orange font-bold' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10'}`}
-                >
-                  Fast (1.5x)
-                </button>
-                <button 
-                  id={`speed-btn-double-${activeSeg.id}`}
-                  onClick={() => setSegmentSpeed(activeSeg.id, 2.0)} 
-                  className={`flex-1 py-1 rounded-md text-[8px] font-black uppercase border transition-all ${activeSeg.speed === 2.0 ? 'bg-ggd-orange/20 border-ggd-orange text-ggd-orange font-bold' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-transparent border-white/5 text-slate-400 hover:border-white/10'}`}
-                >
-                  Double (2x)
-                </button>
-              </div>
-            </div>
-          )}
 
-          <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/30 border-white/5'}`} id="timeline-clips-panel">
-            <div className="flex items-center justify-between">
-              <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-800' : 'text-slate-400'}`}>Clips Timeline & Visual Beat Sourcing ({segments.length})</h3>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange flex items-center gap-1">
-                <i className="fa-solid fa-layer-group"></i> 1 Clip per Beat
-              </span>
-            </div>
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1 scrollbar-hide">
-              {segments.map((seg, idx) => (
-                <div 
-                  key={seg.id} 
-                  id={`timeline-scene-item-${seg.id}`}
-                  onClick={() => { setCurrentTime(seg.start); audioPauseOffsetRef.current = seg.start; }}
-                  className={`p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all ${
-                    currentTime >= seg.start && currentTime <= seg.end 
-                      ? 'bg-ggd-orange/15 border-ggd-orange shadow-sm' 
-                      : themeMode === 'light'
-                        ? 'bg-white border-slate-200 hover:bg-slate-100'
-                        : 'bg-transparent border-white/5 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-10 rounded-md overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-white/10 bg-cover bg-center shrink-0 relative" style={{ backgroundImage: `url(${seg.thumbnail})` }}>
-                      {seg.mediaType === 'photo' && (
-                        <span className="absolute bottom-0.5 right-0.5 text-[7px] font-black bg-amber-500 text-black px-1 rounded">PHOTO</span>
-                      )}
-                    </div>
-                    <div className="overflow-hidden flex-1 text-left">
-                      <div className="flex items-center justify-between">
-                        <p className={`text-[10px] font-black truncate uppercase ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                          Beat #{idx + 1}
-                        </p>
-                        <div className="flex items-center gap-1.5">
-                          {seg.matchScore !== undefined && (
-                            <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                              seg.matchScore >= 0.8 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            }`}>
-                              {Math.round(seg.matchScore * 100)}% Match
-                            </span>
-                          )}
-                          <span className="text-[8px] font-mono font-bold text-ggd-orange shrink-0">{(seg.speed || 1.0).toFixed(1)}x</span>
-                        </div>
-                      </div>
-                      <p className={`text-[8px] font-medium truncate italic text-left ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>"{seg.text}"</p>
-                    </div>
-                  </div>
-
-                  {/* Beat Audit Query & Sourcing Controls */}
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-white/5 text-[8px]">
-                    <div className="truncate text-slate-400 font-mono flex items-center gap-1">
-                      <i className="fa-solid fa-magnifying-glass text-ggd-orange"></i>
-                      <span className="truncate max-w-[150px]">{seg.searchQuery || seg.text.slice(0, 25)}</span>
-                      {seg.fallbackUsed && (
-                        <span className="text-amber-400 font-semibold">(Ken Burns Photo)</span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={isReSourcingBeatId === seg.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReSourceBeat(seg.id);
-                      }}
-                      className="px-2 py-0.5 bg-ggd-orange/20 hover:bg-ggd-orange text-ggd-orange hover:text-black font-black uppercase text-[8px] rounded border border-ggd-orange/30 transition-all flex items-center gap-1"
-                    >
-                      {isReSourcingBeatId === seg.id ? (
-                        <>
-                          <i className="fa-solid fa-circle-notch fa-spin"></i> Sourcing...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-arrows-rotate"></i> Re-source Beat
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Semantic Beat Audit Trail Inspector Box */}
-          <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-slate-900/90 border-slate-700'}`}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
-                <i className="fa-solid fa-clipboard-check"></i>
-                Semantic Beat Sourcing Audit Log
-              </h3>
-              <span className="text-[8px] font-mono text-slate-400">Pexels Engine Audit</span>
-            </div>
-
-            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 text-[8px] font-mono">
-              {segments.map((seg, idx) => (
-                <div key={seg.id} className="p-2 bg-slate-950/60 rounded border border-white/5 space-y-0.5">
-                  <div className="flex items-center justify-between text-slate-300 font-bold">
-                    <span>BEAT #{idx + 1} | ID: {seg.videoId || 'PEXELS_CLIP'}</span>
-                    <span className={seg.matchScore && seg.matchScore >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}>
-                      SCORE: {seg.matchScore ? Math.round(seg.matchScore * 100) : 85}%
-                    </span>
-                  </div>
-                  <p className="text-slate-400 italic">"{seg.text}"</p>
-                  <div className="text-ggd-orange flex items-center gap-2">
-                    <span>QUERY: [{seg.searchQuery || seg.text.slice(0, 25)}]</span>
-                    <span>TYPE: {seg.mediaType?.toUpperCase() || 'VIDEO'}</span>
-                    {seg.fallbackUsed && <span className="text-amber-300">[KEN BURNS FALLBACK]</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Sound Effects (SFX) Track Manager Panel */}
-          <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-indigo-50/60 border-indigo-200' : 'bg-indigo-950/30 border-indigo-500/20'}`} id="sfx-timeline-panel">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${themeMode === 'light' ? 'text-indigo-950' : 'text-indigo-300'}`}>
-                  <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i>
-                  SFX Library & Timeline ({sfxPlacements.length})
-                </h3>
-                <p className={`text-[8px] mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                  Synthesize whooshes, pops, transition chimes & impact drops
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAutoSfxEnabled(!autoSfxEnabled)}
-                  className={`px-2 py-1 rounded-xl text-[8px] font-black uppercase border transition-all flex items-center gap-1 ${
-                    autoSfxEnabled 
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-400' 
-                      : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
-                  }`}
-                  title="Toggle auto-triggering transition whooshes between video scenes"
-                >
-                  <i className={`fa-solid ${autoSfxEnabled ? 'fa-bolt text-emerald-500' : 'fa-power-off'}`}></i>
-                  Auto Scene SFX: {autoSfxEnabled ? 'ON' : 'OFF'}
-                </button>
-
-                <button
-                  onClick={() => setShowSfxModal(true)}
-                  className="px-2.5 py-1 bg-ggd-orange text-white text-[9px] font-black uppercase rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1"
-                >
-                  <i className="fa-solid fa-plus text-[8px]"></i> Add SFX
-                </button>
-              </div>
-            </div>
-
-            {/* Active SFX Placements list */}
-            {sfxPlacements.length === 0 ? (
-              <p className={`text-[9px] italic text-center py-2 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                No custom sound effects added yet. Click "+ Add SFX" to place sound effects on the timeline.
-              </p>
-            ) : (
-              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-hide">
-                {sfxPlacements.map((sfx) => (
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1 scrollbar-hide">
+                {segments.map((seg, idx) => (
                   <div 
-                    key={sfx.id} 
-                    className={`p-2 rounded-xl border flex items-center justify-between gap-2 ${
-                      themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/5'
+                    key={seg.id} 
+                    id={`timeline-scene-item-${seg.id}`}
+                    onClick={() => { setCurrentTime(seg.start); audioPauseOffsetRef.current = seg.start; }}
+                    className={`p-3 rounded-2xl border flex flex-col gap-2 cursor-pointer transition-all ${
+                      currentTime >= seg.start && currentTime <= seg.end 
+                        ? 'bg-ggd-orange/15 border-ggd-orange shadow-md ring-2 ring-ggd-orange/30' 
+                        : themeMode === 'light'
+                          ? 'bg-white border-slate-200 hover:bg-slate-100'
+                          : 'bg-black/40 border-white/5 hover:bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <button
-                        onClick={() => playProceduralSFX(sfx.synthType)}
-                        className="w-6 h-6 rounded-lg bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white flex items-center justify-center text-[9px] transition-all shrink-0"
-                        title="Preview this sound effect"
-                      >
-                        <i className="fa-solid fa-play"></i>
-                      </button>
-                      <div className="overflow-hidden text-left">
-                        <p className={`text-[9px] font-black uppercase truncate ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{sfx.name}</p>
-                        <p className="text-[8px] text-ggd-orange font-mono font-bold">At timestamp: {sfx.timestamp.toFixed(1)}s</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-11 rounded-xl overflow-hidden bg-slate-800 border border-white/10 bg-cover bg-center shrink-0 relative shadow-sm" style={{ backgroundImage: `url(${seg.thumbnail})` }}>
+                        {seg.mediaType === 'photo' && (
+                          <span className="absolute bottom-0.5 right-0.5 text-[7px] font-black bg-amber-500 text-black px-1 rounded">PHOTO</span>
+                        )}
+                      </div>
+                      <div className="overflow-hidden flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <p className={`text-[10px] font-black truncate uppercase ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                            Beat #{idx + 1}
+                          </p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {seg.matchScore !== undefined && (
+                              <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                seg.matchScore >= 0.8 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              }`}>
+                                {Math.round(seg.matchScore * 100)}% Match
+                              </span>
+                            )}
+                            <span className="text-[8px] font-mono font-bold text-ggd-orange">{(seg.speed || 1.0).toFixed(1)}x</span>
+                          </div>
+                        </div>
+                        <p className={`text-[9px] font-medium truncate italic text-left ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>"{seg.text}"</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setSfxPlacements(prev => prev.filter(p => p.id !== sfx.id))}
-                      className="text-slate-400 hover:text-red-400 p-1 text-[10px] transition-all"
-                      title="Remove SFX"
-                    >
-                      <i className="fa-solid fa-trash-can"></i>
-                    </button>
+
+                    <div className="flex items-center justify-between pt-1.5 border-t border-white/5 text-[8.5px]">
+                      <div className="truncate text-slate-400 font-mono flex items-center gap-1 max-w-[180px]">
+                        <i className="fa-solid fa-magnifying-glass text-ggd-orange"></i>
+                        <span className="truncate">{seg.searchQuery || seg.text.slice(0, 25)}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isReSourcingBeatId === seg.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReSourceBeat(seg.id);
+                        }}
+                        className="px-2.5 py-1 bg-ggd-orange/20 hover:bg-ggd-orange text-ggd-orange hover:text-white font-black uppercase text-[8.5px] rounded-lg border border-ggd-orange/30 transition-all flex items-center gap-1 min-h-[32px]"
+                      >
+                        {isReSourcingBeatId === seg.id ? (
+                          <>
+                            <i className="fa-solid fa-circle-notch fa-spin"></i> Sourcing...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fa-solid fa-arrows-rotate"></i> Re-source Beat
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Export Action block */}
-          <div className="space-y-2">
-            {!isCompiling ? (
-              <button 
-                onClick={handleCompileVideo} 
-                className="w-full py-4 bg-ggd-orange text-white text-[10px] font-black uppercase rounded-2xl active:scale-95 transition-all shadow-xl text-glow flex items-center justify-center gap-2 border border-white/10"
-              >
-                <i className="fa-solid fa-clapperboard"></i> Compile Final Video
-              </button>
-            ) : (
-              <div className="p-4 bg-ggd-orange/10 border border-ggd-orange/30 rounded-2xl text-center space-y-2 text-glow">
-                <p className="text-[9px] font-black uppercase text-ggd-orange animate-pulse">Rendering Studio Package ({compileProgress}%)</p>
-                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-ggd-orange transition-all duration-300" style={{ width: `${compileProgress}%` }} />
+            {/* AUDIT LOG INSPECTOR */}
+            <div className={`rounded-2xl p-4 border space-y-2 ${themeMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-slate-900/90 border-slate-800'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
+                  <i className="fa-solid fa-clipboard-check"></i>
+                  Pexels HD Footage Audit
+                </h3>
+                <span className="text-[8px] font-mono text-slate-400">Match Quality Log</span>
+              </div>
+
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-[8px] font-mono">
+                {segments.map((seg, idx) => (
+                  <div key={seg.id} className="p-2 bg-slate-950/60 rounded-xl border border-white/5 space-y-0.5">
+                    <div className="flex items-center justify-between text-slate-300 font-bold">
+                      <span>BEAT #{idx + 1} | ID: {seg.videoId || 'PEXELS_CLIP'}</span>
+                      <span className={seg.matchScore && seg.matchScore >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}>
+                        SCORE: {seg.matchScore ? Math.round(seg.matchScore * 100) : 85}%
+                      </span>
+                    </div>
+                    <p className="text-slate-400 italic break-words">"{seg.text}"</p>
+                    <div className="text-ggd-orange flex flex-wrap items-center gap-2">
+                      <span>QUERY: [{seg.searchQuery || seg.text.slice(0, 25)}]</span>
+                      <span>TYPE: {seg.mediaType?.toUpperCase() || 'VIDEO'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONTEXTUAL PANEL 2: MUSIC & AUDIO */}
+        {activeEditorTab === 'audio' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className={`p-4 border rounded-2xl space-y-3.5 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-slate-950/80 border-white/10 text-white'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2.5 border-white/10">
+                <div>
+                  <h3 className="text-xs font-black uppercase flex items-center gap-1.5 text-ggd-orange">
+                    <i className="fa-solid fa-music"></i>
+                    <span>Royalty-Free AI Background Music</span>
+                  </h3>
+                  <p className={`text-[9px] font-bold uppercase mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Script Mood: <span className="text-ggd-orange font-black uppercase">{extractedMood}</span>
+                  </p>
                 </div>
-                <p className="text-[7px] text-slate-400">Keep this browser tab active to support hardware acceleration</p>
+                {musicLoading && (
+                  <span className="text-[8px] font-black uppercase text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-xl border border-blue-500/20 animate-pulse">
+                    Loading Loop...
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {musicTracks.map((track) => {
+                  const isActive = selectedMusicUrl === track.url;
+                  return (
+                    <button
+                      key={track.id}
+                      onClick={() => {
+                        setSelectedMusicUrl(track.url);
+                        setExtractedMood(track.mood);
+                      }}
+                      className={`p-3 rounded-2xl text-left transition-all border outline-none cursor-pointer min-h-[56px] flex flex-col justify-between ${
+                        isActive 
+                          ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold shadow-md ring-2 ring-ggd-orange/30' 
+                          : themeMode === 'light'
+                            ? 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
+                            : 'bg-slate-900/40 border-white/5 text-slate-400 hover:border-white/10 hover:text-white'
+                      }`}
+                    >
+                      <div>
+                        <div className={`text-[10.5px] font-black uppercase truncate mb-0.5 ${isActive ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                          {track.name}
+                        </div>
+                        <div className={`text-[8px] font-bold uppercase ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                          Mood: {track.mood}
+                        </div>
+                      </div>
+                      <div className={`text-[8px] font-medium truncate mt-1 ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {track.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className={`p-4 rounded-2xl border space-y-3 ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-black/40 border-white/10'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase flex items-center gap-1.5 text-ggd-orange">
+                    <i className="fa-solid fa-sliders"></i> Smart Audio Balance & Ducking
+                  </span>
+                  <span className="text-[8px] font-bold uppercase px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
+                    Auto-Ducked ✓
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setMusicVolume(0.08)}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-xl border transition-all min-h-[36px] ${musicVolume <= 0.1 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+                  >
+                    Quiet (8%)
+                  </button>
+                  <button
+                    onClick={() => setMusicVolume(0.18)}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-xl border transition-all min-h-[36px] ${musicVolume > 0.1 && musicVolume <= 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+                  >
+                    Balanced (18%)
+                  </button>
+                  <button
+                    onClick={() => setMusicVolume(0.32)}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-xl border transition-all min-h-[36px] ${musicVolume > 0.25 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 text-slate-300 border-white/10'}`}
+                  >
+                    Music Up (32%)
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="text-[9px] font-black uppercase shrink-0 text-slate-400">Volume:</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.4"
+                    step="0.01"
+                    value={musicVolume}
+                    onChange={(e) => {
+                      const vol = parseFloat(e.target.value);
+                      setMusicVolume(vol);
+                      if (musicGainNodeRef.current && audioCtxRef.current) {
+                        musicGainNodeRef.current.gain.setValueAtTime(vol, audioCtxRef.current.currentTime);
+                      }
+                    }}
+                    className="flex-1 accent-ggd-orange cursor-pointer h-2 bg-white/10 rounded-lg"
+                  />
+                  <span className="text-[10px] font-mono text-ggd-orange font-bold shrink-0">{Math.round(musicVolume * 100)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONTEXTUAL PANEL 3: CAPTIONS & SUBTITLES */}
+        {activeEditorTab === 'captions' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className={`rounded-2xl p-4 border space-y-4 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/30 border-white/5'}`}>
+              <h3 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
+                <i className="fa-solid fa-closed-captioning"></i>
+                CapCut Caption Aesthetics & Fonts
+              </h3>
+              
+              <div className="space-y-2">
+                <label className="text-[9.5px] font-bold uppercase block tracking-wider text-slate-400">Select Subtitle Style Preset</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 scrollbar-hide">
+                  {CAPCUT_TEMPLATES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setCaptionTemplate(t.id);
+                        setCaptionColor(t.color);
+                      }}
+                      className={`p-3 rounded-2xl border text-left flex items-start gap-2.5 transition-all min-h-[50px] ${
+                        captionTemplate === t.id 
+                          ? 'bg-ggd-orange/15 border-ggd-orange text-ggd-orange font-bold shadow-md ring-2 ring-ggd-orange/30' 
+                          : themeMode === 'light'
+                            ? 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
+                            : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/10'
+                      }`}
+                    >
+                      <span className="w-4 h-4 rounded-full border border-white/20 flex items-center justify-center text-[7px] font-bold mt-0.5 shrink-0 shadow-sm" style={{ backgroundColor: t.color }}>
+                        {captionTemplate === t.id && <i className="fa-solid fa-check text-slate-950 text-[7px]"></i>}
+                      </span>
+                      <div className="overflow-hidden">
+                        <p className={`text-[10px] font-black uppercase tracking-tight ${captionTemplate === t.id ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{t.name}</p>
+                        <p className="text-[8px] leading-snug font-medium text-slate-400 truncate">{t.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                  <span>Font Sizing</span>
+                  <span className="font-mono text-ggd-orange font-black">{fontSize}px</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="16" 
+                  max="36" 
+                  value={fontSize} 
+                  onChange={(e) => setFontSize(parseInt(e.target.value))} 
+                  className="w-full accent-ggd-orange cursor-pointer h-2 bg-white/10 rounded-lg"
+                />
+              </div>
+
+              <div className="pt-2.5 border-t border-white/10 flex items-center justify-between">
+                <div className="text-left shrink-0 max-w-[200px]">
+                  <p className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-ggd-orange">
+                    <i className="fa-solid fa-wand-magic-sparkles"></i> AI Contextual Emojis
+                  </p>
+                  <p className="text-[8.5px] text-slate-400 font-medium">Auto-pop interactive emojis over key spoken words</p>
+                </div>
+                <button
+                  onClick={() => setAiEmojiMode(!aiEmojiMode)}
+                  className={`w-11 h-6 rounded-full transition-all relative p-0.5 flex items-center border cursor-pointer min-h-[32px] ${aiEmojiMode ? 'bg-ggd-orange border-ggd-orange' : 'bg-slate-800 border-white/15'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform ${aiEmojiMode ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONTEXTUAL PANEL 4: SPEED & SFX */}
+        {activeEditorTab === 'speed' && (
+          <div className="space-y-4 animate-fadeIn">
+            {/* SPEED CONTROL FOR ACTIVE CLIP */}
+            {activeSeg && (
+              <div className={`p-4 border rounded-2xl space-y-3 ${themeMode === 'light' ? 'bg-amber-500/5 border-amber-500/20 text-slate-900' : 'bg-slate-900/80 border-ggd-orange/20 text-white'}`}>
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-black uppercase text-ggd-orange tracking-widest flex items-center gap-1.5">
+                    <i className="fa-solid fa-gauge-high"></i> Beat #{activeSeg.id + 1} Clip Speed
+                  </p>
+                  <span className="text-[9px] px-2.5 py-0.5 bg-ggd-orange/15 text-ggd-orange rounded-md font-mono font-black border border-ggd-orange/30">
+                    {(activeSeg.speed || 1.0).toFixed(2)}x Speed
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-[8px] font-semibold uppercase text-slate-400">0.25x</span>
+                  <input 
+                    type="range" 
+                    min="0.25" 
+                    max="3.0" 
+                    step="0.05"
+                    value={activeSeg.speed || 1.0} 
+                    onChange={(e) => setSegmentSpeed(activeSeg.id, parseFloat(e.target.value))} 
+                    className="flex-1 accent-ggd-orange h-2 bg-white/10 rounded-lg cursor-pointer"
+                  />
+                  <span className="text-[8px] font-semibold uppercase text-slate-400">3.0x</span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                  <button 
+                    onClick={() => setSegmentSpeed(activeSeg.id, 0.5)} 
+                    className={`py-2 rounded-xl text-[8.5px] font-black uppercase border transition-all min-h-[36px] ${activeSeg.speed === 0.5 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/5 text-slate-300'}`}
+                  >
+                    0.5x Slow
+                  </button>
+                  <button 
+                    onClick={() => setSegmentSpeed(activeSeg.id, 1.0)} 
+                    className={`py-2 rounded-xl text-[8.5px] font-black uppercase border transition-all min-h-[36px] ${(activeSeg.speed || 1.0) === 1.0 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/5 text-slate-300'}`}
+                  >
+                    1.0x Normal
+                  </button>
+                  <button 
+                    onClick={() => setSegmentSpeed(activeSeg.id, 1.5)} 
+                    className={`py-2 rounded-xl text-[8.5px] font-black uppercase border transition-all min-h-[36px] ${activeSeg.speed === 1.5 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/5 text-slate-300'}`}
+                  >
+                    1.5x Fast
+                  </button>
+                  <button 
+                    onClick={() => setSegmentSpeed(activeSeg.id, 2.0)} 
+                    className={`py-2 rounded-xl text-[8.5px] font-black uppercase border transition-all min-h-[36px] ${activeSeg.speed === 2.0 ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/5 text-slate-300'}`}
+                  >
+                    2.0x Double
+                  </button>
+                </div>
               </div>
             )}
 
-            {compiledBlobUrl && (
-              <a 
-                href={compiledBlobUrl} 
-                download={`compiled_story_${Date.now()}.${compiledBlobUrl.includes('mp4') ? 'mp4' : 'webm'}`}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase rounded-2xl active:scale-95 transition-all shadow-lg text-center flex items-center justify-center gap-2"
-              >
-                <i className="fa-solid fa-download"></i> Download Exported Video
-              </a>
-            )}
+            {/* SFX PANEL */}
+            <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-indigo-50/60 border-indigo-200' : 'bg-indigo-950/30 border-indigo-500/20'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                    <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i>
+                    Procedural Sound Effects ({sfxPlacements.length})
+                  </h3>
+                  <p className="text-[8.5px] text-slate-400 font-medium">Auto-synthesize transition whooshes, pops & chimes</p>
+                </div>
+                
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setAutoSfxEnabled(!autoSfxEnabled)}
+                    className={`px-2.5 py-1.5 rounded-xl text-[8.5px] font-black uppercase border transition-all flex items-center gap-1 min-h-[32px] ${
+                      autoSfxEnabled 
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' 
+                        : 'bg-slate-800 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    <i className={`fa-solid ${autoSfxEnabled ? 'fa-bolt text-emerald-400' : 'fa-power-off'}`}></i>
+                    Auto SFX: {autoSfxEnabled ? 'ON' : 'OFF'}
+                  </button>
+
+                  <button
+                    onClick={() => setShowSfxModal(true)}
+                    className="px-3 py-1.5 bg-ggd-orange text-white text-[9px] font-black uppercase rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1 min-h-[32px]"
+                  >
+                    <i className="fa-solid fa-plus text-[8px]"></i> Add SFX
+                  </button>
+                </div>
+              </div>
+
+              {sfxPlacements.length === 0 ? (
+                <p className="text-[9px] italic text-center py-3 text-slate-400">
+                  No custom sound effects added yet. Click "+ Add SFX" to place sound effects at current playhead time.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
+                  {sfxPlacements.map((sfx) => (
+                    <div 
+                      key={sfx.id} 
+                      className="p-2.5 rounded-xl border border-white/5 bg-slate-900/60 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <button
+                          onClick={() => playProceduralSFX(sfx.synthType)}
+                          className="w-7 h-7 rounded-lg bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white flex items-center justify-center text-[10px] transition-all shrink-0 min-h-[28px]"
+                          title="Preview SFX"
+                        >
+                          <i className="fa-solid fa-play"></i>
+                        </button>
+                        <div className="overflow-hidden text-left">
+                          <p className="text-[9.5px] font-black uppercase truncate text-white">{sfx.name}</p>
+                          <p className="text-[8px] text-ggd-orange font-mono font-bold">At timestamp: {sfx.timestamp.toFixed(1)}s</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSfxPlacements(prev => prev.filter(p => p.id !== sfx.id))}
+                        className="text-slate-400 hover:text-red-400 p-1.5 text-[11px] transition-all shrink-0"
+                        title="Remove SFX"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* CONTEXTUAL PANEL 5: EXPORT & RENDER */}
+        {activeEditorTab === 'export' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className={`p-4 border rounded-2xl space-y-4 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/10'}`}>
+              <h3 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <i className="fa-solid fa-clapperboard"></i>
+                Export Format & Video Resolution
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Format Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400">File Format</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setExportFormat('mp4')}
+                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportFormat === 'mp4' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                    >
+                      MP4 (Universal)
+                    </button>
+                    <button
+                      onClick={() => setExportFormat('webm')}
+                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportFormat === 'webm' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                    >
+                      WebM (High Speed)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Resolution Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400">Export Resolution</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      onClick={() => setExportResolution('720p')}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '720p' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                    >
+                      720p HD
+                    </button>
+                    <button
+                      onClick={() => setExportResolution('1080p')}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '1080p' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                    >
+                      1080p Full HD
+                    </button>
+                    <button
+                      onClick={() => setExportResolution('4K')}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '4K' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                    >
+                      4K Ultra
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {formatFallbackNote && (
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[9px] text-amber-300 font-bold flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                  <span>{formatFallbackNote}</span>
+                </div>
+              )}
+
+              {isCompiling && (
+                <div className="p-5 bg-ggd-orange/10 border border-ggd-orange/30 rounded-2xl text-center space-y-3 text-glow animate-fadeIn">
+                  <div className="flex items-center justify-between text-xs font-black uppercase text-ggd-orange">
+                    <span className="flex items-center gap-2 animate-pulse">
+                      <i className="fa-solid fa-wand-magic-sparkles"></i> Auto-Rendering HD Video ({exportResolution} {exportFormat.toUpperCase()})
+                    </span>
+                    <span>{compileProgress}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-ggd-orange transition-all duration-200" style={{ width: `${compileProgress}%` }} />
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium">Encoding video frames with synchronized voiceover & background audio</p>
+                </div>
+              )}
+
+              {compiledBlobUrl && !isCompiling && (
+                <div className="space-y-3 animate-fadeIn">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center flex items-center justify-center gap-2">
+                    <i className="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+                    <p className="text-[10px] font-black uppercase text-emerald-300 tracking-wider">
+                      Automatically Compiled & Saved to Your Studio Library!
+                    </p>
+                  </div>
+
+                  <a 
+                    href={compiledBlobUrl} 
+                    download={`vixora_${exportResolution}_${Date.now()}.${compiledBlobUrl.includes('mp4') ? 'mp4' : 'webm'}`}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase rounded-2xl active:scale-95 transition-all shadow-xl text-center flex items-center justify-center gap-2.5 text-glow min-h-[48px]"
+                  >
+                    <i className="fa-solid fa-download text-sm"></i>
+                    <span>Download {exportResolution} Video ({compiledBlobUrl.includes('mp4') ? 'MP4' : 'WebM'})</span>
+                  </a>
+
+                  <button 
+                    onClick={handleCompileVideo} 
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-black uppercase rounded-xl transition-all border border-white/10 flex items-center justify-center gap-1.5 min-h-[44px]"
+                  >
+                    <i className="fa-solid fa-rotate-right text-xs"></i>
+                    <span>Re-Render Video</span>
+                  </button>
+                </div>
+              )}
+
+              {!isCompiling && !compiledBlobUrl && (
+                <button 
+                  onClick={handleCompileVideo} 
+                  className="w-full py-4 bg-ggd-orange hover:brightness-110 text-white text-xs font-black uppercase rounded-2xl active:scale-95 transition-all shadow-xl text-glow flex items-center justify-center gap-2 border border-white/10 min-h-[48px]"
+                >
+                  <i className="fa-solid fa-clapperboard text-sm"></i> Compile Final Video ({exportResolution} {exportFormat.toUpperCase()})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
 

@@ -1225,7 +1225,11 @@ Structure: Full Masterclass / In-depth Documentary Script.
     }
   };
 
-  const handleVideoCompiled = (blobUrl: string, orientation: 'vertical' | 'horizontal') => {
+  const handleVideoCompiled = (
+    blobUrl: string, 
+    orientation: 'vertical' | 'horizontal' | 'square', 
+    metadata?: { duration?: string; resolution?: string; format?: string }
+  ) => {
     const newVideo: CreatedVideo = {
       id: `vid_${Date.now()}`,
       topic: scriptTopic || videoScriptInput || "Untitled Faceless Video",
@@ -1238,11 +1242,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
         minute: '2-digit'
       }),
       aspectRatio: orientation,
+      duration: metadata?.duration || `${targetVideoDuration || '30s'}`,
+      resolution: metadata?.resolution || '1080p',
+      format: metadata?.format || 'mp4',
     };
-    const updated = [newVideo, ...createdVideos];
-    setCreatedVideos(updated);
-    syncSaveCreatedVideo(newVideo);
-    alert("🎉 Ultimate Video compiled successfully & saved to your Vixora Studio Gallery!");
+    setCreatedVideos(prev => {
+      const updated = [newVideo, ...prev.filter(v => v.id !== newVideo.id)];
+      syncSaveCreatedVideo(newVideo);
+      return updated;
+    });
   };
 
   const handleAutopilotVideoGeneration = async (
@@ -2305,57 +2313,59 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 )}
               </div>
 
-              {/* UNIFIED STRAIGHT HORIZONTAL TOOLBAR RIBBON */}
+              {/* RESPONSIVE PRODUCTION OPTIONS TOOLBAR */}
               <div className="pt-2 text-left border-t border-white/10">
-                <p className="text-[9px] font-black uppercase text-slate-400 mb-2 flex items-center gap-1">
-                  <i className="fa-solid fa-sliders text-rose-500"></i> Configure Production Options (Arranged in Single Line)
+                <p className="text-[9.5px] font-black uppercase text-slate-400 mb-2.5 flex items-center gap-1.5">
+                  <i className="fa-solid fa-sliders text-rose-500"></i> Configure Production Options
                 </p>
 
-                <div className={`p-3 rounded-2xl border shadow-inner flex flex-wrap items-center justify-between gap-3 ${
-                  themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
-                }`}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {/* TOOL 1: ASPECT RATIO */}
-                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                  <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                  }`}>
                     <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1">
-                      <i className="fa-solid fa-[#000] fa-mobile-screen"></i> Ratio:
+                      <i className="fa-solid fa-mobile-screen"></i> Video Aspect Ratio
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="grid grid-cols-3 gap-1">
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('vertical')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                        className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
                         <i className="fa-solid fa-mobile-screen text-[10px]"></i> 9:16
                       </button>
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('horizontal')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                        className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
                         <i className="fa-solid fa-display text-[10px]"></i> 16:9
                       </button>
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('square')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                        className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
-                        <i className="fa-solid fa-square text-[9px]"></i> 1:1
+                        <i className="fa-solid fa-square text-[8px]"></i> 1:1
                       </button>
                     </div>
                   </div>
 
                   {/* TOOL 2: TARGET DURATION */}
-                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                  <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                  }`}>
                     <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-1">
-                      <i className="fa-solid fa-clock"></i> Duration:
+                      <i className="fa-solid fa-clock"></i> Target Duration
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {['15s', '30s', '1min', '2min', '3min', '5min'].map((dur) => (
                         <button 
                           key={dur}
                           type="button"
                           onClick={() => setTargetVideoDuration(dur)}
-                          className={`px-2 py-1.5 rounded-lg text-[8.5px] font-black uppercase border transition-all ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`flex-1 min-w-[36px] py-1.5 px-2 rounded-xl text-[8.5px] font-black uppercase border transition-all text-center min-h-[36px] ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
                           {dur}
                         </button>
@@ -2363,34 +2373,17 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     </div>
                   </div>
 
-                  {/* TOOL 3: GOOGLE WEB TRENDS */}
-                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setUseWebSearchForVideo(!useWebSearchForVideo)}
-                      className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase flex items-center gap-1.5 transition-all ${
-                        useWebSearchForVideo 
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md' 
-                          : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <i className="fa-solid fa-globe text-xs"></i>
-                      <span>Web Trends</span>
-                      <span className={`px-1.5 py-0.5 text-[7.5px] font-black rounded uppercase ${useWebSearchForVideo ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>
-                        {useWebSearchForVideo ? 'ACTIVE' : 'OFF'}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* TOOL 4: VOICE AVATAR SELECTOR */}
-                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                  {/* TOOL 3: VOICE AVATAR SELECTOR */}
+                  <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                  }`}>
                     <span className="text-[9px] font-black uppercase text-purple-400 flex items-center gap-1">
-                      <i className="fa-solid fa-microphone"></i> Voice:
+                      <i className="fa-solid fa-microphone"></i> Voiceover Accent
                     </span>
                     <select
                       value={selectedVoice}
                       onChange={(e) => setSelectedVoice(e.target.value)}
-                      className={`border text-[9px] font-black uppercase py-1.5 px-2.5 rounded-xl outline-none cursor-pointer transition-all ${
+                      className={`w-full border text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[40px] ${
                         themeMode === 'light'
                           ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
                           : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
@@ -2404,15 +2397,17 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     </select>
                   </div>
 
-                  {/* TOOL 5: VIDEO NICHE CATEGORY */}
-                  <div className="flex items-center gap-2">
+                  {/* TOOL 4: VIDEO NICHE CATEGORY */}
+                  <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                  }`}>
                     <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                      <i className="fa-solid fa-film"></i> Niche:
+                      <i className="fa-solid fa-film"></i> Footage Niche
                     </span>
                     <select
                       value={selectedNicheFilter}
                       onChange={(e) => setSelectedNicheFilter(e.target.value)}
-                      className={`border text-[9px] font-black uppercase py-1.5 px-2.5 rounded-xl outline-none cursor-pointer transition-all ${
+                      className={`w-full border text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[40px] ${
                         themeMode === 'light'
                           ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
                           : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
@@ -2425,6 +2420,32 @@ Structure: Full Masterclass / In-depth Documentary Script.
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* TOOL 5: GOOGLE WEB TRENDS */}
+                  <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 sm:col-span-2 lg:col-span-2 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase text-cyan-400 flex items-center gap-1">
+                        <i className="fa-solid fa-globe"></i> Google Web Trends Research
+                      </span>
+                      <span className={`px-2 py-0.5 text-[8px] font-black rounded uppercase ${useWebSearchForVideo ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>
+                        {useWebSearchForVideo ? 'ACTIVE' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUseWebSearchForVideo(!useWebSearchForVideo)}
+                      className={`w-full py-2 px-3 rounded-xl border text-[9.5px] font-black uppercase flex items-center justify-center gap-2 transition-all min-h-[40px] ${
+                        useWebSearchForVideo 
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md' 
+                          : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <i className="fa-solid fa-globe text-xs"></i>
+                      <span>{useWebSearchForVideo ? 'Web Trends Search Enabled (Fetches Real-Time Data)' : 'Enable Real-Time Google Web Search'}</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2946,14 +2967,31 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                   {createdVideos.map((video) => (
                     <div key={video.id} className={`p-4 border rounded-2xl flex flex-col gap-3 transition-all ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 hover:border-ggd-orange/40' : 'bg-white/5 border-white/5 hover:border-ggd-orange/40'}`}>
-                      <div className="flex justify-between items-start">
-                        <div className="text-left space-y-1">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="text-left space-y-1 overflow-hidden">
                           <p className="text-xs font-black uppercase truncate max-w-[220px] sm:max-w-xs">{video.topic}</p>
                           <p className="text-[10px] text-slate-400 font-mono font-bold">{video.date}</p>
                         </div>
-                        <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border ${video.aspectRatio === 'vertical' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                          {video.aspectRatio === 'vertical' ? 'Portrait 9:16' : 'Landscape 16:9'}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1 justify-end shrink-0">
+                          {video.duration && (
+                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                              ⏱️ {video.duration}
+                            </span>
+                          )}
+                          {video.resolution && (
+                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                              {video.resolution}
+                            </span>
+                          )}
+                          {video.format && (
+                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {video.format.toUpperCase()}
+                            </span>
+                          )}
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-lg border ${video.aspectRatio === 'vertical' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
+                            {video.aspectRatio === 'vertical' ? '9:16' : video.aspectRatio === 'square' ? '1:1' : '16:9'}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <a 

@@ -99,3 +99,17 @@ export interface SFXPlacement {
   timestamp: number; // in seconds
 }
 
+export interface CreatedVideo {
+  id: string;
+  topic: string;
+  scriptText: string;
+  videoUrl: string;
+  date: string;
+  aspectRatio: 'vertical' | 'horizontal' | 'square';
+  duration?: string;
+  resolution?: string;
+  format?: string;
+  userId?: string;
+  createdAt?: string;
+}
+

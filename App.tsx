@@ -286,8 +286,6 @@ const App: React.FC = () => {
   // PWA states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showPwaPrompt, setShowPwaPrompt] = useState(true);
-  const [showPwaInstructionsModal, setShowPwaInstructionsModal] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const triggerPwaInstall = async () => {
@@ -297,21 +295,12 @@ const App: React.FC = () => {
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
           setIsStandalone(true);
-          setShowPwaPrompt(false);
         }
         setDeferredPrompt(null);
       } catch (e) {
-        console.warn("Deferred prompt trigger fallback:", e);
-        setShowPwaInstructionsModal(true);
+        console.warn("Native PWA install prompt error:", e);
       }
-    } else {
-      setShowPwaInstructionsModal(true);
     }
-  };
-
-  const dismissPwaPrompt = () => {
-    setShowPwaPrompt(false);
-    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
   };
 
   // Push Notifications & Feature Update Announcements State
@@ -665,10 +654,6 @@ const App: React.FC = () => {
     const handleBeforeInstall = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Retrieve session to prevent intrusive popping if dismissed
-      if (!sessionStorage.getItem('pwa_prompt_dismissed')) {
-        setShowPwaPrompt(true);
-      }
     };
 
     const handleOnlineStatus = () => setIsOnline(true);
@@ -2131,48 +2116,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
       </header>
 
       <main className="flex-1 p-3 sm:p-4 overflow-y-auto">
-        {!isStandalone && showPwaPrompt && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/90 backdrop-blur-xl border-2 border-orange-500/50 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-3 shadow-2xl animate-rise relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/20 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="flex items-center gap-3 text-left w-full md:w-auto">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 text-xl shadow-lg border border-orange-300/40">
-                <i className="fa-solid fa-mobile-screen-button animate-bounce"></i>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[8px] font-black uppercase rounded-md">
-                    PWA APP AVAILABLE
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400">1-Tap Phone Launcher</span>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black uppercase text-white tracking-tight mt-0.5">
-                  Install Vixora Studio App On Your Phone 📲
-                </h3>
-                <p className="text-[10px] text-slate-300 font-medium">
-                  Get fast launching, offline mode, and instant native push notifications on your phone!
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
-              <button 
-                onClick={triggerPwaInstall}
-                className="w-full md:w-auto btn-3d btn-3d-orange py-3 px-5 rounded-2xl font-black uppercase text-xs tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <i className="fa-solid fa-download"></i>
-                <span>Install On Phone Now</span>
-              </button>
-              <button 
-                onClick={dismissPwaPrompt}
-                title="Dismiss Banner"
-                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                <i className="fa-solid fa-xmark text-xs"></i>
-              </button>
-            </div>
-          </div>
-        )}
-
         {appError && (
           <div className="mb-4 p-3 bg-red-600/20 border border-red-500/40 rounded-xl text-red-200 text-[10px] font-bold flex justify-between items-center">
             <span>{appError}</span>
@@ -4255,83 +4198,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
       )}
 
-      {/* 4. PWA PHONE INSTALL INSTRUCTIONS MODAL */}
-      {showPwaInstructionsModal && (
-        <div className="fixed inset-0 z-[450] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
-          <div className={`w-full max-w-md rounded-[2.5rem] p-6 border text-left space-y-4 relative shadow-2xl overflow-hidden ${themeMode === 'light' ? 'bg-white border-orange-200 text-slate-900' : 'bg-slate-900 border-orange-500/30 text-white'}`}>
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500"></div>
-
-            <div className="flex items-center justify-between border-b border-slate-200/20 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 text-lg">
-                  <i className="fa-solid fa-mobile-screen-button animate-bounce"></i>
-                </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider">Install Vixora on Phone</h3>
-                  <p className="text-[8px] text-orange-400 font-black uppercase">Official PWA Launcher & App</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowPwaInstructionsModal(false)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}
-              >
-                <i className="fa-solid fa-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                Follow these quick steps to add Vixora directly to your phone's home screen as a full-screen app:
-              </p>
-
-              {/* Android Instructions */}
-              <div className={`p-3.5 rounded-2xl border space-y-2 ${themeMode === 'light' ? 'bg-orange-50/50 border-orange-200' : 'bg-white/5 border-white/10'}`}>
-                <p className="text-[10px] font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
-                  <i className="fa-brands fa-android text-sm"></i>
-                  <span>Android Chrome / Mobile Browsers</span>
-                </p>
-                <ol className="text-[10px] space-y-1 text-slate-300 font-medium list-decimal pl-4">
-                  <li>Tap the <strong>3 dots menu (⋮)</strong> in top-right corner</li>
-                  <li>Select <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong></li>
-                  <li>Tap <strong>Install</strong> to add Vixora icon to your phone!</li>
-                </ol>
-              </div>
-
-              {/* iOS Safari Instructions */}
-              <div className={`p-3.5 rounded-2xl border space-y-2 ${themeMode === 'light' ? 'bg-purple-50/50 border-purple-200' : 'bg-white/5 border-white/10'}`}>
-                <p className="text-[10px] font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                  <i className="fa-brands fa-apple text-sm"></i>
-                  <span>iPhone / iPad Safari</span>
-                </p>
-                <ol className="text-[10px] space-y-1 text-slate-300 font-medium list-decimal pl-4">
-                  <li>Tap the <strong>Share Button</strong> (<i className="fa-solid fa-share-nodes text-[9px]"></i>) at bottom of browser</li>
-                  <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
-                  <li>Tap <strong>Add</strong> in top right corner</li>
-                </ol>
-              </div>
-
-              <button 
-                onClick={async () => {
-                  if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') {
-                      setIsStandalone(true);
-                      setShowPwaInstructionsModal(false);
-                    }
-                  } else {
-                    alert("If native prompt did not open automatically, please follow the 3-step guide above for your browser menu (⋮ / Share -> Add to Home Screen).");
-                  }
-                }}
-                className="w-full py-3.5 btn-3d btn-3d-orange rounded-2xl font-black uppercase text-xs tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <i className="fa-solid fa-download"></i>
-                <span>Trigger Phone Auto-Install Prompt</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showNewAdvertModal && (
         <div className="fixed inset-0 z-[400] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
           <div className={`w-full max-w-sm rounded-[2.5rem] p-6 border text-left space-y-4 relative shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>

@@ -1276,10 +1276,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
       activeApiKey = envApiKey || activeApiKey;
     }
 
+    console.log(`[AUTOPILOT_START] activeApiKey resolved: "${activeApiKey ? activeApiKey.slice(0, 8) + '...' : 'EMPTY'}" | Voice: ${selectedVoice || 'Kore'} | Ratio: ${ratioToUse || videoRatio} | Duration: ${durationToUse || targetVideoDuration}`);
+
     if (!activeApiKey) {
+      console.error("[AUTOPILOT_ERROR] No activeApiKey available to launch Autopilot.");
       setAppError("API Credentials are required to launch autopilot.");
       return;
     }
+
+    (window as any).__GEMINI_API_KEY__ = activeApiKey;
 
     if (ratioToUse) setVideoRatio(ratioToUse);
     if (durationToUse) setTargetVideoDuration(durationToUse);
@@ -1294,6 +1299,9 @@ Structure: Full Masterclass / In-depth Documentary Script.
     setActiveTab('autopilot');
 
     try {
+      const ai = new GoogleGenAI({ apiKey: activeApiKey });
+      console.log("[AUTOPILOT_AI_INIT] GoogleGenAI client instance created successfully.");
+
       // Smooth progress ticker helper
       const setProgressWithMsg = (pct: number, msg: string, log: string, stepNum: number) => {
         setAutopilotProgress(pct);
@@ -1325,7 +1333,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
       // --- STEP 2: VOICE OVER ---
       setVoiceoverText(scriptText);
       try {
-        const ai = new GoogleGenAI({ apiKey: activeApiKey });
         const voiceResponse = await ai.models.generateContent({
           model: "gemini-2.5-flash-preview-tts",
           contents: [{ parts: [{ text: `Speak this script with a natural, professional accent. No conversational filler: ${scriptText.replace(/\*/g, '')}` }] }],
@@ -2305,13 +2312,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
               </p>
             </div>
 
-            {/* TOPIC SELECTION & PRESETS */}
-            <div className={`p-5 rounded-2xl border space-y-3.5 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
+            {/* TOPIC SELECTION & UNIFIED STRAIGHT-LINE TOOLBAR */}
+            <div className={`p-5 rounded-2xl border space-y-4 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
-                  <i className="fa-solid fa-bolt"></i> Enter or Pick Topic
+                  <i className="fa-solid fa-bolt"></i> Enter Video Topic or Choose Preset
                 </label>
-                <span className="text-[8px] font-black uppercase text-slate-400">1-Click Generator</span>
+                <span className="text-[8px] font-black uppercase text-slate-400">1-Click Automated Generator</span>
               </div>
               
               {/* QUICK PRESET INSPIRATION TAGS */}
@@ -2355,183 +2362,127 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 )}
               </div>
 
-              {/* ASPECT RATIO, DURATION, WEB SEARCH & LEARNED SKILLS CONFIGURATION */}
-              <div className="space-y-3 pt-2 text-left border-t border-white/10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* ASPECT RATIO */}
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 flex items-center justify-between">
-                      <span>Aspect Ratio</span>
-                      <span className="text-[8px] text-rose-400 font-bold">{videoRatio === 'vertical' ? '9:16 Shorts/Reels' : videoRatio === 'horizontal' ? '16:9 YouTube Widescreen' : '1:1 Square Post'}</span>
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5">
+              {/* UNIFIED STRAIGHT HORIZONTAL TOOLBAR RIBBON */}
+              <div className="pt-2 text-left border-t border-white/10">
+                <p className="text-[9px] font-black uppercase text-slate-400 mb-2 flex items-center gap-1">
+                  <i className="fa-solid fa-sliders text-rose-500"></i> Configure Production Options (Arranged in Single Line)
+                </p>
+
+                <div className={`p-3 rounded-2xl border shadow-inner flex flex-wrap items-center justify-between gap-3 ${
+                  themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                }`}>
+                  {/* TOOL 1: ASPECT RATIO */}
+                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                    <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1">
+                      <i className="fa-solid fa-[#000] fa-mobile-screen"></i> Ratio:
+                    </span>
+                    <div className="flex items-center gap-1">
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('vertical')}
-                        className={`py-2 rounded-xl text-[8.5px] font-black uppercase flex items-center justify-center gap-1 border transition-all ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-400'}`}
+                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
-                        <i className="fa-solid fa-mobile-screen text-xs"></i> 9:16
+                        <i className="fa-solid fa-mobile-screen text-[10px]"></i> 9:16
                       </button>
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('horizontal')}
-                        className={`py-2 rounded-xl text-[8.5px] font-black uppercase flex items-center justify-center gap-1 border transition-all ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-400'}`}
+                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
-                        <i className="fa-solid fa-display text-xs"></i> 16:9
+                        <i className="fa-solid fa-display text-[10px]"></i> 16:9
                       </button>
                       <button 
                         type="button"
                         onClick={() => setVideoRatio('square')}
-                        className={`py-2 rounded-xl text-[8.5px] font-black uppercase flex items-center justify-center gap-1 border transition-all ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-400'}`}
+                        className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                       >
                         <i className="fa-solid fa-square text-[9px]"></i> 1:1
                       </button>
                     </div>
                   </div>
 
-                  {/* TARGET DURATION */}
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 flex items-center justify-between">
-                      <span>Target Video Duration</span>
-                      <span className="text-[8px] text-amber-400 font-bold">{targetVideoDuration}</span>
-                    </label>
-                    <div className="grid grid-cols-6 gap-1">
+                  {/* TOOL 2: TARGET DURATION */}
+                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                    <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-1">
+                      <i className="fa-solid fa-clock"></i> Duration:
+                    </span>
+                    <div className="flex items-center gap-1">
                       {['15s', '30s', '1min', '2min', '3min', '5min'].map((dur) => (
                         <button 
                           key={dur}
                           type="button"
                           onClick={() => setTargetVideoDuration(dur)}
-                          className={`py-2 rounded-xl text-[8px] sm:text-[8.5px] font-black uppercase border transition-all ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-black/40 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                          className={`px-2 py-1.5 rounded-lg text-[8.5px] font-black uppercase border transition-all ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
                           {dur}
                         </button>
                       ))}
                     </div>
                   </div>
-                </div>
 
-                {/* WEB SEARCH TRENDS TOGGLE & VIXORA LEARNED SKILLS BASE TRIGGER */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setUseWebSearchForVideo(!useWebSearchForVideo)}
-                    className={`p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all ${
-                      useWebSearchForVideo 
-                        ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-300' 
-                        : themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/30 border-white/10 text-slate-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${useWebSearchForVideo ? 'bg-cyan-500 text-slate-950 font-black' : 'bg-white/10'}`}>
-                        <i className="fa-solid fa-globe text-xs"></i>
-                      </div>
-                      <div>
-                        <p className="text-[9.5px] font-black uppercase tracking-tight">Google Web Trends</p>
-                        <p className="text-[8px] opacity-80">Inject live facts before writing script</p>
-                      </div>
-                    </div>
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase ${useWebSearchForVideo ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>
-                      {useWebSearchForVideo ? 'ACTIVE' : 'OFF'}
+                  {/* TOOL 3: GOOGLE WEB TRENDS */}
+                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setUseWebSearchForVideo(!useWebSearchForVideo)}
+                      className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase flex items-center gap-1.5 transition-all ${
+                        useWebSearchForVideo 
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md' 
+                          : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <i className="fa-solid fa-globe text-xs"></i>
+                      <span>Web Trends</span>
+                      <span className={`px-1.5 py-0.5 text-[7.5px] font-black rounded uppercase ${useWebSearchForVideo ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>
+                        {useWebSearchForVideo ? 'ACTIVE' : 'OFF'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* TOOL 4: VOICE AVATAR SELECTOR */}
+                  <div className="flex items-center gap-2 border-r pr-3 border-white/10">
+                    <span className="text-[9px] font-black uppercase text-purple-400 flex items-center gap-1">
+                      <i className="fa-solid fa-microphone"></i> Voice:
                     </span>
-                  </button>
+                    <select
+                      value={selectedVoice}
+                      onChange={(e) => setSelectedVoice(e.target.value)}
+                      className={`border text-[9px] font-black uppercase py-1.5 px-2.5 rounded-xl outline-none cursor-pointer transition-all ${
+                        themeMode === 'light'
+                          ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
+                          : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
+                      }`}
+                    >
+                      {VOICE_AVATAR_OPTIONS.map((v) => (
+                        <option key={v.id} value={v.voiceName}>
+                          {v.flag} {v.name} ({v.accent} - {v.gender})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowLearnedSkillsModal(true)}
-                    className="p-2.5 rounded-2xl border border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 text-left flex items-center justify-between transition-all"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-purple-500 text-white flex items-center justify-center shrink-0 font-black shadow-md">
-                        <i className="fa-solid fa-brain text-xs animate-pulse"></i>
-                      </div>
-                      <div>
-                        <p className="text-[9.5px] font-black uppercase tracking-tight">Vixora Learned Skill Base</p>
-                        <p className="text-[8px] text-purple-300/80">{userSkills.length} AI Custom Skills Remembered</p>
-                      </div>
-                    </div>
-                    <span className="text-[9px] font-black text-purple-300 uppercase">Manage →</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* VISUAL VOICE AVATAR SELECTION GRID FOR AUTOPILOT */}
-              <div className="space-y-2 pt-2 text-left">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1">
-                    <i className="fa-solid fa-microphone-lines"></i> Select Voice Avatar & Accent
-                  </label>
-                  <span className="text-[8px] font-black uppercase text-slate-400">Click avatar to select, click ▶ to preview voice</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {VOICE_AVATAR_OPTIONS.map((v) => {
-                    const isSelected = selectedVoice === v.voiceName;
-                    const isPreviewingThis = previewingVoiceId === v.id;
-                    return (
-                      <div
-                        key={v.id}
-                        onClick={() => setSelectedVoice(v.voiceName)}
-                        className={`p-2.5 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between overflow-hidden ${
-                          isSelected
-                            ? 'bg-rose-500/15 border-rose-500 shadow-md ring-2 ring-rose-500/30'
-                            : themeMode === 'light'
-                              ? 'bg-white border-slate-200 hover:border-rose-300'
-                              : 'bg-black/30 border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="relative shrink-0">
-                            <img
-                              src={v.avatar}
-                              alt={v.name}
-                              className="w-10 h-10 rounded-full object-cover border border-rose-500/30 shadow-sm"
-                              referrerPolicy="no-referrer"
-                            />
-                            {v.isVixoraVoice && (
-                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-ggd-orange border border-white rounded-full flex items-center justify-center text-[7px] text-white font-black">
-                                ★
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-[10px] font-black uppercase truncate ${isSelected ? 'text-rose-500' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                              {v.name}
-                            </p>
-                            <p className={`text-[8px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                              {v.flag} {v.accent}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-1 mt-1 pt-1.5 border-t border-white/5">
-                          <span className={`text-[7.5px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                            {v.gender} • {v.style}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={isPreviewingThis}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePreviewVoice(v);
-                            }}
-                            className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 transition-all shrink-0 ${
-                              isPreviewingThis
-                                ? 'bg-rose-500 text-white animate-pulse'
-                                : 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20'
-                            }`}
-                            title={`Preview ${v.name}'s voice`}
-                          >
-                            {isPreviewingThis ? (
-                              <i className="fa-solid fa-spinner animate-spin"></i>
-                            ) : (
-                              <i className="fa-solid fa-play text-[7px]"></i>
-                            )}
-                            <span>{isPreviewingThis ? 'Playing...' : 'Preview'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {/* TOOL 5: VIDEO NICHE CATEGORY */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
+                      <i className="fa-solid fa-film"></i> Niche:
+                    </span>
+                    <select
+                      value={selectedNicheFilter}
+                      onChange={(e) => setSelectedNicheFilter(e.target.value)}
+                      className={`border text-[9px] font-black uppercase py-1.5 px-2.5 rounded-xl outline-none cursor-pointer transition-all ${
+                        themeMode === 'light'
+                          ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
+                          : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
+                      }`}
+                    >
+                      <option value="all">🌟 All Niches</option>
+                      {NICHE_OPTIONS.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -2539,7 +2490,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <button 
                 disabled={isAutopilotRunning} 
                 onClick={() => handleAutopilotVideoGeneration(scriptTopic)} 
-                className="btn-3d btn-3d-orange w-full py-4 text-xs font-black uppercase tracking-wider shadow-2xl mt-1 flex items-center justify-center gap-2"
+                className="btn-3d btn-3d-orange w-full py-4 text-xs font-black uppercase tracking-wider shadow-2xl mt-2 flex items-center justify-center gap-2"
               >
                 {isAutopilotRunning ? (
                   <>
@@ -2549,7 +2500,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 ) : (
                   <>
                     <i className="fa-solid fa-rocket text-sm animate-bounce"></i>
-                    <span>✨ Cook {targetVideoDuration} {videoRatio === 'vertical' ? '9:16 Short' : videoRatio === 'horizontal' ? '16:9 Video' : '1:1 Square'} Video</span>
+                    <span>✨ Cook {targetVideoDuration} {videoRatio === 'vertical' ? '9:16 Short' : videoRatio === 'horizontal' ? '16:9 Video' : '1:1 Square'} Video (1-Click Autopilot)</span>
                   </>
                 )}
               </button>

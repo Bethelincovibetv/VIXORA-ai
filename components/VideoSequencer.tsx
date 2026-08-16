@@ -640,7 +640,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       setIsAligning(true);
       setAlignmentError(null);
       try {
-        const activeApiKey = process.env.GEMINI_API_KEY || '';
+        const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
         if (!activeApiKey) {
           throw new Error("No API credentials found. Please set your Gemini key.");
         }

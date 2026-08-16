@@ -1491,14 +1491,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
           channelCount: 1,
           sampleRate: 16000,
           latency: 0
-        }, 
-        video: { facingMode: 'user', width: 640, height: 480 } 
+        }
       });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => videoRef.current?.play();
-      }
 
       const navigateToTabDeclaration: FunctionDeclaration = {
         name: 'navigateToTab',
@@ -1619,6 +1613,21 @@ Structure: Full Masterclass / In-depth Documentary Script.
             setCallTimer(0);
             timerIntervalRef.current = window.setInterval(() => setCallTimer(t => t + 1), 1000);
             
+            // Automatically prompt Visora AI to initiate the call and speak first!
+            sessionPromise.then(session => {
+              session.sendClientContent({
+                turns: [
+                  {
+                    role: 'user',
+                    parts: [
+                      { text: `[System Event: The live voice call has connected! YOU MUST SPEAK FIRST RIGHT NOW TO INITIATE THE CALL! Greet ${user?.fullName || 'Creator'} with maximum enthusiasm in your signature energetic Nigerian Vixora persona, e.g. "How far my creator! Vixora live on line with you! Wetin we dey cook today?", and ask them what video topic or idea they want to create today!]` }
+                    ]
+                  }
+                ],
+                turnComplete: true
+              });
+            });
+
             const mediaSource = inputCtx.createMediaStreamSource(stream);
             const scriptProcessor = inputCtx.createScriptProcessor(2048, 1, 1);
             scriptProcessor.onaudioprocess = (e) => {
@@ -1638,25 +1647,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
             };
             mediaSource.connect(scriptProcessor);
             scriptProcessor.connect(inputCtx.destination);
-
-            frameIntervalRef.current = window.setInterval(() => {
-              if (videoRef.current && canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d');
-                canvasRef.current.width = 320;
-                canvasRef.current.height = 240;
-                ctx?.drawImage(videoRef.current, 0, 0, 320, 240);
-                canvasRef.current.toBlob(async (blob) => {
-                  if (blob) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      const base64Data = (reader.result as string).split(',')[1];
-                      sessionPromise.then(s => s.sendRealtimeInput({ media: { data: base64Data, mimeType: 'image/jpeg' } }));
-                    };
-                    reader.readAsDataURL(blob);
-                  }
-                }, 'image/jpeg', 0.5);
-              }
-            }, 1000);
           },
           onmessage: async (message: LiveServerMessage) => {
             if (message.serverContent?.outputTranscription) {
@@ -1750,7 +1740,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
             learnUserCustomSkillDeclaration,
             searchWebTrendsDeclaration
           ] }],
-          systemInstruction: `You are 'Vixora', the highly energetic, vibrant, warm, and brilliant Nigerian AI Creator Assistant & Video Producer! Address the user warmly by name (${user?.fullName || 'Creator'}). Your voice and vibe are 100% highly energetic, lively, witty, supportive, creative, and enthusiastic with authentic, warm Nigerian energy (e.g., "No wahala at all!", "Oya let's cook this viral masterpiece!", "I hear you crystal clear!"). Speak dynamically with high energy. No asterisks (*).
+          systemInstruction: `You are 'Vixora' (Visora AI), the highly energetic, vibrant, warm, and brilliant Nigerian AI Creator Assistant & Video Producer! Address the user warmly by name (${user?.fullName || 'Creator'}). Your voice and vibe are 100% highly energetic, lively, witty, supportive, creative, and enthusiastic with authentic, warm Nigerian energy (e.g., "No wahala at all!", "Oya let's cook this viral masterpiece!", "I hear you crystal clear!"). Speak dynamically with high energy. No asterisks (*).
+
+          CRITICAL CALL INITIATION RULE:
+          When the user connects or calls you on this live session, YOU MUST START THE CONVERSATION FIRST! Do NOT wait silently for the user to talk. Speak immediately upon connection, greeting ${user?.fullName || 'Creator'} with your signature energetic Nigerian Vixora persona, welcoming them to the call, and asking what video topic or content idea you two are making today!
 
           CRITICAL INTERACTIVE VIDEO CREATION FLOW:
           1. When the user asks you to make, create, generate, or cook a video:
@@ -1767,7 +1760,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
       liveSessionRef.current = await sessionPromise;
     } catch (err) {
-      setAppError("Mic/Camera access denied.");
+      setAppError("Mic access denied.");
       setIsConnecting(false);
     }
   };
@@ -2166,10 +2159,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     <i className="fa-solid fa-bolt text-xs"></i>
                     <span>Highly Energetic Nigerian Voice</span>
                   </span>
-                </div>
-
-                <div className="absolute top-6 right-6 w-20 h-30 bg-black rounded-xl overflow-hidden border-2 border-white/20 shadow-xl z-10">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex flex-col items-center gap-4 my-auto">

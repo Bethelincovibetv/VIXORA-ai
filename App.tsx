@@ -2042,7 +2042,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
   );
 
   return (
-    <div className={`max-w-lg mx-auto min-h-screen relative flex flex-col pb-20 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
+    <div className={`max-w-lg mx-auto min-h-screen relative flex flex-col pb-6 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
       
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" onClick={() => setIsSidebarOpen(false)}></div>
@@ -4578,47 +4578,11 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
       )}
 
-      <nav className={`fixed bottom-3 left-3 right-3 max-w-md mx-auto rounded-3xl p-1.5 flex items-center justify-between z-50 border shadow-2xl backdrop-blur-2xl ${themeMode === 'light' ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-950/95 border-white/10 text-white'}`}>
-        {[
-          { id: 'coach', label: 'Coach', icon: 'fa-cross', activeBg: 'from-amber-500 to-orange-600 border-amber-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#78350f,0_6px_12px_rgba(245,158,11,0.35)]', activeText: 'text-amber-400' },
-          { id: 'studio', label: 'Studio', icon: 'fa-microphone-lines', activeBg: 'from-orange-500 to-amber-600 border-orange-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#b33600,0_6px_12px_rgba(255,102,0,0.35)]', activeText: 'text-orange-500' },
-          { id: 'autopilot', label: 'Autopilot', icon: 'fa-wand-magic-sparkles', activeBg: 'from-rose-500 to-pink-600 border-rose-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#9f1239,0_6px_12px_rgba(244,63,94,0.35)]', activeText: 'text-rose-500' },
-          { id: 'scripts', label: 'Scripts', icon: 'fa-scroll', activeBg: 'from-purple-500 to-indigo-600 border-purple-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#581c87,0_6px_12px_rgba(168,85,247,0.35)]', activeText: 'text-purple-500' },
-          { id: 'videos', label: 'Creator', icon: 'fa-clapperboard', activeBg: 'from-orange-600 to-red-600 border-orange-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#9a3412,0_6px_12px_rgba(234,88,12,0.35)]', activeText: 'text-orange-500' },
-          { id: 'voiceover', label: 'Voice', icon: 'fa-waveform-lines', activeBg: 'from-blue-500 to-cyan-600 border-blue-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#1e3a8a,0_6px_12px_rgba(59,130,246,0.35)]', activeText: 'text-blue-500' },
-          { id: 'tools', label: 'Tools', icon: 'fa-shapes', activeBg: 'from-emerald-500 to-teal-600 border-emerald-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#064e3b,0_6px_12px_rgba(16,185,129,0.35)]', activeText: 'text-emerald-500' },
-        ].map((item) => {
-          const isActive = activeTab === item.id;
-          return (
-            <button 
-              key={item.id}
-              onClick={() => setActiveTab(item.id)} 
-              className="flex-1 py-0.5 flex flex-col items-center gap-1 transition-all active:scale-90 relative"
-            >
-              <div 
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 border ${
-                  isActive 
-                    ? `bg-gradient-to-br ${item.activeBg} text-white -translate-y-1`
-                    : themeMode === 'light'
-                      ? 'bg-slate-100 border-slate-200 text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_0_rgba(0,0,0,0.08)] hover:border-slate-300'
-                      : 'bg-slate-900 border-white/10 text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_0_rgba(0,0,0,0.5)] hover:border-white/20'
-                }`}
-              >
-                <i className={`fa-solid ${item.icon} text-xs sm:text-sm ${isActive ? 'animate-pulse' : ''}`}></i>
-              </div>
-              <span className={`text-[7.5px] font-black uppercase tracking-wider transition-colors ${isActive ? item.activeText : 'text-slate-400'}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-
       {/* FLOATING VIXORA AI CHAT BUTTON */}
       <button
         onClick={() => setIsTextChatOpen(true)}
         title="Chat with Vixora AI Agent"
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[180] btn-3d btn-3d-orange p-3.5 rounded-full flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all border-2 border-orange-300/40 cursor-pointer"
+        className="fixed bottom-6 right-4 sm:bottom-6 sm:right-6 z-[180] btn-3d btn-3d-orange p-3.5 rounded-full flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all border-2 border-orange-300/40 cursor-pointer"
       >
         <i className="fa-solid fa-comments text-lg text-white"></i>
         <span className="text-[10px] font-black uppercase tracking-wider text-white hidden sm:inline">Vixora Chat</span>

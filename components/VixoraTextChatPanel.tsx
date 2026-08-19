@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { VIXORA_AGENT_TOOLS, VixoraAppContext } from '../services/vixoraAgentTools';
-import { VIXORA_TOOLS_REGISTRY } from '../services/vixoraToolsRegistry';
 import vixoraAgentAvatar from '../src/assets/images/vixora_agent_avatar_1786108775324.jpg';
 
 export interface ChatMessage {
@@ -560,34 +559,26 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
               </button>
             </div>
 
-            {/* TOOL SHORTCUTS LIST */}
-            <div className="space-y-1.5 pt-1">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2">Available AI Capabilities</p>
-              {VIXORA_TOOLS_REGISTRY.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setIsAddMenuOpen(false);
-                    if (t.suggestedPrompt) {
-                      handleSendMessage(t.suggestedPrompt);
-                    } else if (t.targetTab) {
-                      appContext.setActiveTab(t.targetTab);
-                    }
-                  }}
-                  className="w-full p-2.5 rounded-xl bg-white/5 hover:bg-orange-500/10 border border-white/5 hover:border-orange-500/30 flex items-center justify-between text-left transition-all active:scale-95 group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${t.gradient} text-white flex items-center justify-center text-xs shrink-0`}>
-                      <i className={`fa-solid ${t.icon}`}></i>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-white group-hover:text-ggd-orange transition-colors">{t.name}</p>
-                      <p className="text-[8.5px] text-slate-400 truncate max-w-[200px]">{t.shortDescription}</p>
-                    </div>
+            {/* DIRECT TOOLS LIBRARY LINK */}
+            <div className="pt-1">
+              <button
+                onClick={() => {
+                  setIsAddMenuOpen(false);
+                  appContext.setActiveTab('tools');
+                }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 border border-emerald-500/30 flex items-center justify-between text-left transition-all active:scale-95 group shadow-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs shrink-0 shadow-md">
+                    <i className="fa-solid fa-shapes"></i>
                   </div>
-                  <i className="fa-solid fa-chevron-right text-[10px] text-slate-500 group-hover:text-ggd-orange"></i>
-                </button>
-              ))}
+                  <div>
+                    <p className="text-[11px] font-black text-white group-hover:text-emerald-400 transition-colors">Tools Library</p>
+                    <p className="text-[8.5px] text-slate-400">Open full suite of 12 AI creation tools</p>
+                  </div>
+                </div>
+                <i className="fa-solid fa-arrow-right text-xs text-emerald-400 group-hover:translate-x-1 transition-transform"></i>
+              </button>
             </div>
           </div>
         )}

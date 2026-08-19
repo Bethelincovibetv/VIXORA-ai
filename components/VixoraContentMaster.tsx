@@ -176,7 +176,7 @@ CORE DIRECTIVES:
       const prompt = `User Niche: ${niche}\nUser Goal: ${goal}\nUser Message: ${promptToUse}`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           systemInstruction,
@@ -293,7 +293,7 @@ Return strictly valid JSON in this exact format:
 }`;
 
       const res = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt
       });
 

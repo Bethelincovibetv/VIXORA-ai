@@ -526,7 +526,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         const prompt = `Analyze the script text below. Determine the single most dominant mood or theme of this script. Select EXACTLY one of the following words: "motivational", "calm", "upbeat", "dramatic", "tech", "corporate".\n\nScript: "${scriptText.replace(/"/g, '\\"')}"`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: prompt
         });
 
@@ -673,7 +673,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           `Please output a JSON list of objects, representing every word in order. Ensure each word's start and end times correspond EXACTLY to when it is heard spoken in the audio. Do not skip or drop any word. Ensure word timings are fully continuous and aligned with standard speaker cadence.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: [
             {
               inlineData: {

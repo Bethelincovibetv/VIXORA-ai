@@ -1,9 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from "@google/genai";
-import { UserProfile, Bank } from './types';
+import { UserProfile, Bank, Project } from './types';
 import { VideoSequencer } from './components/VideoSequencer';
 import { VixoraContentMaster } from './components/VixoraContentMaster';
+import { VixoraTextChatPanel } from './components/VixoraTextChatPanel';
+import { ToolsLibrary } from './components/ToolsLibrary';
+import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
+import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
 import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
 import { scoreAndFetchBeatVisual } from './services/stockSourcingService';
@@ -234,10 +238,57 @@ const App: React.FC = () => {
   const [user, setUser] = useState<(UserProfile & { apiKey?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact' | 'coach'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact' | 'coach' | 'tools' | 'chat'>('studio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
+
+  // Projects State for Requirement 3 (Projects-based Navigation)
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('vixora_projects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+
+    return [
+      {
+        id: 'proj_demo_1',
+        title: '5 Rules of Wealth Creation',
+        topic: 'Finance & Wealth Building',
+        status: 'rendered',
+        aspectRatio: 'vertical',
+        targetDuration: '30s',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        scriptText: 'Rule 1: Pay yourself first. Invest 20% before spending any income...',
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hand-putting-coins-in-a-piggy-bank-41582-large.mp4'
+      },
+      {
+        id: 'proj_demo_2',
+        title: 'Daily High Retention Motivational Reel',
+        topic: 'Fitness Motivation',
+        status: 'draft',
+        aspectRatio: 'vertical',
+        targetDuration: '15s',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        scriptText: 'Wake up early, stay disciplined, and conquer your goals.'
+      }
+    ];
+  });
+
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    return projects[0]?.id || null;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('vixora_projects', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
 
   // Theme & Accessibility States
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
@@ -484,6 +535,100 @@ const App: React.FC = () => {
   const [targetVideoDuration, setTargetVideoDuration] = useState<string>('30s');
   const [useWebSearchForVideo, setUseWebSearchForVideo] = useState<boolean>(true);
 
+  // Project Management Handlers & State Sync
+  const handleCreateNewProject = () => {
+    const newProj: Project = {
+      id: 'proj_' + Date.now(),
+      title: `Untitled Project #${projects.length + 1}`,
+      topic: '',
+      status: 'draft',
+      aspectRatio: videoRatio || 'vertical',
+      targetDuration: targetVideoDuration || '30s',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setProjects(prev => [newProj, ...prev]);
+    setActiveProjectId(newProj.id);
+    setScriptTopic('');
+    setGeneratedScript('');
+    setVideoScriptInput('');
+    setSourcedVideos([]);
+    setActiveTab('studio');
+    setIsSidebarOpen(false);
+  };
+
+  const handleSelectProject = (proj: Project) => {
+    setActiveProjectId(proj.id);
+    if (proj.topic || proj.title) setScriptTopic(proj.topic || proj.title);
+    if (proj.scriptText) {
+      setGeneratedScript(proj.scriptText);
+      setVideoScriptInput(proj.scriptText);
+    }
+    if (proj.aspectRatio) setVideoRatio(proj.aspectRatio);
+    if (proj.targetDuration) setTargetVideoDuration(proj.targetDuration);
+    if (proj.sourcedVideos) setSourcedVideos(proj.sourcedVideos);
+
+    if (proj.chatHistory) {
+      try {
+        localStorage.setItem('vixora_text_chat_history', JSON.stringify(proj.chatHistory));
+      } catch {}
+    }
+
+    if (proj.status === 'rendered' && proj.videoUrl) {
+      setActiveTab('videos');
+    } else {
+      setActiveTab('studio');
+    }
+    setIsSidebarOpen(false);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    if (activeProjectId === projectId) {
+      const remaining = projects.filter(p => p.id !== projectId);
+      setActiveProjectId(remaining[0]?.id || null);
+    }
+  };
+
+  const handleRenameProject = (projectId: string, newTitle: string) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, title: newTitle, updatedAt: new Date().toISOString() } : p));
+  };
+
+  const handleDuplicateProject = (proj: Project) => {
+    const dup: Project = {
+      ...proj,
+      id: 'proj_' + Date.now(),
+      title: `${proj.title} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setProjects(prev => [dup, ...prev]);
+    setActiveProjectId(dup.id);
+  };
+
+  // Sync active project state with changes
+  useEffect(() => {
+    if (!activeProjectId) return;
+    setProjects(prev => prev.map(p => {
+      if (p.id !== activeProjectId) return p;
+      let chatHist = p.chatHistory;
+      try {
+        const savedChat = localStorage.getItem('vixora_text_chat_history');
+        if (savedChat) chatHist = JSON.parse(savedChat);
+      } catch {}
+      return {
+        ...p,
+        topic: scriptTopic || p.topic,
+        scriptText: generatedScript || p.scriptText,
+        aspectRatio: videoRatio || p.aspectRatio,
+        targetDuration: targetVideoDuration || p.targetDuration,
+        sourcedVideos: sourcedVideos.length > 0 ? sourcedVideos : p.sourcedVideos,
+        chatHistory: chatHist,
+        updatedAt: new Date().toISOString()
+      };
+    }));
+  }, [activeProjectId, scriptTopic, generatedScript, videoRatio, targetVideoDuration, sourcedVideos]);
+
   // Vixora AI Learned Skills Memory State
   const [userSkills, setUserSkills] = useState<LearnedSkill[]>(() => {
     try {
@@ -528,6 +673,55 @@ const App: React.FC = () => {
   const [pexelsMusicTracks, setPexelsMusicTracks] = useState<any[]>([]);
   const [isSearchingPexelsMusic, setIsSearchingPexelsMusic] = useState<boolean>(false);
   const [musicResourceMode, setMusicResourceMode] = useState<'presets' | 'pexels'>('presets');
+
+  // Text Chat Agent State & App Context
+  const [isTextChatOpen, setIsTextChatOpen] = useState<boolean>(false);
+
+  const addCreatedAsset = (asset: { id: string; title: string; imageUrl: string; date: string; type: 'flyer' | 'video' }) => {
+    const newVideoItem: CreatedVideo = {
+      id: asset.id,
+      topic: asset.title,
+      scriptText: `Promotional Flyer Asset generated by Vixora AI for ${asset.title}`,
+      videoUrl: asset.imageUrl,
+      date: asset.date,
+      aspectRatio: 'vertical'
+    };
+    setCreatedVideos(prev => {
+      const updated = [newVideoItem, ...prev];
+      localStorage.setItem('ggd_created_videos', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const appContext: VixoraAppContext = {
+    setActiveTab,
+    handleAutopilotVideoGeneration: (topic, ratio, duration, searchWeb) => {
+      handleAutopilotVideoGeneration(
+        topic,
+        ratio || 'vertical',
+        duration || '30s',
+        searchWeb !== undefined ? searchWeb : true
+      );
+    },
+    setSelectedVoice,
+    setVideoRatio,
+    setTargetVideoDuration,
+    saveCustomLearnedSkill,
+    setGeneratedScript,
+    setScriptTopic,
+    setVideoScriptInput,
+    handleSourceVideos: (script) => {
+      if (typeof handleSourceVideos === 'function') {
+        handleSourceVideos(script);
+      }
+    },
+    setGlobalMusicVolume,
+    setGlobalExtractedMood,
+    addCreatedAsset,
+    userFullName: user?.fullName,
+    currentScriptText: generatedScript || videoScriptInput,
+    currentTopic: scriptTopic
+  };
 
   // Tools State
   const [activeToolType, setActiveToolType] = useState<'tags' | 'hooks' | 'thumbnails'>('tags');
@@ -598,19 +792,43 @@ const App: React.FC = () => {
   // --- INITIALIZATION ---
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('ggd_creator_user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (parsed && !parsed.niche) {
-        parsed.niche = 'finance';
+    try {
+      const savedUser = localStorage.getItem('ggd_creator_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && !parsed.niche) {
+          parsed.niche = 'finance';
+        }
+        setUser(parsed);
+        setNewApiKey(parsed.apiKey || '');
+        if (parsed.fullName && parsed.apiKey) {
+          setWizardStep(3); 
+        }
+      } else {
+        const defaultUser: UserProfile & { apiKey?: string } = {
+          fullName: 'Creator',
+          email: 'creator@vixora.ai',
+          phone: '',
+          apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+          niche: 'finance'
+        };
+        setUser(defaultUser);
+        setWizardStep(3);
+        localStorage.setItem('ggd_creator_user', JSON.stringify(defaultUser));
       }
-      setUser(parsed);
-      setNewApiKey(parsed.apiKey || '');
-      if (parsed.fullName && parsed.apiKey) {
-        setWizardStep(3); 
-      }
+    } catch (e) {
+      console.warn("User state restoration fallback:", e);
+      setUser({
+        fullName: 'Creator',
+        email: 'creator@vixora.ai',
+        phone: '',
+        apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+        niche: 'finance'
+      });
+      setWizardStep(3);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
 
     // Sync remote data from Firestore or fallback
     syncFetchCreatedVideos().then(vids => {
@@ -805,7 +1023,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
       // Intelligent scene-by-scene keyword extraction matching exact duration and script narrative
       const keywordResponse = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         contents: `Analyze this video script: "${input}". 
         The target video duration is ${currentDuration}.
         Break the script down into EXACTLY ${sceneCount} sequential scene queries corresponding to what is being spoken in each scene.
@@ -978,7 +1196,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       };
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         contents: prompts[targetType],
       });
       setToolOutput(response.text?.replace(/\*/g, '') || '');
@@ -1065,7 +1283,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
           - Return ONLY the script text ready for narration.`;
 
           const webResponse = await ai.models.generateContent({
-            model: "gemini-3.6-flash",
+            model: "gemini-2.5-flash",
             contents: webPrompt,
             config: { tools: [{ googleSearch: {} }] }
           });
@@ -1078,7 +1296,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       // If web search was off or web search grounded call failed, perform standard generation
       if (!text) {
         const response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: "gemini-2.5-flash",
           contents: promptText
         });
         text = response.text?.replace(/\*/g, '').trim() || '';
@@ -1362,7 +1580,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       const orientationParam = currentRatio === 'vertical' ? 'portrait' : currentRatio === 'horizontal' ? 'landscape' : 'square';
 
       const keywordResponse = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         contents: `Analyze this video script: "${scriptText}". 
         The target video duration is ${currentDur}.
         Break the script down into EXACTLY ${targetSceneCount} sequential scene visual queries corresponding to what is being spoken in each section.
@@ -1842,7 +2060,46 @@ Structure: Full Masterclass / In-depth Documentary Script.
             <button onClick={() => setIsSidebarOpen(false)} className={`w-8 h-8 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}><i className="fa-solid fa-xmark text-xs"></i></button>
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+            {/* PROJECTS NAVIGATION DRAWER (REQUIREMENT 3) */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                <span>Creation Projects</span>
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-ggd-orange/20 text-ggd-orange font-mono font-bold">
+                  {projects.length} Total
+                </span>
+              </p>
+
+              <ProjectsNavigationDrawer
+                projects={projects}
+                activeProjectId={activeProjectId}
+                onSelectProject={handleSelectProject}
+                onCreateNewProject={handleCreateNewProject}
+                onDeleteProject={handleDeleteProject}
+                onRenameProject={handleRenameProject}
+                onDuplicateProject={handleDuplicateProject}
+                themeMode={themeMode}
+              />
+            </div>
+
+            <div className={`h-px my-2 ${themeMode === 'light' ? 'bg-slate-200' : 'bg-white/10'}`}></div>
+
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Quick Navigation</p>
+
+            <button onClick={() => { setActiveTab('tools'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'tools' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#064e3b] border border-emerald-300/40">
+                <i className="fa-solid fa-shapes text-xs"></i>
+              </div>
+              <span>Tools Library</span>
+            </button>
+
+            <button onClick={() => { setIsTextChatOpen(true); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#b33600] border border-orange-300/40">
+                <i className="fa-solid fa-comments text-xs"></i>
+              </div>
+              <span>Vixora Text Chat</span>
+            </button>
+
             <button onClick={() => { setActiveTab('coach'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'coach' ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#78350f] border border-amber-300/40">
                 <i className="fa-solid fa-cross text-xs"></i>
@@ -2142,9 +2399,25 @@ Structure: Full Masterclass / In-depth Documentary Script.
                  <h2 className="text-xl font-black uppercase mb-1">Chat with Vixora</h2>
                  <p className="text-[10px] text-ggd-orange font-bold uppercase tracking-widest mb-3">Your AI Studio Partner</p>
                  <p className={`text-xs font-medium mb-6 leading-relaxed max-w-sm mx-auto ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Connect with your AI partner. Vixora can control the app for you—just ask her to generate a script, launch autopilot, or switch tabs!</p>
-                 <button disabled={isConnecting} onClick={startLiveAssistant} className="btn-3d btn-3d-orange w-full py-3.5 text-xs tracking-widest shadow-lg">
-                   {isConnecting ? 'Warming Up Engine...' : 'Launch AI Session'}
-                 </button>
+                 <div className="flex flex-col sm:flex-row gap-3">
+                   <button 
+                     onClick={() => setIsTextChatOpen(true)} 
+                     className="btn-3d btn-3d-orange flex-1 py-3.5 text-xs tracking-widest shadow-lg flex items-center justify-center gap-2"
+                   >
+                     <i className="fa-solid fa-comments text-base"></i>
+                     <span>Open AI Text Chat</span>
+                   </button>
+                   <button 
+                     disabled={isConnecting} 
+                     onClick={startLiveAssistant} 
+                     className={`btn-3d flex-1 py-3.5 text-xs tracking-widest shadow-lg flex items-center justify-center gap-2 ${
+                       themeMode === 'light' ? 'btn-3d-purple' : 'bg-slate-800 hover:bg-slate-700 text-white border border-white/20'
+                     }`}
+                   >
+                     <i className="fa-solid fa-phone text-base"></i>
+                     <span>{isConnecting ? 'Warming Up...' : 'Live Voice Call'}</span>
+                   </button>
+                 </div>
               </div>
             ) : (
               <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-between py-10 px-6">
@@ -3819,6 +4092,19 @@ Structure: Full Masterclass / In-depth Documentary Script.
           </div>
         )}
 
+        {activeTab === 'tools' && (
+          <div className="animate-rise">
+            <ToolsLibrary
+              onSelectTab={(tab) => setActiveTab(tab as any)}
+              onStartLiveAssistant={() => setIsTextChatOpen(true)}
+              onOpenChatWithPrompt={(prompt) => {
+                setIsTextChatOpen(true);
+              }}
+              themeMode={themeMode}
+            />
+          </div>
+        )}
+
         {activeTab === 'profile' && (
           <div className="animate-rise space-y-4">
             <div className={`rounded-2xl p-5 border text-center shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'}`}>
@@ -4300,7 +4586,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
           { id: 'scripts', label: 'Scripts', icon: 'fa-scroll', activeBg: 'from-purple-500 to-indigo-600 border-purple-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#581c87,0_6px_12px_rgba(168,85,247,0.35)]', activeText: 'text-purple-500' },
           { id: 'videos', label: 'Creator', icon: 'fa-clapperboard', activeBg: 'from-orange-600 to-red-600 border-orange-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#9a3412,0_6px_12px_rgba(234,88,12,0.35)]', activeText: 'text-orange-500' },
           { id: 'voiceover', label: 'Voice', icon: 'fa-waveform-lines', activeBg: 'from-blue-500 to-cyan-600 border-blue-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#1e3a8a,0_6px_12px_rgba(59,130,246,0.35)]', activeText: 'text-blue-500' },
-          { id: 'more', label: 'Tools', icon: 'fa-bolt-lightning', activeBg: 'from-emerald-500 to-teal-600 border-emerald-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#064e3b,0_6px_12px_rgba(16,185,129,0.35)]', activeText: 'text-emerald-500' },
+          { id: 'tools', label: 'Tools', icon: 'fa-shapes', activeBg: 'from-emerald-500 to-teal-600 border-emerald-300/40 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3.5px_0_#064e3b,0_6px_12px_rgba(16,185,129,0.35)]', activeText: 'text-emerald-500' },
         ].map((item) => {
           const isActive = activeTab === item.id;
           return (
@@ -4327,6 +4613,28 @@ Structure: Full Masterclass / In-depth Documentary Script.
           );
         })}
       </nav>
+
+      {/* FLOATING VIXORA AI CHAT BUTTON */}
+      <button
+        onClick={() => setIsTextChatOpen(true)}
+        title="Chat with Vixora AI Agent"
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[180] btn-3d btn-3d-orange p-3.5 rounded-full flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all border-2 border-orange-300/40 cursor-pointer"
+      >
+        <i className="fa-solid fa-comments text-lg text-white"></i>
+        <span className="text-[10px] font-black uppercase tracking-wider text-white hidden sm:inline">Vixora Chat</span>
+        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      </button>
+
+      {/* PERSISTENT TEXT CHAT PANEL */}
+      <VixoraTextChatPanel
+        isOpen={isTextChatOpen}
+        onClose={() => setIsTextChatOpen(false)}
+        appContext={appContext}
+        apiKey={user?.apiKey && !user.apiKey.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ? user.apiKey : process.env.GEMINI_API_KEY || process.env.API_KEY || ''}
+        themeMode={themeMode}
+        onStartLiveAssistant={startLiveAssistant}
+      />
+
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

@@ -113,3 +113,20 @@ export interface CreatedVideo {
   createdAt?: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  topic: string;
+  status: 'draft' | 'scripted' | 'rendered' | 'published';
+  aspectRatio: 'vertical' | 'horizontal' | 'square';
+  targetDuration: string;
+  createdAt: string;
+  updatedAt: string;
+  thumbnailUrl?: string;
+  scriptText?: string;
+  voiceoverUrl?: string;
+  videoUrl?: string;
+  chatHistory?: any[];
+  sourcedVideos?: any[];
+}
+

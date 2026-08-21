@@ -249,35 +249,15 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('vixora_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          // Filter out sample demo project drafts
+          const userProjects = parsed.filter(p => !p.id.startsWith('proj_demo_'));
+          return userProjects;
+        }
       }
     } catch {}
 
-    return [
-      {
-        id: 'proj_demo_1',
-        title: '5 Rules of Wealth Creation',
-        topic: 'Finance & Wealth Building',
-        status: 'rendered',
-        aspectRatio: 'vertical',
-        targetDuration: '30s',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        scriptText: 'Rule 1: Pay yourself first. Invest 20% before spending any income...',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hand-putting-coins-in-a-piggy-bank-41582-large.mp4'
-      },
-      {
-        id: 'proj_demo_2',
-        title: 'Daily High Retention Motivational Reel',
-        topic: 'Fitness Motivation',
-        status: 'draft',
-        aspectRatio: 'vertical',
-        targetDuration: '15s',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        scriptText: 'Wake up early, stay disciplined, and conquer your goals.'
-      }
-    ];
+    return [];
   });
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
@@ -4634,6 +4614,26 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     ? "Vixora is already running as an installed PWA App!"
                     : "You can easily add Vixora Studio to your Home Screen or Desktop as a native app:"}
                 </p>
+              </div>
+            )}
+
+            {/* Open in New Tab Button (Crucial for iframe environments where beforeinstallprompt is blocked) */}
+            {window.self !== window.top && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 space-y-2">
+                <div className="flex items-center gap-2 text-blue-400">
+                  <i className="fa-solid fa-circle-info text-xs"></i>
+                  <p className="text-[10px] font-black uppercase tracking-wide">Embedded Preview Detected</p>
+                </div>
+                <p className={`text-[10px] leading-relaxed ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
+                  Browsers disable PWA app installation inside embedded preview windows. Open Vixora in a direct tab to install it with 1 tap!
+                </p>
+                <button
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                  <span>Open in Full Browser Tab & Install</span>
+                </button>
               </div>
             )}
 

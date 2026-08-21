@@ -1,15 +1,18 @@
-const CACHE_NAME = 'vixora-pwa-v2';
+const CACHE_NAME = 'vixora-pwa-v3';
 const ASSETS = [
   '/',
+  '/index.html',
   '/manifest.json',
   '/icon-192.jpg',
   '/icon-512.jpg',
+  '/icons/icon-192.svg',
+  '/icons/icon-512.svg',
   '/vixora_logo.jpg'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch((err) => console.log('Asset cache warning:', err)))
   );
   self.skipWaiting();
 });
@@ -25,12 +28,32 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api') || url.hostname.includes('googleapis') || url.hostname.includes('firestore')) {
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/');
+          }
+        });
+      })
   );
 });
 
-// PostMessage handler from React app to show phone native notifications
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const title = event.data.title || '🚀 Vixora New Feature Update!';

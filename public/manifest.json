@@ -1,24 +1,45 @@
 {
+  "id": "/",
   "short_name": "Vixora",
   "name": "Vixora - AI Video Creator & Voice Studio",
+  "description": "Create faceless viral videos, AI voiceovers, and auto-captioned shorts on Vixora Studio.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#ff6600",
+  "prefer_related_applications": false,
   "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192.jpg",
       "type": "image/jpeg",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.jpg",
       "type": "image/jpeg",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#020617",
-  "theme_color": "#ff6600",
-  "display": "standalone",
-  "orientation": "portrait",
-  "description": "Create faceless viral videos, AI voiceovers, and auto-captioned shorts on Vixora Studio."
+  ]
 }

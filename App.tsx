@@ -382,15 +382,7 @@ const App: React.FC = () => {
     }
   });
 
-  const [hasUnreadAnnouncements, setHasUnreadAnnouncements] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('vixora_read_announcements');
-      const readIds: string[] = saved ? JSON.parse(saved) : [];
-      return !readIds.includes('init_v3_update');
-    } catch {
-      return true;
-    }
-  });
+  const unreadAnnouncementsCount = announcements.filter(a => !readAnnouncementIds.includes(a.id)).length;
 
   // Admin Check
   const isAdmin = user?.email?.toLowerCase() === 'bethelincovibetv@gmail.com' || (user as any)?.role === 'admin';
@@ -399,7 +391,6 @@ const App: React.FC = () => {
     const allIds = announcements.map(a => a.id);
     setReadAnnouncementIds(allIds);
     localStorage.setItem('vixora_read_announcements', JSON.stringify(allIds));
-    setHasUnreadAnnouncements(false);
   };
 
   const markAnnouncementAsRead = (id: string) => {
@@ -861,7 +852,6 @@ const App: React.FC = () => {
       };
       setAnnouncements(prev => [incomingAnn, ...prev]);
       setActiveAdvertPopup(incomingAnn);
-      setHasUnreadAnnouncements(true);
     });
 
     // Detect Standalone display mode / pre-installed app execution
@@ -2339,16 +2329,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
           <button 
             onClick={() => {
               setShowAnnouncementsDrawer(true);
-              setHasUnreadAnnouncements(false);
+              markAllAnnouncementsAsRead();
             }} 
             title="3D Feature Update Announcements & Adverts"
             className="relative btn-3d btn-3d-purple h-11 w-11 sm:w-auto sm:px-3.5 flex items-center justify-center gap-1.5 shadow-xl active:scale-95 transition-all cursor-pointer border-2 border-purple-400/40"
           >
             <i className="fa-solid fa-bell text-base text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] animate-pulse"></i>
             <span className="text-[10px] font-black uppercase tracking-wider text-white hidden sm:inline">Adverts</span>
-            {hasUnreadAnnouncements && (
+            {unreadAnnouncementsCount > 0 && (
               <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-gradient-to-r from-red-500 to-rose-600 border-2 border-slate-950 rounded-full text-[8px] font-black text-white shadow-lg animate-bounce">
-                {announcements.length}
+                {unreadAnnouncementsCount}
               </span>
             )}
           </button>
@@ -4488,7 +4478,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 announcements.map((ann) => (
                   <div 
                     key={ann.id}
-                    onClick={() => setActiveAdvertPopup(ann)}
+                    onClick={() => {
+                      setActiveAdvertPopup(ann);
+                      markAnnouncementAsRead(ann.id);
+                    }}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.01] ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 hover:border-purple-300' : 'bg-white/5 border-white/5 hover:border-purple-500/40'}`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1.5">

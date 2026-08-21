@@ -338,6 +338,7 @@ const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showPwaInstallModal, setShowPwaInstallModal] = useState(false);
 
   const triggerPwaInstall = async () => {
     if (deferredPrompt) {
@@ -350,7 +351,10 @@ const App: React.FC = () => {
         setDeferredPrompt(null);
       } catch (e) {
         console.warn("Native PWA install prompt error:", e);
+        setShowPwaInstallModal(true);
       }
+    } else {
+      setShowPwaInstallModal(true);
     }
   };
 
@@ -4117,11 +4121,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
                      <span className="text-[10px] font-bold uppercase">App Client Type</span>
                      <span className="text-[9px] font-black uppercase text-ggd-orange">{isStandalone ? 'Installed Native App' : 'Web Browser Mode'}</span>
                   </div>
-                  {deferredPrompt && (
-                    <button onClick={triggerPwaInstall} className="w-full mt-1 py-3 bg-ggd-orange/15 hover:bg-ggd-orange/25 text-ggd-orange border border-ggd-orange/20 rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all shadow-md">
-                       <i className="fa-solid fa-download mr-1.5"></i> Install Native App Wrapper
-                    </button>
-                  )}
+                  <button onClick={triggerPwaInstall} className="w-full mt-1 py-3 bg-ggd-orange/15 hover:bg-ggd-orange/25 text-ggd-orange border border-ggd-orange/20 rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                     <i className="fa-solid fa-download"></i>
+                     <span>{isStandalone ? 'PWA App Installed ✓' : 'Install Vixora PWA App'}</span>
+                  </button>
                </div>
             </div>
 
@@ -4448,15 +4451,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
               </div>
 
               {/* Native PWA Install Banner Button */}
-              {deferredPrompt && (
-                <button 
-                  onClick={triggerPwaInstall}
-                  className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <i className="fa-solid fa-download"></i>
-                  <span>Install Vixora PWA App to Home Screen</span>
-                </button>
-              )}
+              <button 
+                onClick={triggerPwaInstall}
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <i className="fa-solid fa-mobile-screen-button text-sm"></i>
+                <span>{isStandalone ? 'PWA App Installed & Active ✓' : 'Install Vixora PWA App to Home Screen'}</span>
+              </button>
 
               {/* Broadcast Advert Button */}
               <button 
@@ -4567,6 +4568,140 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 {isPublishingAdvert ? 'Broadcasting...' : 'Publish & Send Push Notification'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PWA INSTALL MODAL */}
+      {showPwaInstallModal && (
+        <div className="fixed inset-0 z-[400] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-rise">
+          <div className={`w-full max-w-lg rounded-3xl p-6 shadow-2xl border relative space-y-5 overflow-hidden ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
+            {/* Background glow accent */}
+            <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-orange-500/20 blur-2xl pointer-events-none"></div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 p-0.5 shadow-lg">
+                  <img src="/icon-192.jpg" alt="Vixora App Icon" className="w-full h-full object-cover rounded-[14px]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black uppercase tracking-wider flex items-center gap-2">
+                    <span>Vixora PWA App</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${isStandalone ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'}`}>
+                      {isStandalone ? 'Installed ✓' : 'PWA Ready'}
+                    </span>
+                  </h2>
+                  <p className={`text-[10px] font-semibold ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    1-Tap Mobile & Desktop Native App
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPwaInstallModal(false)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+              >
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+
+            {/* Action Button if deferredPrompt is available */}
+            {deferredPrompt ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-purple-500/10 border border-orange-500/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+                  <p className="text-xs font-black uppercase tracking-wide">Direct 1-Tap Installation Ready!</p>
+                </div>
+                <button
+                  onClick={() => {
+                    triggerPwaInstall();
+                    setShowPwaInstallModal(false);
+                  }}
+                  className="w-full py-3.5 btn-3d btn-3d-orange flex items-center justify-center gap-2 text-xs"
+                >
+                  <i className="fa-solid fa-download text-sm"></i>
+                  <span>Install Vixora Now</span>
+                </button>
+              </div>
+            ) : (
+              <div className={`p-4 rounded-2xl border space-y-2 ${themeMode === 'light' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'}`}>
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-mobile-screen text-amber-400 text-sm"></i>
+                  <p className="text-[11px] font-black uppercase">How to Install on Your Device</p>
+                </div>
+                <p className="text-[10px] leading-relaxed opacity-90">
+                  {isStandalone 
+                    ? "Vixora is already running as an installed PWA App!"
+                    : "You can easily add Vixora Studio to your Home Screen or Desktop as a native app:"}
+                </p>
+              </div>
+            )}
+
+            {/* Instructions by Platform */}
+            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+              {/* iOS / Safari */}
+              <div className={`p-3 rounded-2xl border flex items-start gap-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
+                  <i className="fa-brands fa-apple text-sm"></i>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-blue-400">iOS (iPhone & iPad Safari)</p>
+                  <p className={`text-[10px] leading-relaxed mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
+                    1. Tap the <span className="font-bold">Share</span> button <i className="fa-solid fa-share-nodes text-[9px] mx-0.5"></i> in Safari.<br />
+                    2. Scroll down and tap <span className="font-bold text-orange-400">"Add to Home Screen"</span> <i className="fa-solid fa-square-plus text-[9px] mx-0.5"></i>.<br />
+                    3. Tap <span className="font-bold text-emerald-400">"Add"</span> to launch from your home screen!
+                  </p>
+                </div>
+              </div>
+
+              {/* Android / Chrome */}
+              <div className={`p-3 rounded-2xl border flex items-start gap-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+                  <i className="fa-brands fa-android text-sm"></i>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">Android (Chrome)</p>
+                  <p className={`text-[10px] leading-relaxed mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
+                    1. Tap the <span className="font-bold">3 Dots</span> menu <i className="fa-solid fa-ellipsis-vertical text-[9px] mx-0.5"></i> in Chrome.<br />
+                    2. Select <span className="font-bold text-orange-400">"Install app"</span> or <span className="font-bold text-orange-400">"Add to Home screen"</span>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Desktop / PC & Mac */}
+              <div className={`p-3 rounded-2xl border flex items-start gap-3 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
+                <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                  <i className="fa-solid fa-desktop text-sm"></i>
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-purple-400">Desktop (Chrome / Edge / Brave)</p>
+                  <p className={`text-[10px] leading-relaxed mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-300'}`}>
+                    Click the <span className="font-bold text-orange-400">Install icon</span> <i className="fa-solid fa-download text-[9px] mx-0.5"></i> in the browser address bar or menu.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* PWA Highlights */}
+            <div className={`p-3 rounded-2xl border flex items-center justify-around text-center text-[9px] font-bold uppercase tracking-wider ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+              <div className="flex items-center gap-1">
+                <i className="fa-solid fa-bolt text-amber-400"></i> Fast Load
+              </div>
+              <div className="flex items-center gap-1">
+                <i className="fa-solid fa-wifi text-emerald-400"></i> Offline Ready
+              </div>
+              <div className="flex items-center gap-1">
+                <i className="fa-solid fa-bell text-purple-400"></i> Push Alerts
+              </div>
+            </div>
+
+            {/* Footer Close */}
+            <button
+              onClick={() => setShowPwaInstallModal(false)}
+              className={`w-full py-3 rounded-2xl border text-xs font-black uppercase tracking-wider transition-all ${themeMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800' : 'bg-white/10 hover:bg-white/15 border-white/10 text-white'}`}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

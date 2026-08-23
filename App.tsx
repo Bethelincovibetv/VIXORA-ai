@@ -913,7 +913,7 @@ const App: React.FC = () => {
       fullName: wizardData.fullName.trim(), 
       email: emailLower, 
       phone: '', 
-      apiKey: process.env.GEMINI_API_KEY || 'AIzaSyCBO1PRv5h9aQAB3rWbLrkwq_Uf_Q_uQCk', 
+      apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '', 
       niche: 'forex' 
     };
     setUser(newUser);

@@ -71,7 +71,7 @@ export const VIXORA_TOOLS_REGISTRY: VixoraToolEntry[] = [
     id: 'tool_video_creator',
     name: 'Stock B-Roll Video Creator',
     shortDescription: 'Source HD B-roll video clips, assemble scene timelines & sync audio layers.',
-    fullDescription: 'Search thousands of HD Pexels/Stock video clips tailored to your script scenes. Preview multi-track audio-visual timelines and export.',
+    fullDescription: 'Search thousands of HD Vixora Media video clips tailored to your script scenes. Preview multi-track audio-visual timelines and export.',
     category: 'video',
     icon: 'fa-clapperboard',
     gradient: 'from-orange-600 to-red-600',

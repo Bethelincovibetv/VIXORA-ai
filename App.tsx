@@ -9,6 +9,7 @@ import { ToolsLibrary } from './components/ToolsLibrary';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
 import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
+import { playProceduralSFX } from './sfxLibrary';
 import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
 import { scoreAndFetchBeatVisual } from './services/stockSourcingService';
 import { 
@@ -1146,6 +1147,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
       if (matchedClips.length === 0) {
         setAppError("No matching visuals found. Try different keywords.");
+      } else {
+        playProceduralSFX('pop');
       }
     } catch (err) {
       console.warn("Video sourcing fallback handled:", err);
@@ -1333,6 +1336,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       }
 
       setGeneratedScript(text);
+      playProceduralSFX('pop');
       return text;
     } catch (err) {
       console.warn("Script generation API fallback engaged:", err);
@@ -1449,6 +1453,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
         const updatedHistory = [newEntry, ...voiceoverHistory];
         setVoiceoverHistory(updatedHistory);
         syncSaveVoiceover(newEntry);
+        playProceduralSFX('bell');
         // Generated voiceover stored silently without auto-playing
       }
     } catch (err) {
@@ -1598,7 +1603,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       setAutopilotStep(3);
       setAutopilotProgress(70);
       setAutopilotProgressMsg("Extracting visual scenes & sourcing HD stock footage clips...");
-      setAutopilotLog("Querying Pexels HD video library for matching storyboard clips...");
+      setAutopilotLog("Querying Vixora Media HD video library for matching storyboard clips...");
 
       await handleSourceVideos(scriptText, currentDuration);
 
@@ -1613,6 +1618,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
       setAutopilotProgress(100);
       setAutopilotProgressMsg("🎉 100% Video Production Complete!");
       setAutopilotLog("Timeline ready! Opening video preview console...");
+      playProceduralSFX('sparkle');
 
       setTimeout(() => {
         setIsAutopilotRunning(false);
@@ -2149,16 +2155,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
               </span>
             </button>
 
-            <button 
-              onClick={() => { setShowAccessibilityModal(true); setIsSidebarOpen(false); }} 
-              className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-blue-950/40 border-blue-500/30 text-blue-300'}`}
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#1e3a8a] border border-blue-300/40">
-                <i className="fa-solid fa-universal-access text-xs"></i>
-              </div>
-              <span>Accessibility</span>
-            </button>
-
             <button onClick={() => { setActiveTab('contact'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'contact' ? 'bg-slate-500/20 border-slate-400 text-slate-900' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#334155] border border-slate-400/40">
                 <i className="fa-solid fa-envelope text-xs"></i>
@@ -2326,15 +2322,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 {unreadAnnouncementsCount}
               </span>
             )}
-          </button>
-
-          {/* ACCESSIBILITY MODAL QUICK TRIGGER */}
-          <button 
-            onClick={() => setShowAccessibilityModal(true)} 
-            title="Accessibility Options"
-            className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' : 'bg-blue-950/40 border-blue-500/30 text-blue-400 hover:bg-blue-900/40'}`}
-          >
-            <i className="fa-solid fa-universal-access text-xs"></i>
           </button>
 
           {/* LIGHT / DARK MODE TOGGLE */}
@@ -3125,6 +3112,18 @@ Structure: Full Masterclass / In-depth Documentary Script.
                           </span>
                         </div>
                       </div>
+                      
+                      {/* INLINE PLAYABLE VIDEO PREVIEW */}
+                      <div className="relative rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner">
+                        <video 
+                          src={video.videoUrl} 
+                          controls 
+                          preload="metadata" 
+                          className="w-full h-48 object-contain bg-slate-950" 
+                          playsInline
+                        />
+                      </div>
+
                       <div className="flex items-center gap-2">
                         <a 
                           href={video.videoUrl} 
@@ -3482,18 +3481,18 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     onClick={() => setMusicResourceMode('pexels')}
                     className={`px-2.5 py-1 text-[8px] font-black uppercase rounded-md transition-all ${musicResourceMode === 'pexels' ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
                   >
-                    Pexels Search
+                    Vixora Media Search
                   </button>
                 </div>
               </div>
 
-              {/* PEXELS MUSIC API SEARCH CARD */}
+              {/* VIXORA MEDIA MUSIC SEARCH CARD */}
               {musicResourceMode === 'pexels' ? (
                 <div className="space-y-3 bg-amber-400/5 p-3.5 border border-amber-400/20 rounded-xl">
                   <div className="flex items-start gap-2 text-amber-500">
                     <i className="fa-solid fa-wand-magic-sparkles text-xs pt-0.5"></i>
                     <p className="text-[8px] font-black uppercase tracking-wider leading-normal">
-                      Pexels Music AI Loader: Pexels videos contain commercial-free background soundtracks. Type a soundtrack style below!
+                      Vixora Media Library: Stock videos contain commercial-free background soundtracks. Type a soundtrack style below!
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -3510,7 +3509,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       onClick={() => handleSearchPexelsMusic(bgMusicSearchQuery)}
                       className="px-4 bg-amber-400 text-slate-950 font-black uppercase text-[9px] rounded-xl shadow hover:bg-amber-300 transition-all shrink-0 active:scale-95"
                     >
-                      Search Pexels
+                      Search Vixora
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -3552,13 +3551,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     <div className="flex items-center gap-1.5">
                       <span className="text-[7.5px] font-black uppercase text-amber-500 tracking-wider">Active Autopilot Track</span>
                       {globalMusicUrl.includes('pexels') && (
-                        <span className="text-[6px] font-black uppercase bg-amber-400/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-400/20">Pexels Sourced</span>
+                        <span className="text-[6px] font-black uppercase bg-amber-400/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-400/20">Vixora Media</span>
                       )}
                     </div>
                     <p className="text-xs font-black uppercase truncate max-w-[200px]">
                       {(() => {
                         if (globalMusicUrl.includes('pexels')) {
-                          return 'Decoded Pexels Stock Backing Track';
+                          return 'Decoded Vixora Media Backing Track';
                         }
                         const track = PRESET_MUSIC_TRACKS.find(t => t.url === globalMusicUrl);
                         return track ? track.name : 'Custom Track';
@@ -3629,7 +3628,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                    {musicResourceMode === 'pexels' ? 'Pexels API Live Results' : 'Premium Preset Loop Tracks'}
+                    {musicResourceMode === 'pexels' ? 'Vixora Media Live Results' : 'Premium Preset Loop Tracks'}
                   </h3>
                   {musicResourceMode === 'pexels' && (
                     <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest font-mono">Total Powered Sourcing</span>
@@ -3639,7 +3638,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 {isSearchingPexelsMusic ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3">
                     <i className="fa-solid fa-spinner animate-spin text-xl text-amber-400"></i>
-                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Querying commercial video backing audio tracks from Pexels API...</p>
+                    <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Querying commercial video backing audio tracks from Vixora Media...</p>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
@@ -3648,8 +3647,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
                         <div className="py-12 text-center border border-dashed border-white/5 rounded-2xl">
                           <i className="fa-solid fa-cloud-arrow-down text-lg text-slate-600 mb-2"></i>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
-                            No active Pexels results loaded. <br />
-                            Type your search and click &ldquo;Search Pexels&rdquo; to unlock background tracks!
+                            No active Vixora Media results loaded. <br />
+                            Type your search and click &ldquo;Search Vixora&rdquo; to unlock background tracks!
                           </p>
                         </div>
                       ) : (

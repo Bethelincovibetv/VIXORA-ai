@@ -151,6 +151,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileProgress, setCompileProgress] = useState(0);
   const [compiledBlobUrl, setCompiledBlobUrl] = useState<string | null>(null);
+  const [compiledFormat, setCompiledFormat] = useState<'webm' | 'mp4'>('webm');
   const [exportResolution, setExportResolution] = useState<'720p' | '1080p' | '4K'>('1080p');
   const [exportFormat, setExportFormat] = useState<'mp4' | 'webm'>('mp4');
   const [formatFallbackNote, setFormatFallbackNote] = useState<string | null>(null);
@@ -1073,6 +1074,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           
           try {
             const desiredSpeed = activeSeg.speed || 1.0;
+            const isMediaActive = isPlaying || isCompiling;
+            
             if (video.readyState >= 1) {
               if (video.playbackRate !== desiredSpeed) {
                 video.playbackRate = desiredSpeed;
@@ -1080,16 +1083,16 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               
               // Loop standard clip if clip is shorter, adjusting for customized playback speed
               const clipProgress = ((time - activeSeg.start) * desiredSpeed) % (video.duration || 10);
-              if (Math.abs(video.currentTime - clipProgress) > 0.3 && isPlaying) {
+              if (Math.abs(video.currentTime - clipProgress) > 0.15 && isMediaActive) {
                 video.currentTime = clipProgress;
               }
             }
 
-            if (isPlaying && video.paused) {
+            if (isMediaActive && video.paused) {
               video.play().catch((playErr) => {
                 console.warn("video.play() was interrupted or blocked:", playErr);
               });
-            } else if (!isPlaying && !video.paused) {
+            } else if (!isMediaActive && !video.paused) {
               video.pause();
             }
           } catch (videoError) {
@@ -1097,7 +1100,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           }
 
           // Check if video is loaded and ready or photo mode
-          const isVideoReady = activeSeg.mediaType !== 'photo' && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
+          const isVideoReady = activeSeg.mediaType !== 'photo' && video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0;
           const cachedImg = activeSeg.thumbnail ? thumbnailImgCacheRef.current[activeSeg.thumbnail] : null;
 
           if (isVideoReady) {
@@ -1574,8 +1577,10 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         const finalBlob = new Blob(chunks, { type: mimeOut });
         const videoBlobUrl = URL.createObjectURL(finalBlob);
         setCompiledBlobUrl(videoBlobUrl);
+        setCompiledFormat(finalExt);
         setIsCompiling(false);
         setCompileProgress(100);
+        playProceduralSFX('sparkle');
         if (onVideoCompiled) {
           onVideoCompiled(videoBlobUrl, aspectRatio, {
             duration: `${totalDuration.toFixed(0)}s`,
@@ -1586,6 +1591,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       };
 
       // 3. Initiate Real-time Canvas Rendering compilation phase
+      drawFrame(0);
       recorder.start();
 
       const compileStart = performance.now();
@@ -1917,7 +1923,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
                   <i className="fa-solid fa-clipboard-check"></i>
-                  Pexels HD Footage Audit
+                  Vixora Media HD Footage Audit
                 </h3>
                 <span className="text-[8px] font-mono text-slate-400">Match Quality Log</span>
               </div>
@@ -1926,7 +1932,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
                 {segments.map((seg, idx) => (
                   <div key={seg.id} className="p-2 bg-slate-950/60 rounded-xl border border-white/5 space-y-0.5">
                     <div className="flex items-center justify-between text-slate-300 font-bold">
-                      <span>BEAT #{idx + 1} | ID: {seg.videoId || 'PEXELS_CLIP'}</span>
+                      <span>BEAT #{idx + 1} | ID: {seg.videoId || 'VIXORA_CLIP'}</span>
                       <span className={seg.matchScore && seg.matchScore >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}>
                         SCORE: {seg.matchScore ? Math.round(seg.matchScore * 100) : 85}%
                       </span>
@@ -2343,11 +2349,11 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
                   <a 
                     href={compiledBlobUrl} 
-                    download={`vixora_${exportResolution}_${Date.now()}.${compiledBlobUrl.includes('mp4') ? 'mp4' : 'webm'}`}
+                    download={`vixora_${exportResolution}_${Date.now()}.${compiledFormat}`}
                     className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase rounded-2xl active:scale-95 transition-all shadow-xl text-center flex items-center justify-center gap-2.5 text-glow min-h-[48px]"
                   >
                     <i className="fa-solid fa-download text-sm"></i>
-                    <span>Download {exportResolution} Video ({compiledBlobUrl.includes('mp4') ? 'MP4' : 'WebM'})</span>
+                    <span>Download {exportResolution} Video ({compiledFormat.toUpperCase()})</span>
                   </a>
 
                   <button 

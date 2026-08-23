@@ -100,7 +100,7 @@ export async function scoreAndFetchBeatVisual(
 
     const hdFile = (v.video_files || []).find((f: any) => f.quality === 'hd') || (v.video_files || [])[0];
 
-    const slugTitle = pexelsSlug.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') || `Pexels HD Video ${v.id}`;
+    const slugTitle = pexelsSlug.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') || `Vixora Media HD Video ${v.id}`;
 
     return {
       id: v.id,

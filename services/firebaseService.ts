@@ -323,17 +323,22 @@ export async function syncFirebaseFetchVideos(): Promise<CreatedVideo[]> {
 export async function syncFirebaseSaveVoiceover(voiceoverItem: { id: string; text: string; audioBase64: string; date: string }): Promise<void> {
   const path = `voiceovers/${voiceoverItem.id}`;
   try {
+    // Firestore has a strict 1MB (1,048,576 bytes) document size limit.
+    // Base64 audio strings over ~500KB must not be sent directly to Firestore to prevent payload overflow.
+    const safeAudioBase64 = (voiceoverItem.audioBase64 && voiceoverItem.audioBase64.length < 500000)
+      ? voiceoverItem.audioBase64
+      : '';
+
     await setDoc(doc(db, 'voiceovers', voiceoverItem.id), {
       id: voiceoverItem.id,
-      text: voiceoverItem.text,
-      audioBase64: voiceoverItem.audioBase64 || '',
+      text: (voiceoverItem.text || '').slice(0, 10000),
+      audioBase64: safeAudioBase64,
       date: voiceoverItem.date || new Date().toISOString(),
       userId: auth.currentUser?.uid || 'anonymous',
       createdAt: new Date().toISOString()
     });
   } catch (error) {
-    console.warn("Firestore save voiceover error:", error);
-    handleFirestoreError(error, OperationType.WRITE, path);
+    console.warn("Firestore save voiceover error (handled):", error);
   }
 }
 

@@ -315,7 +315,7 @@ const App: React.FC = () => {
   const [wizardData, setWizardData] = useState({ 
     fullName: '', 
     email: '', 
-    apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '' 
+    apiKey: '' 
   });
 
   // PWA states

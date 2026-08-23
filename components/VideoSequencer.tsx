@@ -653,7 +653,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       try {
         const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
         if (!activeApiKey) {
-          throw new Error("No API credentials found. Please set your Gemini key.");
+          throw new Error("AI credentials uninitialized.");
         }
 
         const wavBase64 = getWavBase64(voiceoverBase64);
@@ -1677,7 +1677,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
               <div className="w-3 h-3 rounded-full border-2 border-t-transparent border-blue-500 animate-spin shrink-0"></div>
               <p className="text-[10px] font-black uppercase text-blue-300 tracking-wider">
-                Syncing exact word captions from audio via Gemini AI...
+                Syncing exact word captions from audio via AI Neural Engine...
               </p>
             </div>
           )}

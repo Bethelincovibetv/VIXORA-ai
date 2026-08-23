@@ -728,7 +728,7 @@ const App: React.FC = () => {
   const handlePreviewVoice = async (voiceOption: typeof VOICE_AVATAR_OPTIONS[0]) => {
     const activeApiKey = user?.apiKey || process.env.API_KEY;
     if (!activeApiKey) {
-      setAppError("Gemini API Key required to preview voice.");
+      setAppError("AI Engine initialization required to preview voice.");
       return;
     }
     setPreviewingVoiceId(voiceOption.id);
@@ -898,7 +898,7 @@ const App: React.FC = () => {
     const updatedUser = { ...user, apiKey: newApiKey };
     setUser(updatedUser);
     localStorage.setItem('ggd_creator_user', JSON.stringify(updatedUser));
-    alert("Gemini API Key saved to Local Storage!");
+    alert("Profile updated successfully!");
   };
 
   const handleFinishOnboarding = async () => {
@@ -1668,7 +1668,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
   const startLiveAssistant = async () => {
     const activeApiKey = user?.apiKey || process.env.API_KEY;
     if (!activeApiKey) {
-      setAppError("Please add your Gemini API Key in the Profile tab first.");
+      setAppError("AI Engine connection required.");
       return;
     }
 
@@ -1994,14 +1994,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">AI Video Creator & Voice Production Engine</p>
             </div>
 
-            {/* Default API Key Status Badge */}
+            {/* Default API Status Badge */}
             <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
               <div className="flex items-center gap-2">
                 <i className="fa-solid fa-circle-check text-xs"></i>
-                <span className="text-[10px] font-black uppercase tracking-wider">System Default Gemini API Active</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">AI Content Engine Ready</span>
               </div>
               <p className="text-[9px] text-emerald-300/80 leading-normal">
-                Default system API key is automatically configured and active.
+                All studio voice, video, and script engines are fully operational.
               </p>
             </div>
 
@@ -2025,20 +2025,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Email Address *</label>
                 <input type="email" value={wizardData.email || ''} onChange={e => setWizardData({...wizardData, email: e.target.value})} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. bethel@example.com" />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>Gemini API Key</span>
-                  <span className="text-emerald-400 font-bold text-[8px] uppercase">Default System Key Auto-Set ✓</span>
-                </label>
-                <input 
-                  type="password" 
-                  value={wizardData.apiKey || ''} 
-                  onChange={e => setWizardData({...wizardData, apiKey: e.target.value})} 
-                  className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-mono text-xs outline-none focus:border-ggd-orange text-slate-300" 
-                  placeholder="System Default API Key Active" 
-                />
               </div>
             </div>
 
@@ -3938,7 +3924,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent p-5 flex flex-col justify-end text-left">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                    ⚡ Gemini 2.5 Flash Engine
+                    ⚡ High-Speed Neural Engine
                   </span>
                 </div>
                 <h2 className="text-xl font-black uppercase tracking-tight text-white">Viral Growth & SEO Suite</h2>
@@ -4206,14 +4192,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
                        </button>
                     );
                  })}
-               </div>
-            </div>
-
-            <div className={`rounded-2xl p-4 sm:p-5 border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
-               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">API Credentials</h3>
-               <div className="space-y-2">
-                  <input type="password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)} className={`w-full border rounded-xl p-3 text-xs font-mono outline-none focus:border-ggd-orange ${themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-black/40 border-white/10 text-white'}`} placeholder="Gemini API Key" />
-                  <button onClick={updateApiKey} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all shadow-md">Save To Hub</button>
                </div>
             </div>
 

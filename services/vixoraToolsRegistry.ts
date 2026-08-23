@@ -42,16 +42,16 @@ export const VIXORA_TOOLS_REGISTRY: VixoraToolEntry[] = [
   },
   {
     id: 'tool_chat_assistant',
-    name: 'ChatGPT / Vixora AI Assistant',
+    name: 'Vixora AI Assistant',
     shortDescription: 'Conversational creator assistant with function calling, image generation & workspace control.',
-    fullDescription: 'ChatGPT and Gemini-style conversational interface. Issue commands, analyze content, request flyer graphics, switch voice narrators, or edit scripts dynamically.',
+    fullDescription: 'Conversational AI co-pilot interface. Issue commands, analyze content, request flyer graphics, switch voice narrators, or edit scripts dynamically.',
     category: 'mentorship',
     icon: 'fa-comments',
     gradient: 'from-orange-500 to-amber-600',
-    badge: 'GPT-4 / GEMINI',
+    badge: 'VIXORA AI',
     actionType: 'chat_command',
     suggestedPrompt: 'How far Vixora! Help me plan a 7-day viral video content strategy',
-    keywords: ['chat', 'chatgpt', 'gemini', 'assistant', 'ai chat', 'command', 'conversation']
+    keywords: ['chat', 'assistant', 'ai chat', 'command', 'conversation']
   },
   {
     id: 'tool_script_genius',

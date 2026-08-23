@@ -358,7 +358,7 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-black uppercase tracking-tight">Vixora AI Assistant</h3>
                 <span className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                  GPT-4 / GEMINI 3.6
+                  VIXORA AI
                 </span>
               </div>
               <p className="text-[9.5px] font-bold uppercase text-ggd-orange tracking-widest flex items-center gap-1.5 mt-0.5">
@@ -599,7 +599,7 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
           className="hidden"
         />
 
-        {/* FIXED BOTTOM INPUT BAR (CHATGPT / GEMINI STYLE) */}
+        {/* FIXED BOTTOM INPUT BAR */}
         <div className={`p-3 sm:p-4 border-t ${
           themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-950 border-white/10'
         }`}>

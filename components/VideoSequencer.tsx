@@ -1460,7 +1460,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
         const mediaStreamDest = mixCtx.createMediaStreamDestination();
         bufferSource.connect(mediaStreamDest);
-        bufferSource.connect(mixCtx.destination); // Let user monitor composition real-time
+        // Do NOT connect to mixCtx.destination so compilation remains completely silent
         
         // MIX IN BACKGROUND MUSIC UNDER VOICEOVER DURING RECORD COMPILING!
         if (musicBuffer) {
@@ -1473,8 +1473,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
           musicSource.connect(musicGain);
           musicGain.connect(mediaStreamDest);
-          // Also feed to local speaker monitor
-          musicGain.connect(mixCtx.destination);
+          // Do NOT connect to mixCtx.destination so background music remains silent during compile
 
           musicSource.start(0);
           compileMusicSourceRef.current = musicSource;

@@ -1449,9 +1449,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
         const updatedHistory = [newEntry, ...voiceoverHistory];
         setVoiceoverHistory(updatedHistory);
         syncSaveVoiceover(newEntry);
-
-        // Auto play generated audio using our player
-        togglePlayVoiceoverItem(newId, base64Audio);
+        // Generated voiceover stored silently without auto-playing
       }
     } catch (err) {
       setAppError("Voiceover generation failed. Please try again.");

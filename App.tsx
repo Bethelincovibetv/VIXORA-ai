@@ -312,7 +312,11 @@ const App: React.FC = () => {
   
   // Onboarding Wizard State
   const [wizardStep, setWizardStep] = useState(0);
-  const [wizardData, setWizardData] = useState({ fullName: '', email: '', apiKey: 'AIzaSyCBO1PRv5h9aQAB3rWbLrkwq_Uf_Q_uQCk' });
+  const [wizardData, setWizardData] = useState({ 
+    fullName: '', 
+    email: '', 
+    apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '' 
+  });
 
   // PWA states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -771,36 +775,30 @@ const App: React.FC = () => {
       const savedUser = localStorage.getItem('ggd_creator_user');
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
-        if (parsed && !parsed.niche) {
-          parsed.niche = 'finance';
-        }
-        setUser(parsed);
-        setNewApiKey(parsed.apiKey || '');
-        if (parsed.fullName && parsed.apiKey) {
-          setWizardStep(3); 
+        if (parsed) {
+          if (!parsed.niche) parsed.niche = 'finance';
+          if (!parsed.apiKey) parsed.apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+          if (parsed.fullName && parsed.email) {
+            setUser(parsed);
+            setNewApiKey(parsed.apiKey);
+            setWizardStep(3);
+          } else {
+            setUser(null);
+            setWizardStep(0);
+          }
+        } else {
+          setUser(null);
+          setWizardStep(0);
         }
       } else {
-        const defaultUser: UserProfile & { apiKey?: string } = {
-          fullName: 'Creator',
-          email: 'creator@vixora.ai',
-          phone: '',
-          apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
-          niche: 'finance'
-        };
-        setUser(defaultUser);
-        setWizardStep(3);
-        localStorage.setItem('ggd_creator_user', JSON.stringify(defaultUser));
+        // Force registration onboarding wizard for new users
+        setUser(null);
+        setWizardStep(0);
       }
     } catch (e) {
       console.warn("User state restoration fallback:", e);
-      setUser({
-        fullName: 'Creator',
-        email: 'creator@vixora.ai',
-        phone: '',
-        apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
-        niche: 'finance'
-      });
-      setWizardStep(3);
+      setUser(null);
+      setWizardStep(0);
     } finally {
       setLoading(false);
     }
@@ -909,14 +907,17 @@ const App: React.FC = () => {
       return;
     }
     const emailLower = wizardData.email.trim().toLowerCase();
+    const defaultKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+    const userApiKey = wizardData.apiKey?.trim() || defaultKey;
     const newUser = { 
       fullName: wizardData.fullName.trim(), 
       email: emailLower, 
       phone: '', 
-      apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '', 
-      niche: 'forex' 
+      apiKey: userApiKey, 
+      niche: 'finance' 
     };
     setUser(newUser);
+    setNewApiKey(userApiKey);
     localStorage.setItem('ggd_creator_user', JSON.stringify(newUser));
     try {
       await syncFirebaseUserProfile(newUser);
@@ -1979,36 +1980,76 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-white">
-      <div className="w-full max-w-sm space-y-8 animate-rise">
+      <div className="w-full max-w-md space-y-8 animate-rise">
         {wizardStep === 0 ? (
-          <div className="text-center space-y-10">
-            <div className="w-24 h-24 rounded-[2.5rem] mx-auto overflow-hidden shadow-[0_0_60px_rgba(255,102,0,0.4)] rotate-6 border border-white/20 bg-white p-2.5 flex items-center justify-center">
-              <img src="https://cilkybiebptqtuhbopyz.supabase.co/storage/v1/object/public/images/default/c51236bd-d2c7-4166-a82e-f347059d7ba8.jpg" alt="Vixora Logo" className="w-full h-full object-contain rounded-3xl" referrerPolicy="no-referrer" />
+          <div className="text-center space-y-8 bg-slate-900/80 p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-orange-500/20 blur-2xl pointer-events-none"></div>
+            
+            <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-[0_0_50px_rgba(255,102,0,0.4)] border border-white/20 bg-slate-900 p-2 flex items-center justify-center">
+              <img src={vixoraLogo} alt="Vixora Logo" className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
             </div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter">VIXORA</h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Digital content production engine</p>
-            <button onClick={() => setWizardStep(1)} className="w-full py-5 bg-white text-slate-950 font-black uppercase rounded-2xl active:scale-95 transition-all font-black text-xs tracking-wider shadow-2xl">Begin Onboarding</button>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-black uppercase tracking-tighter">VIXORA <span className="text-ggd-orange">STUDIO</span></h1>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">AI Video Creator & Voice Production Engine</p>
+            </div>
+
+            {/* Default API Key Status Badge */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-circle-check text-xs"></i>
+                <span className="text-[10px] font-black uppercase tracking-wider">System Default Gemini API Active</span>
+              </div>
+              <p className="text-[9px] text-emerald-300/80 leading-normal">
+                Default system API key is automatically configured and active.
+              </p>
+            </div>
+
+            <button onClick={() => setWizardStep(1)} className="w-full py-4 btn-3d btn-3d-orange font-black uppercase rounded-2xl text-xs tracking-wider shadow-2xl cursor-pointer">
+              Begin Creator Registration
+            </button>
           </div>
         ) : (
-          <div className="space-y-6 text-left">
+          <div className="space-y-6 text-left bg-slate-900/90 p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative">
             <div className="space-y-1">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Creator Profile Registration</h2>
-              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Enter your details to register and sync with Firebase storage.</p>
+              <h2 className="text-2xl font-black uppercase tracking-tight">Creator Registration</h2>
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Enter your profile details to register and access Vixora Studio.</p>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Full Name</label>
-                <input value={wizardData.fullName} onChange={e => setWizardData({...wizardData, fullName: e.target.value})} className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. Bethel Inco" />
+                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Full Name *</label>
+                <input value={wizardData.fullName} onChange={e => setWizardData({...wizardData, fullName: e.target.value})} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. Bethel Inco" />
               </div>
 
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Email Address</label>
-                <input type="email" value={wizardData.email || ''} onChange={e => setWizardData({...wizardData, email: e.target.value})} className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. bethel@example.com" />
+                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Email Address *</label>
+                <input type="email" value={wizardData.email || ''} onChange={e => setWizardData({...wizardData, email: e.target.value})} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. bethel@example.com" />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Gemini API Key</span>
+                  <span className="text-emerald-400 font-bold text-[8px] uppercase">Default System Key Auto-Set ✓</span>
+                </label>
+                <input 
+                  type="password" 
+                  value={wizardData.apiKey || ''} 
+                  onChange={e => setWizardData({...wizardData, apiKey: e.target.value})} 
+                  className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-mono text-xs outline-none focus:border-ggd-orange text-slate-300" 
+                  placeholder="System Default API Key Active" 
+                />
               </div>
             </div>
 
-            <button onClick={handleFinishOnboarding} className="btn-3d btn-3d-orange w-full py-5 font-black uppercase rounded-2xl text-xs tracking-wider shadow-xl">Complete Registration & Enter</button>
+            <div className="pt-2 space-y-3">
+              <button onClick={handleFinishOnboarding} className="btn-3d btn-3d-orange w-full py-4 font-black uppercase rounded-2xl text-xs tracking-wider shadow-xl cursor-pointer">
+                Complete Registration & Enter Studio
+              </button>
+              <button onClick={() => setWizardStep(0)} className="w-full py-2.5 text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer">
+                ← Back
+              </button>
+            </div>
           </div>
         )}
       </div>

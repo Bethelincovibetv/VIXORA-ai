@@ -38,6 +38,7 @@ export interface VoiceOption {
   description: string;
   sampleText: string;
   badge?: string;
+  flag?: string;
   isVixoraVoice?: boolean;
 }
 

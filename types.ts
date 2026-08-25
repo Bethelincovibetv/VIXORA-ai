@@ -3,6 +3,14 @@ export interface UserProfile {
   fullName: string;
   email: string;
   phone: string;
+  uid?: string;
+  displayName?: string;
+  apiKey?: string;
+  plan?: string;
+  isPro?: boolean;
+  credits?: number;
+  photoURL?: string;
+  niche?: string;
 }
 
 export interface Module {
@@ -56,27 +64,32 @@ export interface LearnedSkill {
 export interface VideoTemplate {
   id: string;
   title: string;
+  topic?: string;
   description: string;
   niche: string;
   aspectRatio: 'vertical' | 'horizontal' | 'square';
-  targetDuration: '15s' | '30s' | '60s' | '1min' | '2min' | '3min' | '5min';
+  targetDuration: string;
   captionTemplate: string;
   sfxEnabled: boolean;
-  bgMusicUrl: string;
-  scriptStyle: string;
+  bgMusicUrl?: string;
+  scriptStyle?: string;
   createdBy?: string;
   createdAt: string;
 }
 
 export interface RoadmapItem {
-  day: number;
-  postTitle: string;
-  platform: 'Facebook' | 'WhatsApp' | 'TikTok' | 'Instagram' | 'YouTube';
-  contentHook: string;
-  mainMessage: string;
-  callToAction: string;
-  monetizationTip: string;
-  scriptPrompt: string;
+  day?: number;
+  week?: number;
+  topic?: string;
+  hook?: string;
+  monetizationAngle?: string;
+  postTitle?: string;
+  platform?: 'Facebook' | 'WhatsApp' | 'TikTok' | 'Instagram' | 'YouTube' | string;
+  contentHook?: string;
+  mainMessage?: string;
+  callToAction?: string;
+  monetizationTip?: string;
+  scriptPrompt?: string;
 }
 
 export interface ContentRoadmap {

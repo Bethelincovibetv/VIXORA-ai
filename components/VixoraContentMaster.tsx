@@ -13,6 +13,7 @@ interface VixoraContentMasterProps {
   themeMode?: 'light' | 'dark';
   onUseTemplateInStudio?: (template: VideoTemplate) => void;
   onGenerateScriptForStudio?: (script: string, topic: string) => void;
+  onCookAutopilotVideo?: (topic: string, platform?: string) => void;
 }
 
 interface CoachMessage {
@@ -551,24 +552,32 @@ Return strictly valid JSON in this exact format:
                       <p className="text-[9px] text-slate-300 italic">" {msg.roadmap.faithAlignment} "</p>
 
                       <div className="space-y-2">
-                        {msg.roadmap.roadmapItems.map((item: RoadmapItem, idx: number) => (
-                          <div key={idx} className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
-                            <div className="flex justify-between items-center text-[9px] font-bold text-ggd-orange">
-                              <span>{item.week}: {item.topic}</span>
-                              <span className="text-slate-400">{item.platform}</span>
+                        {msg.roadmap.roadmapItems.map((item: RoadmapItem, idx: number) => {
+                          const itemHook = item.hook || item.contentHook || '';
+                          const itemTopic = item.topic || item.postTitle || '';
+                          const itemWeek = item.week || item.day || idx + 1;
+                          const itemMonetization = item.monetizationAngle || item.monetizationTip || '';
+                          return (
+                            <div key={idx} className="p-2.5 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                              <div className="flex justify-between items-center text-[9px] font-bold text-ggd-orange">
+                                <span>Week/Day {itemWeek}: {itemTopic}</span>
+                                <span className="text-slate-400">{item.platform}</span>
+                              </div>
+                              <p className="text-[9px] text-white font-medium">Hook: "{itemHook}"</p>
+                              {itemMonetization && (
+                                <p className="text-[8px] text-emerald-400 font-bold">Monetization: {itemMonetization}</p>
+                              )}
+                              {onGenerateScriptForStudio && (
+                                <button
+                                  onClick={() => onGenerateScriptForStudio(itemHook, itemTopic)}
+                                  className="mt-1 px-2 py-0.5 bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white rounded text-[8px] font-bold uppercase transition-all"
+                                >
+                                  Send Hook to Video Studio 🎬
+                                </button>
+                              )}
                             </div>
-                            <p className="text-[9px] text-white font-medium">Hook: "{item.hook}"</p>
-                            <p className="text-[8px] text-emerald-400 font-bold">Monetization: {item.monetizationAngle}</p>
-                            {onGenerateScriptForStudio && (
-                              <button
-                                onClick={() => onGenerateScriptForStudio(item.hook, item.topic)}
-                                className="mt-1 px-2 py-0.5 bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white rounded text-[8px] font-bold uppercase transition-all"
-                              >
-                                Send Hook to Video Studio 🎬
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -667,24 +676,32 @@ Return strictly valid JSON in this exact format:
                   </div>
 
                   <div className="space-y-2">
-                    {rd.roadmapItems?.map((item, idx) => (
-                      <div key={idx} className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
-                        <div className="flex justify-between items-center text-[9px] font-bold text-amber-400">
-                          <span>{item.week}: {item.topic}</span>
-                          <span className="text-slate-400">{item.platform}</span>
+                    {rd.roadmapItems?.map((item, idx) => {
+                      const itemHook = item.hook || item.contentHook || '';
+                      const itemTopic = item.topic || item.postTitle || '';
+                      const itemWeek = item.week || item.day || idx + 1;
+                      const itemMonetization = item.monetizationAngle || item.monetizationTip || '';
+                      return (
+                        <div key={idx} className="p-2.5 bg-black/30 rounded-xl border border-white/5 space-y-1">
+                          <div className="flex justify-between items-center text-[9px] font-bold text-amber-400">
+                            <span>Week/Day {itemWeek}: {itemTopic}</span>
+                            <span className="text-slate-400">{item.platform}</span>
+                          </div>
+                          <p className="text-[9px] text-slate-200">Hook: "{itemHook}"</p>
+                          {itemMonetization && (
+                            <p className="text-[8px] text-emerald-400 font-bold">Monetization: {itemMonetization}</p>
+                          )}
+                          {onGenerateScriptForStudio && (
+                            <button
+                              onClick={() => onGenerateScriptForStudio(itemHook, itemTopic)}
+                              className="mt-1 px-2.5 py-1 bg-ggd-orange text-white rounded text-[8px] font-bold uppercase active:scale-95 transition-all"
+                            >
+                              Send to Video Studio 🎬
+                            </button>
+                          )}
                         </div>
-                        <p className="text-[9px] text-slate-200">Hook: "{item.hook}"</p>
-                        <p className="text-[8px] text-emerald-400 font-bold">Monetization: {item.monetizationAngle}</p>
-                        {onGenerateScriptForStudio && (
-                          <button
-                            onClick={() => onGenerateScriptForStudio(item.hook, item.topic)}
-                            className="mt-1 px-2.5 py-1 bg-ggd-orange text-white rounded text-[8px] font-bold uppercase active:scale-95 transition-all"
-                          >
-                            Send to Video Studio 🎬
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

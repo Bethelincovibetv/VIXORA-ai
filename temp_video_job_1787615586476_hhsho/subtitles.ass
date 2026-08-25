@@ -1,0 +1,50 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,280,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.24,CapCut,,0,0,0,,{\1c&H00FFFF&}Want{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.24,0:00:00.67,CapCut,,0,0,0,,{\1c&H00FFFF&}supreme{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.67,0:00:01.46,CapCut,,0,0,0,,{\1c&H00FFFF&}productivity?{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.46,0:00:01.73,CapCut,,0,0,0,,{\1c&H00FFFF&}Here{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.73,0:00:01.93,CapCut,,0,0,0,,{\1c&H00FFFF&}are{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.93,0:00:02.13,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.13,0:00:02.47,CapCut,,0,0,0,,{\1c&H00FFFF&}three{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.47,0:00:02.81,CapCut,,0,0,0,,{\1c&H00FFFF&}keys.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.81,0:00:03.12,CapCut,,0,0,0,,{\1c&H00FFFF&}Ditch{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.12,0:00:03.88,CapCut,,0,0,0,,{\1c&H00FFFF&}distractions{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.88,0:00:04.07,CapCut,,0,0,0,,{\1c&H00FFFF&}for{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.07,0:00:04.89,CapCut,,0,0,0,,{\1c&H00FFFF&}uninterrupted{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.89,0:00:05.15,CapCut,,0,0,0,,{\1c&H00FFFF&}deep{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.15,0:00:05.40,CapCut,,0,0,0,,{\1c&H00FFFF&}work{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.40,0:00:05.84,CapCut,,0,0,0,,{\1c&H00FFFF&}blocks.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.84,0:00:06.25,CapCut,,0,0,0,,{\1c&H00FFFF&}Attack{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.25,0:00:06.52,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.52,0:00:06.79,CapCut,,0,0,0,,{\1c&H00FFFF&}Most{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.79,0:00:07.40,CapCut,,0,0,0,,{\1c&H00FFFF&}Important{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.40,0:00:07.74,CapCut,,0,0,0,,{\1c&H00FFFF&}Tasks{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.74,0:00:07.80,CapCut,,0,0,0,,{\1c&H00FFFF&}–{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.80,0:00:08.08,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.08,0:00:08.35,CapCut,,0,0,0,,{\1c&H00FFFF&}MITs{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.35,0:00:08.41,CapCut,,0,0,0,,{\1c&H00FFFF&}–{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.41,0:00:08.82,CapCut,,0,0,0,,{\1c&H00FFFF&}first,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.82,0:00:09.16,CapCut,,0,0,0,,{\1c&H00FFFF&}every{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.16,0:00:09.56,CapCut,,0,0,0,,{\1c&H00FFFF&}single{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.56,0:00:09.83,CapCut,,0,0,0,,{\1c&H00FFFF&}day.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.83,0:00:10.60,CapCut,,0,0,0,,{\1c&H00FFFF&}Relentlessly{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.60,0:00:11.05,CapCut,,0,0,0,,{\1c&H00FFFF&}protect{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.05,0:00:11.31,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.31,0:00:11.75,CapCut,,0,0,0,,{\1c&H00FFFF&}energy:{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.75,0:00:12.07,CapCut,,0,0,0,,{\1c&H00FFFF&}move,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.07,0:00:12.59,CapCut,,0,0,0,,{\1c&H00FFFF&}hydrate,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.59,0:00:12.78,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.78,0:00:13.29,CapCut,,0,0,0,,{\1c&H00FFFF&}recharge{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.29,0:00:13.42,CapCut,,0,0,0,,{\1c&H00FFFF&}to{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.42,0:00:13.99,CapCut,,0,0,0,,{\1c&H00FFFF&}dominate.{\1c&HFFFFFF&}

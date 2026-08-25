@@ -175,7 +175,7 @@ export async function sendLocalPushNotification(title: string, body: string, dat
             tag: 'vixora-update-' + Date.now(),
             renotify: true,
             data
-          });
+          } as any);
           return;
         }
       }

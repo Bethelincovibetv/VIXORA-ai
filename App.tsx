@@ -2,15 +2,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from "@google/genai";
 import { UserProfile, Bank, Project } from './types';
-import { VideoSequencer } from './components/VideoSequencer';
+import { VideoSequencer, SourcedVideo } from './components/VideoSequencer';
 import { VixoraContentMaster } from './components/VixoraContentMaster';
 import { VixoraTextChatPanel } from './components/VixoraTextChatPanel';
 import { ToolsLibrary } from './components/ToolsLibrary';
+import { DeveloperApiView } from './components/DeveloperApiView';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
 import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
 import { playProceduralSFX } from './sfxLibrary';
-import { syncSaveCreatedVideo, syncFetchCreatedVideos, syncSaveVoiceover, syncFetchVoiceovers } from './services/dataSyncService';
+import { 
+  syncSaveCreatedVideo, 
+  syncFetchCreatedVideos, 
+  syncSaveVoiceover, 
+  syncFetchVoiceovers,
+  syncSaveProject,
+  syncFetchProjects,
+  syncGetAssetSignedUrl
+} from './services/dataSyncService';
+import {
+  signInWithSupabase,
+  signUpWithSupabase,
+  signOutSupabase,
+  getSupabaseCurrentUser
+} from './services/supabaseService';
 import { scoreAndFetchBeatVisual } from './services/stockSourcingService';
 import { 
   requestNotificationPermission, 
@@ -18,8 +33,10 @@ import {
   sendLocalPushNotification,
   syncFirebaseSaveAnnouncement, 
   syncFirebaseFetchAnnouncements, 
+  syncFirebaseUserProfile,
   FeatureAnnouncement 
 } from './services/firebaseService';
+import { LearnedSkill } from './types';
 import vixoraLogo from './src/assets/images/vixora_logo_1786107851312.jpg';
 import vixoraAgentAvatar from './src/assets/images/vixora_agent_avatar_1786108775324.jpg';
 import viralGrowthBanner from './src/assets/images/viral_growth_banner_1786110948420.jpg';
@@ -38,19 +55,11 @@ export interface CreatedVideo {
   videoUrl: string;
   date: string;
   aspectRatio: 'vertical' | 'horizontal' | 'square';
-}
-
-interface SourcedVideo {
-  id: number;
-  url: string;
-  image: string;
-  duration: number;
-  video_files: Array<{
-    link: string;
-    quality: string;
-    width: number;
-    height: number;
-  }>;
+  duration?: string;
+  resolution?: string;
+  format?: string;
+  userId?: string;
+  createdAt?: string;
 }
 
 export const NICHE_OPTIONS = [
@@ -239,7 +248,7 @@ const App: React.FC = () => {
   const [user, setUser] = useState<(UserProfile & { apiKey?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact' | 'coach' | 'tools' | 'chat'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'autopilot' | 'voiceover' | 'scripts' | 'profile' | 'more' | 'videos' | 'contact' | 'coach' | 'tools' | 'chat' | 'developer' | 'bgmusic'>('studio');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
@@ -311,8 +320,13 @@ const App: React.FC = () => {
     }
   }, [accessibilityMode]);
   
-  // Onboarding Wizard State
+  // Onboarding Wizard & Supabase Auth State
   const [wizardStep, setWizardStep] = useState(0);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authPassword, setAuthPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
   const [wizardData, setWizardData] = useState({ 
     fullName: '', 
     email: '', 
@@ -433,7 +447,6 @@ const App: React.FC = () => {
       await syncFirebaseSaveAnnouncement(newAnn);
       setAnnouncements(prev => [newAnn, ...prev]);
       setActiveAdvertPopup(newAnn);
-      setHasUnreadAnnouncements(true);
       setShowNewAdvertModal(false);
 
       // Trigger native phone OS push notification
@@ -537,6 +550,9 @@ const App: React.FC = () => {
     setSourcedVideos([]);
     setActiveTab('studio');
     setIsSidebarOpen(false);
+    
+    // Sync to Lovable Cloud / Supabase /projects/create
+    syncSaveProject(newProj);
   };
 
   const handleSelectProject = (proj: Project) => {
@@ -573,7 +589,14 @@ const App: React.FC = () => {
   };
 
   const handleRenameProject = (projectId: string, newTitle: string) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, title: newTitle, updatedAt: new Date().toISOString() } : p));
+    setProjects(prev => prev.map(p => {
+      if (p.id === projectId) {
+        const updated = { ...p, title: newTitle, updatedAt: new Date().toISOString() };
+        syncSaveProject(updated);
+        return updated;
+      }
+      return p;
+    }));
   };
 
   const handleDuplicateProject = (proj: Project) => {
@@ -586,6 +609,7 @@ const App: React.FC = () => {
     };
     setProjects(prev => [dup, ...prev]);
     setActiveProjectId(dup.id);
+    syncSaveProject(dup);
   };
 
   // Sync active project state with changes
@@ -676,7 +700,7 @@ const App: React.FC = () => {
   };
 
   const appContext: VixoraAppContext = {
-    setActiveTab,
+    setActiveTab: (tab: any) => setActiveTab(tab),
     handleAutopilotVideoGeneration: (topic, ratio, duration, searchWeb) => {
       handleAutopilotVideoGeneration(
         topic,
@@ -873,7 +897,17 @@ const App: React.FC = () => {
       setLoading(false);
     }
 
-    // Sync remote data from Firestore or fallback
+    // Sync remote data from Lovable Cloud / Supabase / Firestore or fallback
+    syncFetchProjects().then(projs => {
+      if (projs && projs.length > 0) {
+        setProjects(prev => {
+          const map = new Map<string, Project>();
+          [...projs, ...prev].forEach(p => map.set(p.id, p));
+          const merged = Array.from(map.values());
+          return merged;
+        });
+      }
+    });
     syncFetchCreatedVideos().then(vids => {
       if (vids && vids.length > 0) setCreatedVideos(vids);
     });
@@ -995,6 +1029,83 @@ const App: React.FC = () => {
       console.warn("Firebase user sync warning:", err);
     }
     setWizardStep(3);
+  };
+
+  // Supabase Auth Integration Handler (Sign In / Sign Up)
+  const handleSupabaseAuthSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAuthErrorMsg(null);
+
+    const email = wizardData.email?.trim();
+    if (!email) {
+      setAuthErrorMsg("Please enter a valid email address.");
+      return;
+    }
+
+    if (!authPassword || authPassword.length < 6) {
+      setAuthErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (authMode === 'signup' && !wizardData.fullName?.trim()) {
+      setAuthErrorMsg("Please enter your full name.");
+      return;
+    }
+
+    setIsAuthenticating(true);
+
+    try {
+      if (authMode === 'signin') {
+        const { user: sbUser, session, error } = await signInWithSupabase(email, authPassword);
+        if (error) {
+          setAuthErrorMsg(error);
+          setIsAuthenticating(false);
+          return;
+        }
+
+        const fullName = sbUser?.user_metadata?.full_name || wizardData.fullName || email.split('@')[0];
+        const defaultKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+        const userObj: UserProfile = {
+          fullName,
+          email: email.toLowerCase(),
+          phone: '',
+          apiKey: defaultKey,
+          niche: 'finance'
+        };
+
+        setUser(userObj);
+        setNewApiKey(defaultKey);
+        localStorage.setItem('ggd_creator_user', JSON.stringify(userObj));
+        setWizardStep(3);
+      } else {
+        // Sign Up Flow
+        const { user: sbUser, session, error } = await signUpWithSupabase(email, authPassword, wizardData.fullName.trim());
+        if (error) {
+          setAuthErrorMsg(error);
+          setIsAuthenticating(false);
+          return;
+        }
+
+        const fullName = wizardData.fullName.trim() || sbUser?.user_metadata?.full_name || email.split('@')[0];
+        const defaultKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+        const userObj: UserProfile = {
+          fullName,
+          email: email.toLowerCase(),
+          phone: '',
+          apiKey: defaultKey,
+          niche: 'finance'
+        };
+
+        setUser(userObj);
+        setNewApiKey(defaultKey);
+        localStorage.setItem('ggd_creator_user', JSON.stringify(userObj));
+        setWizardStep(3);
+      }
+    } catch (err: any) {
+      setAuthErrorMsg(err?.message || 'Authentication error occurred.');
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   // --- DURATION AND SCENE SOURCING HELPERS ---
@@ -1486,7 +1597,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
     };
     setCreatedVideos(prev => {
       const updated = [newVideo, ...prev.filter(v => v.id !== newVideo.id)];
-      syncSaveCreatedVideo(newVideo);
+      syncSaveCreatedVideo(newVideo, activeProjectId || undefined);
       return updated;
     });
   };
@@ -1669,8 +1780,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
           noiseSuppression: true,
           autoGainControl: true,
           channelCount: 1,
-          sampleRate: 16000,
-          latency: 0
+          sampleRate: 16000
         }
       });
 
@@ -1966,10 +2076,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
   // --- RENDERING ---
 
   if (!user) return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-white">
-      <div className="w-full max-w-md space-y-8 animate-rise">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-slate-950 text-white">
+      <div className="w-full max-w-md space-y-6 animate-rise">
         {wizardStep === 0 ? (
-          <div className="text-center space-y-8 bg-slate-900/80 p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+          <div className="text-center space-y-6 bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative overflow-hidden">
             <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-orange-500/20 blur-2xl pointer-events-none"></div>
             
             <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-[0_0_50px_rgba(255,102,0,0.4)] border border-white/20 bg-slate-900 p-2 flex items-center justify-center">
@@ -1981,48 +2091,183 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">AI Video Creator & Voice Production Engine</p>
             </div>
 
-            {/* Default API Status Badge */}
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
+            {/* Backend Integration Badge */}
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
               <div className="flex items-center gap-2">
-                <i className="fa-solid fa-circle-check text-xs"></i>
-                <span className="text-[10px] font-black uppercase tracking-wider">AI Content Engine Ready</span>
+                <i className="fa-solid fa-cloud text-xs"></i>
+                <span className="text-[10px] font-black uppercase tracking-wider">Supabase & Lovable Cloud Connected</span>
               </div>
               <p className="text-[9px] text-emerald-300/80 leading-normal">
-                All studio voice, video, and script engines are fully operational.
+                Persistent video projects, cloud asset storage, and authenticated creator workspace ready.
               </p>
             </div>
 
-            <button onClick={() => setWizardStep(1)} className="w-full py-4 btn-3d btn-3d-orange font-black uppercase rounded-2xl text-xs tracking-wider shadow-2xl cursor-pointer">
-              Begin Creator Registration
-            </button>
+            <div className="space-y-3">
+              <button 
+                onClick={() => {
+                  setAuthMode('signin');
+                  setWizardStep(1);
+                }} 
+                className="w-full py-4 btn-3d btn-3d-orange font-black uppercase rounded-2xl text-xs tracking-wider shadow-2xl cursor-pointer"
+              >
+                Sign In with Supabase
+              </button>
+              <button 
+                onClick={() => {
+                  setAuthMode('signup');
+                  setWizardStep(1);
+                }} 
+                className="w-full py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black uppercase rounded-2xl text-xs tracking-wider transition-all cursor-pointer"
+              >
+                Create New Account
+              </button>
+              <button 
+                onClick={() => {
+                  // Direct Instant Access for quick preview
+                  const demoUser: UserProfile = {
+                    fullName: 'Bethel Inco',
+                    email: 'bethelincovibetv@gmail.com',
+                    phone: '',
+                    apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+                    niche: 'finance'
+                  };
+                  setUser(demoUser);
+                  localStorage.setItem('ggd_creator_user', JSON.stringify(demoUser));
+                  setWizardStep(3);
+                }} 
+                className="w-full py-2.5 text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                ⚡ Quick Instant Creator Mode
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="space-y-6 text-left bg-slate-900/90 p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Creator Registration</h2>
-              <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Enter your profile details to register and access Vixora Studio.</p>
+          <div className="space-y-5 text-left bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative">
+            {/* Header & Mode Switcher */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black uppercase tracking-tight">
+                  {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+                </h2>
+                <span className="text-[9px] font-black uppercase text-ggd-orange px-2.5 py-1 rounded-lg bg-ggd-orange/15 border border-ggd-orange/30">
+                  Supabase Auth
+                </span>
+              </div>
+              
+              {/* Segmented Mode Selector */}
+              <div className="p-1 rounded-xl bg-black/40 border border-white/10 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setAuthErrorMsg(null);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    authMode === 'signin'
+                      ? 'bg-ggd-orange text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setAuthErrorMsg(null);
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                    authMode === 'signup'
+                      ? 'bg-ggd-orange text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
+
+            {/* Error Banner */}
+            {authErrorMsg && (
+              <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation text-red-400 shrink-0"></i>
+                <span className="leading-snug">{authErrorMsg}</span>
+              </div>
+            )}
             
-            <div className="space-y-4">
+            <form onSubmit={handleSupabaseAuthSubmit} className="space-y-3.5">
+              {authMode === 'signup' && (
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Full Name *</label>
+                  <input 
+                    type="text"
+                    value={wizardData.fullName} 
+                    onChange={e => setWizardData({...wizardData, fullName: e.target.value})} 
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                    placeholder="e.g. Bethel Inco" 
+                    required={authMode === 'signup'}
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Full Name *</label>
-                <input value={wizardData.fullName} onChange={e => setWizardData({...wizardData, fullName: e.target.value})} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. Bethel Inco" />
+                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Email Address *</label>
+                <input 
+                  type="email" 
+                  value={wizardData.email || ''} 
+                  onChange={e => setWizardData({...wizardData, email: e.target.value})} 
+                  className="w-full p-3 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                  placeholder="e.g. creator@example.com" 
+                  required
+                />
               </div>
 
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 block">Email Address *</label>
-                <input type="email" value={wizardData.email || ''} onChange={e => setWizardData({...wizardData, email: e.target.value})} className="w-full p-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold outline-none focus:border-ggd-orange text-sm text-white" placeholder="e.g. bethel@example.com" />
+                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Password *</label>
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={authPassword} 
+                    onChange={e => setAuthPassword(e.target.value)} 
+                    className="w-full p-3 pr-10 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                    placeholder="Min. 6 characters" 
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                  >
+                    <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="pt-2 space-y-3">
-              <button onClick={handleFinishOnboarding} className="btn-3d btn-3d-orange w-full py-4 font-black uppercase rounded-2xl text-xs tracking-wider shadow-xl cursor-pointer">
-                Complete Registration & Enter Studio
-              </button>
-              <button onClick={() => setWizardStep(0)} className="w-full py-2.5 text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer">
-                ← Back
-              </button>
-            </div>
+              <div className="pt-2 space-y-2.5">
+                <button 
+                  type="submit"
+                  disabled={isAuthenticating}
+                  className="btn-3d btn-3d-orange w-full py-3.5 font-black uppercase rounded-xl text-xs tracking-wider shadow-xl cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <i className="fa-solid fa-spinner animate-spin"></i>
+                      <span>Authenticating with Supabase...</span>
+                    </>
+                  ) : (
+                    <span>{authMode === 'signin' ? 'Sign In & Open Studio' : 'Register Creator Account'}</span>
+                  )}
+                </button>
+                
+                <button 
+                  type="button"
+                  onClick={() => setWizardStep(0)} 
+                  className="w-full py-2 text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  ← Back to Welcome
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>
@@ -2135,6 +2380,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 <i className="fa-solid fa-bolt-lightning text-xs"></i>
               </div>
               <span>Growth Tools</span>
+            </button>
+
+            <button onClick={() => { setActiveTab('developer'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'developer' ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#0369a1] border border-cyan-300/40">
+                <i className="fa-solid fa-code text-xs"></i>
+              </div>
+              <div className="flex items-center justify-between flex-1">
+                <span>Developer API</span>
+                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">REST</span>
+              </div>
             </button>
 
             <div className={`h-px my-3 ${themeMode === 'light' ? 'bg-slate-200' : 'bg-white/10'}`}></div>
@@ -3974,6 +4229,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
           </div>
         )}
 
+        {activeTab === 'developer' && (
+          <div className="animate-rise">
+            <DeveloperApiView 
+              themeMode={themeMode} 
+              activeProjectId={activeProjectId} 
+            />
+          </div>
+        )}
+
         {activeTab === 'profile' && (
           <div className="animate-rise space-y-4">
             <div className={`rounded-2xl p-5 border text-center shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'}`}>
@@ -4063,7 +4327,28 @@ Structure: Full Masterclass / In-depth Documentary Script.
                </div>
             </div>
 
-            <button className="w-full py-3.5 text-[9px] font-black text-red-500 uppercase bg-red-500/10 border border-red-500/20 rounded-xl active:scale-95 transition-all" onClick={() => { localStorage.clear(); window.location.reload(); }}>Full App Data Reset</button>
+            <div className="space-y-2">
+              <button 
+                type="button"
+                className="w-full py-3.5 text-[9px] font-black text-amber-400 uppercase bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                onClick={async () => {
+                  await signOutSupabase();
+                  localStorage.removeItem('ggd_creator_user');
+                  setUser(null);
+                  setWizardStep(0);
+                }}
+              >
+                <i className="fa-solid fa-right-from-bracket"></i>
+                <span>Sign Out from Workspace</span>
+              </button>
+              
+              <button 
+                className="w-full py-3.5 text-[9px] font-black text-red-500 uppercase bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl active:scale-95 transition-all" 
+                onClick={() => { localStorage.clear(); window.location.reload(); }}
+              >
+                Full App Data Reset
+              </button>
+            </div>
           </div>
         )}
 

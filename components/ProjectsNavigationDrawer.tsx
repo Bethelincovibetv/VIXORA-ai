@@ -22,16 +22,14 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
   onDuplicateProject,
   themeMode = 'dark'
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'scripted' | 'rendered' | 'published'>('all');
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
   const filteredProjects = projects.filter(p => {
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    const q = searchQuery.toLowerCase().trim();
-    const matchesQuery = !q || p.title.toLowerCase().includes(q) || p.topic.toLowerCase().includes(q);
-    return matchesStatus && matchesQuery;
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'draft') return p.status === 'draft' || !p.status;
+    return p.status === statusFilter;
   });
 
   const getStatusBadge = (status: Project['status']) => {
@@ -52,53 +50,46 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
       {/* NEW PROJECT BUTTON */}
       <button
         onClick={onCreateNewProject}
-        className="btn-3d btn-3d-orange w-full py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
+        className="btn-3d btn-3d-orange w-full py-3.5 px-4 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
       >
         <i className="fa-solid fa-plus-circle text-sm"></i>
         <span>New Creation Project</span>
       </button>
 
-      {/* SEARCH PROJECTS */}
-      <div className={`relative flex items-center rounded-2xl border ${
-        themeMode === 'light' ? 'bg-slate-100 border-slate-300 text-slate-900' : 'bg-white/5 border-white/10 text-white'
+      {/* REFINED SEGMENTED PROJECT FILTER CONTROL */}
+      <div className={`p-1 rounded-2xl border flex items-center gap-1 ${
+        themeMode === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-slate-950/80 border-white/10'
       }`}>
-        <i className="fa-solid fa-magnifying-glass text-slate-400 text-xs ml-3"></i>
-        <input 
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Filter video projects..."
-          className="w-full px-2.5 py-2.5 bg-transparent outline-none text-[11px] font-semibold"
-        />
-        {searchQuery && (
-          <button onClick={() => setSearchQuery('')} className="mr-2 text-slate-400 text-xs">
-            <i className="fa-solid fa-xmark"></i>
-          </button>
-        )}
-      </div>
-
-      {/* STATUS FILTER PILLS */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { id: 'all', label: 'All' },
-          { id: 'draft', label: 'Drafts' },
-          { id: 'scripted', label: 'Scripted' },
-          { id: 'rendered', label: 'Rendered' }
-        ].map((st) => (
-          <button
-            key={st.id}
-            onClick={() => setStatusFilter(st.id as any)}
-            className={`px-2.5 py-1 rounded-xl text-[9.5px] font-bold uppercase whitespace-nowrap transition-all border ${
-              statusFilter === st.id
-                ? 'bg-ggd-orange/20 border-ggd-orange text-ggd-orange'
-                : themeMode === 'light'
-                ? 'bg-slate-100 border-slate-200 text-slate-600'
-                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-          >
-            {st.label}
-          </button>
-        ))}
+          { id: 'all', label: 'All Projects', count: projects.length },
+          { id: 'draft', label: 'Drafts', count: projects.filter(p => p.status === 'draft' || !p.status).length },
+          { id: 'scripted', label: 'Scripted', count: projects.filter(p => p.status === 'scripted').length },
+          { id: 'rendered', label: 'Rendered', count: projects.filter(p => p.status === 'rendered').length }
+        ].map((st) => {
+          const isSelected = statusFilter === st.id;
+          return (
+            <button
+              key={st.id}
+              onClick={() => setStatusFilter(st.id as any)}
+              className={`flex-1 py-2 px-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight flex items-center justify-center gap-1.5 transition-all ${
+                isSelected
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                  : themeMode === 'light'
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span>{st.label}</span>
+              {st.count > 0 && (
+                <span className={`text-[8px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  isSelected ? 'bg-black/30 text-white' : 'bg-white/10 text-slate-400'
+                }`}>
+                  {st.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* PROJECTS LIST */}

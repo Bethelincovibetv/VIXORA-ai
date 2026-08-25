@@ -1,0 +1,50 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,280,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.56,CapCut,,0,0,0,,{\1c&H00FFFF&}Alright,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.56,0:00:00.70,CapCut,,0,0,0,,{\1c&H00FFFF&}my{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.70,0:00:00.92,CapCut,,0,0,0,,{\1c&H00FFFF&}top{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.92,0:00:00.99,CapCut,,0,0,0,,{\1c&H00FFFF&}3{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.99,0:00:02.12,CapCut,,0,0,0,,{\1c&H00FFFF&}cryptocurrencies{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.12,0:00:02.33,CapCut,,0,0,0,,{\1c&H00FFFF&}for{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.33,0:00:02.68,CapCut,,0,0,0,,{\1c&H00FFFF&}2026.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.68,0:00:02.89,CapCut,,0,0,0,,{\1c&H00FFFF&}Get{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.89,0:00:03.30,CapCut,,0,0,0,,{\1c&H00FFFF&}ready!{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.30,0:00:03.92,CapCut,,0,0,0,,{\1c&H00FFFF&}Ethereum,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.92,0:00:04.27,CapCut,,0,0,0,,{\1c&H00FFFF&}still{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.27,0:00:04.47,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.47,0:00:05.03,CapCut,,0,0,0,,{\1c&H00FFFF&}reigning{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.03,0:00:05.37,CapCut,,0,0,0,,{\1c&H00FFFF&}king.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.37,0:00:05.87,CapCut,,0,0,0,,{\1c&H00FFFF&}Solana,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.87,0:00:06.08,CapCut,,0,0,0,,{\1c&H00FFFF&}for{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.08,0:00:06.29,CapCut,,0,0,0,,{\1c&H00FFFF&}its{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.29,0:00:06.92,CapCut,,0,0,0,,{\1c&H00FFFF&}unmatched{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.92,0:00:07.28,CapCut,,0,0,0,,{\1c&H00FFFF&}speed{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.28,0:00:07.49,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.49,0:00:08.12,CapCut,,0,0,0,,{\1c&H00FFFF&}ecosystem{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.12,0:00:08.62,CapCut,,0,0,0,,{\1c&H00FFFF&}growth.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.62,0:00:08.83,CapCut,,0,0,0,,{\1c&H00FFFF&}And{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.83,0:00:09.19,CapCut,,0,0,0,,{\1c&H00FFFF&}watch{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.19,0:00:09.70,CapCut,,0,0,0,,{\1c&H00FFFF&}Polygon{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.70,0:00:09.77,CapCut,,0,0,0,,{\1c&H00FFFF&}–{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.77,0:00:09.98,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.98,0:00:10.42,CapCut,,0,0,0,,{\1c&H00FFFF&}future{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.42,0:00:10.56,CapCut,,0,0,0,,{\1c&H00FFFF&}of{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.56,0:00:11.14,CapCut,,0,0,0,,{\1c&H00FFFF&}scalable{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.14,0:00:11.86,CapCut,,0,0,0,,{\1c&H00FFFF&}solutions.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.86,0:00:12.14,CapCut,,0,0,0,,{\1c&H00FFFF&}What{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.14,0:00:12.36,CapCut,,0,0,0,,{\1c&H00FFFF&}are{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.36,0:00:12.65,CapCut,,0,0,0,,{\1c&H00FFFF&}YOUR{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.65,0:00:13.08,CapCut,,0,0,0,,{\1c&H00FFFF&}picks?{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.08,0:00:13.36,CapCut,,0,0,0,,{\1c&H00FFFF&}Drop{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.36,0:00:13.57,CapCut,,0,0,0,,{\1c&H00FFFF&}'em{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.57,0:00:14.00,CapCut,,0,0,0,,{\1c&H00FFFF&}below!{\1c&HFFFFFF&}

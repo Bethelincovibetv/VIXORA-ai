@@ -97,9 +97,36 @@
         "createdAt": { "type": "string", "maxLength": 100 }
       },
       "required": ["id", "title"]
+    },
+    "Project": {
+      "title": "Creation Project",
+      "description": "User creation project storing script, voiceover, clips, video URL and chat history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 500 },
+        "topic": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "maxLength": 100 },
+        "aspectRatio": { "type": "string", "maxLength": 50 },
+        "targetDuration": { "type": "string", "maxLength": 100 },
+        "thumbnailUrl": { "type": "string", "maxLength": 10000 },
+        "scriptText": { "type": "string", "maxLength": 50000 },
+        "voiceoverUrl": { "type": "string", "maxLength": 500000 },
+        "videoUrl": { "type": "string", "maxLength": 10000 },
+        "chatHistoryJson": { "type": "string", "maxLength": 500000 },
+        "sourcedVideosJson": { "type": "string", "maxLength": 500000 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "title"]
     }
   },
   "firestore": {
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "User video creation projects collection"
+    },
     "/videos/{videoId}": {
       "schema": { "$ref": "#/entities/CreatedVideo" },
       "description": "Collection of generated video items"

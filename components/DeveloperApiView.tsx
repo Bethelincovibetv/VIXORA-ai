@@ -5,6 +5,7 @@ import {
   ServerCreateVideoRequest, 
   ServerVideoStatusResponse 
 } from '../services/supabaseService';
+import { CompleteApiModal } from './CompleteApiModal';
 
 interface DeveloperApiViewProps {
   themeMode?: 'dark' | 'light';
@@ -22,6 +23,8 @@ export const DeveloperApiView: React.FC<DeveloperApiViewProps> = ({ themeMode = 
   
   const [activeCodeLang, setActiveCodeLang] = useState<'curl' | 'js' | 'python' | 'php'>('curl');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [copiedAllBundle, setCopiedAllBundle] = useState(false);
   
   // Interactive Tester State
   const [isTriggering, setIsTriggering] = useState(false);
@@ -193,13 +196,23 @@ echo "Job ID: " . $data['job_id'];
             </p>
           </div>
 
-          <button
-            onClick={() => copyToClipboard(curlCommand)}
-            className="btn-3d btn-3d-orange px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg shrink-0"
-          >
-            <i className={`fa-solid ${copiedCode ? 'fa-check' : 'fa-copy'}`}></i>
-            <span>{copiedCode ? 'Copied cURL!' : 'Copy cURL'}</span>
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => setShowCompleteModal(true)}
+              className="px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-xl transition-all hover:scale-105"
+            >
+              <i className="fa-solid fa-file-lines text-sm"></i>
+              <span>Complete API & Integration Doc</span>
+            </button>
+
+            <button
+              onClick={() => copyToClipboard(curlCommand)}
+              className="btn-3d btn-3d-orange px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg shrink-0"
+            >
+              <i className={`fa-solid ${copiedCode ? 'fa-check' : 'fa-copy'}`}></i>
+              <span>{copiedCode ? 'Copied cURL!' : 'Copy cURL'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -474,6 +487,14 @@ echo "Job ID: " . $data['job_id'];
           )}
         </div>
       </div>
+
+      {/* 1-Click Complete API & Integration Documentation Modal */}
+      <CompleteApiModal
+        isOpen={showCompleteModal}
+        onClose={() => setShowCompleteModal(false)}
+        themeMode={themeMode}
+        baseUrl={baseUrl}
+      />
     </div>
   );
 };

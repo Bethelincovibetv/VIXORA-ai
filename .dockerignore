@@ -1,0 +1,8 @@
+node_modules
+.git
+dist
+temp_video_job_*
+.env
+.env.local
+.DS_Store
+*.log

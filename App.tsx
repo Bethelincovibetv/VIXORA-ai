@@ -7,6 +7,7 @@ import { VixoraContentMaster } from './components/VixoraContentMaster';
 import { VixoraTextChatPanel } from './components/VixoraTextChatPanel';
 import { ToolsLibrary } from './components/ToolsLibrary';
 import { DeveloperApiView } from './components/DeveloperApiView';
+import { CompleteApiModal } from './components/CompleteApiModal';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
 import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
@@ -252,6 +253,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
+  const [showGlobalApiModal, setShowGlobalApiModal] = useState(false);
 
   // Projects State for Requirement 3 (Projects-based Navigation)
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -2551,6 +2553,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
 
         <div className="flex items-center gap-2">
+          {/* 1-CLICK COMPLETE API INTEGRATION BUTTON */}
+          <button 
+            onClick={() => setShowGlobalApiModal(true)}
+            title="1-Click API Integration Documentation & Studio AI Prompt"
+            className="btn-3d btn-3d-purple h-10 px-3 flex items-center gap-1.5 shadow-lg active:scale-95 transition-all text-white cursor-pointer"
+          >
+            <i className="fa-solid fa-code text-xs text-amber-300"></i>
+            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">API Doc</span>
+          </button>
+
           {/* 3D PWA INSTALL QUICK BUTTON */}
           <button 
             onClick={triggerPwaInstall}
@@ -4897,6 +4909,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
         apiKey={user?.apiKey && !user.apiKey.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ? user.apiKey : process.env.GEMINI_API_KEY || process.env.API_KEY || ''}
         themeMode={themeMode}
         onStartLiveAssistant={startLiveAssistant}
+      />
+
+      {/* 1-CLICK ALL-IN-ONE API INTEGRATION DOCUMENTATION MODAL */}
+      <CompleteApiModal
+        isOpen={showGlobalApiModal}
+        onClose={() => setShowGlobalApiModal(false)}
+        themeMode={themeMode}
+        baseUrl={typeof window !== 'undefined' ? window.location.origin : 'https://vixora.studio'}
       />
 
       <canvas ref={canvasRef} className="hidden" />

@@ -2097,7 +2097,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
               <div className="flex items-center gap-2">
                 <i className="fa-solid fa-cloud text-xs"></i>
-                <span className="text-[10px] font-black uppercase tracking-wider">Supabase & Lovable Cloud Connected</span>
+                <span className="text-[10px] font-black uppercase tracking-wider">Vixora Cloud Sync Active</span>
               </div>
               <p className="text-[9px] text-emerald-300/80 leading-normal">
                 Persistent video projects, cloud asset storage, and authenticated creator workspace ready.
@@ -2112,7 +2112,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 }} 
                 className="w-full py-4 btn-3d btn-3d-orange font-black uppercase rounded-2xl text-xs tracking-wider shadow-2xl cursor-pointer"
               >
-                Sign In with Supabase
+                Sign In to Studio
               </button>
               <button 
                 onClick={() => {
@@ -2152,7 +2152,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   {authMode === 'signin' ? 'Sign In' : 'Create Account'}
                 </h2>
                 <span className="text-[9px] font-black uppercase text-ggd-orange px-2.5 py-1 rounded-lg bg-ggd-orange/15 border border-ggd-orange/30">
-                  Supabase Auth
+                  Cloud Account
                 </span>
               </div>
               
@@ -2254,7 +2254,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   {isAuthenticating ? (
                     <>
                       <i className="fa-solid fa-spinner animate-spin"></i>
-                      <span>Authenticating with Supabase...</span>
+                      <span>Authenticating...</span>
                     </>
                   ) : (
                     <span>{authMode === 'signin' ? 'Sign In & Open Studio' : 'Register Creator Account'}</span>

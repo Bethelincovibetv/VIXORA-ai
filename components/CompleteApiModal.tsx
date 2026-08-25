@@ -14,164 +14,257 @@ export const CompleteApiModal: React.FC<CompleteApiModalProps> = ({
   baseUrl,
 }) => {
   const [copiedAll, setCopiedAll] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'prompt' | 'code' | 'api'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'prompt' | 'code' | 'api' | 'sync'>('all');
 
   if (!isOpen) return null;
 
   const studioAiPrompt = `### AI STUDIO / WEB DEVELOPER INTEGRATION INSTRUCTION PROMPT
-Act as an elite frontend and full-stack software engineer. Integrate the Vixora Video Generation Engine directly into my website as a native, embedded feature (not using an iframe).
+Act as an elite frontend and full-stack software engineer. Integrate the Vixora AI Studio features (Video Creation, AI Script Generation, Voiceover Audio Synthesis, Sound Effects, Music Library, Stock Media, and Seamless Cloud Database Auth Sync) directly into my website as a native, embedded suite (not using an iframe).
 
 TARGET API BASE URL:
 ${baseUrl}
 
-ENDPOINTS SPECIFICATION:
+SHARED DATABASE & CLOUD ENVIRONMENT VARIABLES (FOR SEAMLESS SSO & AUTO-SYNC):
+Add these environment variables to your website's .env file so users share the exact same projects and never have to sign in twice:
+VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
+GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk
+
+COMPLETE REST API ENDPOINTS SPECIFICATION:
 1. CREATE VIDEO JOB:
-   - Method: POST
-   - URL: ${baseUrl}/api/public/v1/videos/create (or /videos/create)
+   - POST ${baseUrl}/api/public/v1/videos/create
    - Headers: { "Content-Type": "application/json" }
-   - Body Schema:
-     {
-       "topic": "Video Topic Here",
-       "script": "Optional full script text",
-       "duration": "15s" | "30s" | "60s",
-       "aspect_ratio": "vertical" | "square" | "horizontal",
-       "voice": "Aoede" | "Charon" | "Fenrir" | "Kore" | "Puck",
-       "project_id": "optional_project_id"
-     }
+   - Body: { "topic": "...", "script": "...", "duration": "15s"|"30s"|"60s", "aspect_ratio": "vertical"|"square"|"horizontal", "voice": "Aoede"|"Kore"|"Charon"|"Fenrir"|"Puck", "project_id": "..." }
    - Response: { "ok": true, "job_id": "job_xxx", "status": "queued", "progress": 5 }
 
-2. POLL JOB PROGRESS & STATUS:
-   - Method: GET
-   - URL: ${baseUrl}/api/public/v1/videos/status?job_id={JOB_ID}
-   - Response:
-     {
-       "ok": true,
-       "job_id": "job_xxx",
-       "status": "queued" | "processing" | "ready" | "failed",
-       "progress": 0 to 100,
-       "current_step": "Rendering video frames and compositing audio tracks...",
-       "video_url": "/api/public/v1/assets/download/{asset_id}.mp4",
-       "thumbnail_url": "https://...",
-       "logs": ["..."]
-     }
+2. POLL VIDEO PROGRESS & STATUS:
+   - GET ${baseUrl}/api/public/v1/videos/status?job_id={JOB_ID}
+   - Response: { "ok": true, "job_id": "job_xxx", "status": "queued"|"processing"|"ready"|"failed", "progress": 0-100, "current_step": "...", "video_url": "...", "thumbnail_url": "..." }
 
-3. DIRECT VIDEO STREAM & DOWNLOAD:
-   - URL: ${baseUrl}/api/public/v1/assets/download/{asset_id}.mp4
+3. AI VIRAL SCRIPT & BEATS GENERATOR:
+   - POST ${baseUrl}/api/public/v1/scripts/generate
+   - Body: { "topic": "Topic Name", "duration": "30s", "niche": "finance", "tone": "energetic" }
+   - Response: { "ok": true, "script": "...", "beats": [{ "text": "...", "visual_search_query": "...", "sfx_cue": "whoosh" }], "suggested_music_mood": "motivational" }
+
+4. AI VOICEOVER (TTS) & VOICES:
+   - POST ${baseUrl}/api/public/v1/audio/tts -> { "text": "...", "voice": "Kore" }
+   - GET ${baseUrl}/api/public/v1/audio/voices -> Lists all voice options (Kore - Energetic Nigerian Voice, Aoede, Puck, Charon, Fenrir)
+
+5. SOUND EFFECTS (SFX) & BACKGROUND MUSIC CATALOG:
+   - GET ${baseUrl}/api/public/v1/audio/sfx -> Lists SFX (whoosh, pop, shutter, sub bass drop, sparkle)
+   - GET ${baseUrl}/api/public/v1/audio/music -> Lists background music tracks with streaming URLs
+
+6. STOCK MEDIA SEARCH:
+   - POST ${baseUrl}/api/public/v1/assets/search -> { "query": "business", "orientation": "vertical" }
+
+7. UNIFIED AUTH & SINGLE SIGN-ON SYNC (NO DOUBLE SIGN-IN):
+   - POST ${baseUrl}/api/public/v1/auth/sync
+   - Body: { "user_id": "...", "email": "user@example.com", "full_name": "...", "access_token": "..." }
+   - Response: { "ok": true, "authenticated": true, "session_token": "..." }
+
+8. DIRECT VIDEO STREAM & FILE DOWNLOAD:
+   - GET ${baseUrl}/api/public/v1/assets/download/{asset_filename}.mp4
 
 FRONTEND INTEGRATION REQUIREMENTS:
-1. Build a clean user input form matching my site's design system (Prompt/Topic input, Duration selector, Aspect Ratio toggle [9:16 vertical, 1:1 square, 16:9 horizontal], and Voice selector).
-2. When the user clicks "Generate Video", call POST /api/public/v1/videos/create.
-3. Poll GET /api/public/v1/videos/status?job_id={job_id} every 2 seconds. Display real-time progress bar (0% - 100%) and current rendering step text.
-4. When status === 'ready', display the video in a native HTML5 <video controls playsinline> player with download and share buttons.`;
+1. Build a sleek UI matching my site's branding with Video Creator, Script Generator, Voice Selector, and Music Player tabs.
+2. Ensure user sessions auto-sync with POST /api/public/v1/auth/sync on page load.
+3. When video is generated, display real-time progress bar (0%-100%) and render a native HTML5 <video controls playsinline> player once ready.`;
 
   const copyableFullBundle = `================================================================================
-VIXORA AI VIDEO ENGINE — COMPLETE API & INTEGRATION DOCUMENTATION
+VIXORA AI STUDIO — COMPLETE UNIVERSAL API & INTEGRATION DOCUMENTATION
 ================================================================================
 API Live Base URL: ${baseUrl}
 Status: LIVE, ACTIVE & OPERATIONAL
 Supported Formats: MP4 (H.264 / AAC)
 Aspect Ratios: Vertical 9:16 (1080x1920), Square 1:1 (1080x1080), Horizontal 16:9 (1920x1080)
-Voices: Aoede, Charon, Fenrir, Kore, Puck
+Voices: Kore (Flagship Energetic Nigerian Voice), Aoede, Charon, Fenrir, Puck
 
 --------------------------------------------------------------------------------
-1. PROMPT / INSTRUCTIONS TO GIVE TO AI STUDIO / YOUR DEVELOPER
+1. DIRECT DATABASE & CLOUD ENVIRONMENT VARIABLES (SHARED AUTO-SYNC)
+--------------------------------------------------------------------------------
+Add these to your website's .env configuration to connect to the exact same cloud database so users never need to log in twice:
+
+VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
+GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk
+
+--------------------------------------------------------------------------------
+2. PROMPT / INSTRUCTIONS TO GIVE TO AI STUDIO / YOUR WEB DEVELOPER
 --------------------------------------------------------------------------------
 ${studioAiPrompt}
 
 --------------------------------------------------------------------------------
-2. READY-TO-USE JAVASCRIPT / TYPESCRIPT CLIENT SERVICE
+3. READY-TO-USE JAVASCRIPT / TYPESCRIPT UNIVERSAL CLIENT SERVICE
 --------------------------------------------------------------------------------
 /**
- * Vixora Video Generation Client Service
- * Add this file to your website project (e.g. services/videoEngine.js)
+ * Vixora Universal Studio API Client
+ * Save this file to your website project (e.g. services/vixoraClient.js)
  */
-export async function createAndRenderVideo({
-  topic,
-  script,
-  duration = '15s',
-  aspectRatio = 'vertical',
-  voice = 'Aoede',
-  onProgress,
-}) {
-  const API_BASE = '${baseUrl}';
-
-  // 1. Submit Video Generation Job
-  const createRes = await fetch(\`\${API_BASE}/api/public/v1/videos/create\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      topic,
-      script: script || undefined,
-      duration,
-      aspect_ratio: aspectRatio,
-      voice,
-    }),
-  });
-
-  const createData = await createRes.json();
-  if (!createData.ok || !createData.job_id) {
-    throw new Error(createData.error || 'Failed to submit video generation job');
+export class VixoraClient {
+  constructor(baseUrl = '${baseUrl}') {
+    this.baseUrl = baseUrl;
   }
 
-  const jobId = createData.job_id;
+  // 1. Sync User Session (Single Sign-On)
+  async syncUserSession({ userId, email, fullName, accessToken }) {
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/auth/sync\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email, full_name: fullName, access_token: accessToken })
+    });
+    return res.json();
+  }
 
-  // 2. Poll for Progress until Video is Ready
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
-      try {
-        const statusRes = await fetch(\`\${API_BASE}/api/public/v1/videos/status?job_id=\${jobId}\`);
-        const statusData = await statusRes.json();
+  // 2. Generate Viral Script with Scene Beats
+  async generateScript({ topic, duration = '30s', niche = 'general', tone = 'engaging' }) {
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/scripts/generate\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, duration, niche, tone })
+    });
+    return res.json();
+  }
 
-        if (onProgress) {
-          onProgress({
-            progress: statusData.progress || 0,
-            step: statusData.current_step || 'Processing...',
-            status: statusData.status,
-            logs: statusData.logs || [],
-          });
-        }
+  // 3. Synthesize Voiceover Audio
+  async synthesizeVoiceover({ text, voice = 'Aoede', speed = 1.0 }) {
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/audio/tts\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, speed })
+    });
+    return res.json();
+  }
 
-        if (statusData.status === 'ready') {
+  // 4. Fetch Sound Effects (SFX) Catalog
+  async getSfxCatalog(category) {
+    const query = category ? \`?category=\${category}\` : '';
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/audio/sfx\${query}\`);
+    return res.json();
+  }
+
+  // 5. Fetch Background Music Library
+  async getMusicTracks(mood) {
+    const query = mood ? \`?mood=\${mood}\` : '';
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/audio/music\${query}\`);
+    return res.json();
+  }
+
+  // 6. Search Stock Media
+  async searchStockMedia(query, orientation = 'vertical') {
+    const res = await fetch(\`\${this.baseUrl}/api/public/v1/assets/search\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, orientation })
+    });
+    return res.json();
+  }
+
+  // 7. Full Video Render Pipeline
+  async createAndRenderVideo({ topic, script, duration = '15s', aspectRatio = 'vertical', voice = 'Aoede', onProgress }) {
+    const createRes = await fetch(\`\${this.baseUrl}/api/public/v1/videos/create\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, script, duration, aspect_ratio: aspectRatio, voice }),
+    });
+
+    const createData = await createRes.json();
+    if (!createData.ok || !createData.job_id) {
+      throw new Error(createData.error || 'Failed to submit video generation job');
+    }
+
+    const jobId = createData.job_id;
+
+    return new Promise((resolve, reject) => {
+      const interval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(\`\${this.baseUrl}/api/public/v1/videos/status?job_id=\${jobId}\`);
+          const statusData = await statusRes.json();
+
+          if (onProgress) {
+            onProgress({
+              progress: statusData.progress || 0,
+              step: statusData.current_step || 'Processing...',
+              status: statusData.status,
+              logs: statusData.logs || [],
+            });
+          }
+
+          if (statusData.status === 'ready') {
+            clearInterval(interval);
+            const fullVideoUrl = statusData.video_url.startsWith('http')
+              ? statusData.video_url
+              : \`\${this.baseUrl}\${statusData.video_url}\`;
+
+            resolve({
+              jobId: statusData.job_id,
+              assetId: statusData.asset_id,
+              videoUrl: fullVideoUrl,
+              thumbnailUrl: statusData.thumbnail_url,
+            });
+          } else if (statusData.status === 'failed') {
+            clearInterval(interval);
+            reject(new Error(statusData.error || 'Video rendering failed on server'));
+          }
+        } catch (err) {
           clearInterval(interval);
-          const fullVideoUrl = statusData.video_url.startsWith('http')
-            ? statusData.video_url
-            : \`\${API_BASE}\${statusData.video_url}\`;
-
-          resolve({
-            jobId: statusData.job_id,
-            assetId: statusData.asset_id,
-            videoUrl: fullVideoUrl,
-            thumbnailUrl: statusData.thumbnail_url,
-          });
-        } else if (statusData.status === 'failed') {
-          clearInterval(interval);
-          reject(new Error(statusData.error || 'Video rendering failed on server'));
+          reject(err);
         }
-      } catch (err) {
-        clearInterval(interval);
-        reject(err);
-      }
-    }, 2000);
-  });
+      }, 2000);
+    });
+  }
 }
 
---------------------------------------------------------------------------------
-3. READY-TO-USE REACT COMPONENT FOR YOUR WEBSITE
---------------------------------------------------------------------------------
-import React, { useState } from 'react';
-import { createAndRenderVideo } from './videoEngine';
+export const vixora = new VixoraClient();
 
-export function NativeVideoGenerator() {
-  const [topic, setTopic] = useState('3 Rules for Rapid Daily Focus');
+--------------------------------------------------------------------------------
+4. READY-TO-USE EMBEDDED REACT COMPONENT FOR YOUR WEBSITE
+--------------------------------------------------------------------------------
+import React, { useState, useEffect } from 'react';
+import { vixora } from './services/vixoraClient';
+
+export function VixoraNativeStudioEmbed({ currentUser }) {
+  const [topic, setTopic] = useState('3 Daily Habits for Peak Energy');
+  const [script, setScript] = useState('');
   const [aspectRatio, setAspectRatio] = useState('vertical');
   const [duration, setDuration] = useState('15s');
+  const [voice, setVoice] = useState('kore');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWritingScript, setIsWritingScript] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stepText, setStepText] = useState('');
   const [videoResult, setVideoResult] = useState(null);
   const [error, setError] = useState(null);
 
-  const handleGenerate = async (e) => {
+  // Auto-sync logged-in website user on mount (Single Sign-On)
+  useEffect(() => {
+    if (currentUser) {
+      vixora.syncUserSession({
+        userId: currentUser.id,
+        email: currentUser.email,
+        fullName: currentUser.name || currentUser.fullName,
+      }).catch(console.error);
+    }
+  }, [currentUser]);
+
+  // AI Script Generation Handler
+  const handleGenerateScript = async () => {
+    if (!topic) return;
+    setIsWritingScript(true);
+    setError(null);
+    try {
+      const data = await vixora.generateScript({ topic, duration });
+      if (data.ok && data.script) {
+        setScript(data.script);
+      }
+    } catch (err) {
+      setError('Failed to auto-write script: ' + err.message);
+    } finally {
+      setIsWritingScript(false);
+    }
+  };
+
+  // Full Video Render Handler
+  const handleRenderVideo = async (e) => {
     e.preventDefault();
     setIsGenerating(true);
     setError(null);
@@ -180,10 +273,12 @@ export function NativeVideoGenerator() {
     setStepText('Initializing video pipeline...');
 
     try {
-      const result = await createAndRenderVideo({
+      const result = await vixora.createAndRenderVideo({
         topic,
+        script: script || undefined,
         duration,
         aspectRatio,
+        voice,
         onProgress: (p) => {
           setProgress(p.progress);
           setStepText(p.step);
@@ -198,44 +293,88 @@ export function NativeVideoGenerator() {
   };
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
-      <h2>AI Video Creator</h2>
-      <form onSubmit={handleGenerate}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>AI Video Creator</h2>
+        <span style={{ fontSize: '12px', background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '12px', fontWeight: 'bold' }}>
+          Cloud Synced
+        </span>
+      </div>
+
+      <form onSubmit={handleRenderVideo}>
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Topic or Idea</label>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ccc' }}
-            required
-          />
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px', fontSize: '14px' }}>Topic or Concept</label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+              placeholder="e.g. 5 Habits of Highly Successful Founders"
+              required
+            />
+            <button
+              type="button"
+              onClick={handleGenerateScript}
+              disabled={isWritingScript}
+              style={{ padding: '12px 16px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {isWritingScript ? 'Writing...' : 'AI Script'}
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Ratio</label>
+        {script && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px', fontSize: '14px' }}>Generated Voiceover Script</label>
+            <textarea
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              rows={3}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px', fontSize: '14px' }}>Ratio</label>
             <select
               value={aspectRatio}
               onChange={(e) => setAspectRatio(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
             >
-              <option value="vertical">9:16 (TikTok / Reels / Shorts)</option>
-              <option value="square">1:1 (Instagram / LinkedIn)</option>
-              <option value="horizontal">16:9 (YouTube / Web)</option>
+              <option value="vertical">9:16 (TikTok / Reels)</option>
+              <option value="square">1:1 (Square)</option>
+              <option value="horizontal">16:9 (YouTube)</option>
             </select>
           </div>
 
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>Duration</label>
+          <div>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px', fontSize: '14px' }}>Duration</label>
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
             >
               <option value="15s">15 Seconds</option>
               <option value="30s">30 Seconds</option>
               <option value="60s">60 Seconds</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px', fontSize: '14px' }}>AI Voice</label>
+            <select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            >
+              <option value="Kore">Kore (Energetic Nigerian)</option>
+              <option value="Aoede">Aoede (Warm Storyteller)</option>
+              <option value="Puck">Puck (Viral Upbeat)</option>
+              <option value="Charon">Charon (Cinematic Deep)</option>
+              <option value="Fenrir">Fenrir (Bold Reviewer)</option>
             </select>
           </div>
         </div>
@@ -252,9 +391,10 @@ export function NativeVideoGenerator() {
             border: 'none',
             borderRadius: '8px',
             cursor: isGenerating ? 'not-allowed' : 'pointer',
+            fontSize: '15px'
           }}
         >
-          {isGenerating ? \`Generating (\${progress}%)... \${stepText}\` : 'Generate Video'}
+          {isGenerating ? \`Rendering (\${progress}%)... \${stepText}\` : 'Generate Video Now'}
         </button>
       </form>
 
@@ -265,7 +405,7 @@ export function NativeVideoGenerator() {
             <span>{stepText}</span>
             <span>{progress}%</span>
           </div>
-          <div style={{ height: '8px', background: '#eee', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: \`\${progress}%\`, background: '#ff5500', transition: 'width 0.3s' }}></div>
           </div>
         </div>
@@ -273,7 +413,7 @@ export function NativeVideoGenerator() {
 
       {/* Error Message */}
       {error && (
-        <div style={{ marginTop: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '8px' }}>
+        <div style={{ marginTop: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '8px', fontSize: '13px' }}>
           {error}
         </div>
       )}
@@ -281,7 +421,7 @@ export function NativeVideoGenerator() {
       {/* Rendered Video Player */}
       {videoResult && (
         <div style={{ marginTop: '24px' }}>
-          <h3>Your Generated Video:</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>Your Generated Video:</h3>
           <video
             src={videoResult.videoUrl}
             poster={videoResult.thumbnailUrl}
@@ -304,7 +444,7 @@ export function NativeVideoGenerator() {
                 fontWeight: 'bold',
               }}
             >
-              Download MP4
+              Download MP4 Video
             </a>
           </div>
         </div>
@@ -312,18 +452,6 @@ export function NativeVideoGenerator() {
     </div>
   );
 }
-
---------------------------------------------------------------------------------
-4. RAW CURL COMMAND FOR TESTING IN TERMINAL
---------------------------------------------------------------------------------
-curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "topic": "3 Productivity Hacks",
-    "duration": "15s",
-    "aspect_ratio": "vertical",
-    "voice": "Aoede"
-  }'
 ================================================================================
 `;
 
@@ -347,14 +475,14 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-white">
-                  One-Click Complete API & Integration Bundle
+                  Universal API & Database Integration Bundle
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/30">
                   Live & Active
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Contains API specs, Studio AI prompts, JavaScript client, and React native component.
+                All features exposed (Video, Script, Voiceover, SFX, Music, Stock, Cloud SSO Database Sync).
               </p>
             </div>
           </div>
@@ -381,9 +509,10 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10 bg-slate-900/40 overflow-x-auto">
           {[
             { id: 'all', label: 'Complete Bundle (All-in-One)' },
-            { id: 'prompt', label: 'Studio AI Prompt' },
-            { id: 'code', label: 'React & JS Client Code' },
-            { id: 'api', label: 'Raw Endpoints & cURL' },
+            { id: 'prompt', label: 'AI Studio Prompt' },
+            { id: 'sync', label: 'Shared Database & SSO Sync' },
+            { id: 'code', label: 'Universal JS Client & React Code' },
+            { id: 'api', label: 'All API Endpoints' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -410,10 +539,10 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
           {activeTab === 'prompt' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-slate-400 text-xs font-sans font-bold">
-                <span>Copy this prompt and paste it directly to your AI Studio / Developer:</span>
+                <span>Copy this prompt and paste it directly to your AI Studio / Web Developer:</span>
                 <button
                   onClick={() => copyToClipboard(studioAiPrompt)}
-                  className="text-ggd-orange hover:underline flex items-center gap-1"
+                  className="text-ggd-orange hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <i className="fa-solid fa-copy"></i> Copy Prompt
                 </button>
@@ -424,19 +553,46 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
             </div>
           )}
 
+          {activeTab === 'sync' && (
+            <div className="space-y-3 font-sans">
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs leading-relaxed">
+                <h4 className="font-black text-sm uppercase text-emerald-400 mb-1">
+                  Direct Database Integration & No Double Sign-In
+                </h4>
+                <p>
+                  To allow users to access the same projects, assets, and profiles without having to sign in again, configure these environment variables on your website:
+                </p>
+              </div>
+
+              <pre className="p-4 rounded-2xl bg-slate-950 border border-white/10 overflow-x-auto text-cyan-300 font-mono text-xs whitespace-pre-wrap">
+{`# Shared Cloud Database & AI Keys
+VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
+GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk`}
+              </pre>
+
+              <button
+                onClick={() => copyToClipboard(`VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co\nVITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ\nGEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk`)}
+                className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <i className="fa-solid fa-copy"></i> Copy Environment Variables
+              </button>
+            </div>
+          )}
+
           {activeTab === 'code' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-slate-400 text-xs font-sans font-bold">
-                <span>Production JS Client & React Component:</span>
+                <span>Production JS Universal Client & React Embed Component:</span>
                 <button
                   onClick={() => copyToClipboard(copyableFullBundle)}
-                  className="text-ggd-orange hover:underline flex items-center gap-1"
+                  className="text-ggd-orange hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <i className="fa-solid fa-copy"></i> Copy Full Code
+                  <i className="fa-solid fa-copy"></i> Copy Client Code
                 </button>
               </div>
               <pre className="p-4 rounded-2xl bg-slate-950 border border-white/10 overflow-x-auto text-cyan-300 whitespace-pre-wrap">
-                {copyableFullBundle.slice(copyableFullBundle.indexOf('2. READY-TO-USE JAVASCRIPT'), copyableFullBundle.indexOf('4. RAW CURL COMMAND'))}
+                {copyableFullBundle.slice(copyableFullBundle.indexOf('3. READY-TO-USE JAVASCRIPT'), copyableFullBundle.length - 85)}
               </pre>
             </div>
           )}
@@ -444,16 +600,16 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
           {activeTab === 'api' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-slate-400 text-xs font-sans font-bold">
-                <span>Raw HTTP Endpoints & Specs:</span>
+                <span>All Live Endpoints & Specifications:</span>
                 <button
                   onClick={() => copyToClipboard(copyableFullBundle)}
-                  className="text-ggd-orange hover:underline flex items-center gap-1"
+                  className="text-ggd-orange hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <i className="fa-solid fa-copy"></i> Copy Spec
                 </button>
               </div>
               <pre className="p-4 rounded-2xl bg-slate-950 border border-white/10 overflow-x-auto text-emerald-400 whitespace-pre-wrap">
-                {copyableFullBundle.slice(0, copyableFullBundle.indexOf('2. READY-TO-USE JAVASCRIPT'))}
+                {copyableFullBundle.slice(0, copyableFullBundle.indexOf('3. READY-TO-USE JAVASCRIPT'))}
               </pre>
             </div>
           )}
@@ -463,7 +619,7 @@ curl -X POST "${baseUrl}/api/public/v1/videos/create" \\
         <div className="p-4 bg-slate-900/90 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-medium">
             <i className="fa-solid fa-shield-halved text-emerald-400"></i>
-            <span>CORS Enabled & Ready for Any Website Frontend</span>
+            <span>CORS Enabled & Direct Database Sync Configured</span>
           </div>
 
           <button

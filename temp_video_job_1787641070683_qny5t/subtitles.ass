@@ -1,0 +1,51 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,280,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.11,CapCut,,0,0,0,,{\1c&H00FFFF&}AI{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.11,0:00:00.66,CapCut,,0,0,0,,{\1c&H00FFFF&}automation{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.66,0:00:00.93,CapCut,,0,0,0,,{\1c&H00FFFF&}isn't{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.93,0:00:01.16,CapCut,,0,0,0,,{\1c&H00FFFF&}just{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.16,0:00:01.43,CapCut,,0,0,0,,{\1c&H00FFFF&}about{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.43,0:00:01.98,CapCut,,0,0,0,,{\1c&H00FFFF&}efficiency{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.98,0:00:02.43,CapCut,,0,0,0,,{\1c&H00FFFF&}anymore.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.43,0:00:02.59,CapCut,,0,0,0,,{\1c&H00FFFF&}The{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.59,0:00:02.76,CapCut,,0,0,0,,{\1c&H00FFFF&}big{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.76,0:00:03.09,CapCut,,0,0,0,,{\1c&H00FFFF&}trends{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.09,0:00:03.26,CapCut,,0,0,0,,{\1c&H00FFFF&}are{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.26,0:00:03.81,CapCut,,0,0,0,,{\1c&H00FFFF&}predictive{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.81,0:00:03.92,CapCut,,0,0,0,,{\1c&H00FFFF&}AI{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.92,0:00:04.09,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.09,0:00:05.08,CapCut,,0,0,0,,{\1c&H00FFFF&}hyper-personalized{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.08,0:00:05.75,CapCut,,0,0,0,,{\1c&H00FFFF&}experiences,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.75,0:00:06.14,CapCut,,0,0,0,,{\1c&H00FFFF&}powered{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.14,0:00:06.25,CapCut,,0,0,0,,{\1c&H00FFFF&}by{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.25,0:00:06.80,CapCut,,0,0,0,,{\1c&H00FFFF&}autonomous{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.80,0:00:07.19,CapCut,,0,0,0,,{\1c&H00FFFF&}agents.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.19,0:00:07.52,CapCut,,0,0,0,,{\1c&H00FFFF&}Expect{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.52,0:00:08.01,CapCut,,0,0,0,,{\1c&H00FFFF&}seamless,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.01,0:00:08.88,CapCut,,0,0,0,,{\1c&H00FFFF&}cross-functional{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.88,0:00:09.48,CapCut,,0,0,0,,{\1c&H00FFFF&}integration{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.48,0:00:09.70,CapCut,,0,0,0,,{\1c&H00FFFF&}that{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.70,0:00:10.30,CapCut,,0,0,0,,{\1c&H00FFFF&}anticipates{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.30,0:00:10.57,CapCut,,0,0,0,,{\1c&H00FFFF&}needs{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.57,0:00:10.90,CapCut,,0,0,0,,{\1c&H00FFFF&}before{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.90,0:00:11.12,CapCut,,0,0,0,,{\1c&H00FFFF&}they{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.12,0:00:11.33,CapCut,,0,0,0,,{\1c&H00FFFF&}even{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.33,0:00:11.66,CapCut,,0,0,0,,{\1c&H00FFFF&}arise.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.66,0:00:11.89,CapCut,,0,0,0,,{\1c&H00FFFF&}Stay{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.89,0:00:12.23,CapCut,,0,0,0,,{\1c&H00FFFF&}ahead:{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.23,0:00:12.34,CapCut,,0,0,0,,{\1c&H00FFFF&}AI{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.34,0:00:12.46,CapCut,,0,0,0,,{\1c&H00FFFF&}is{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.46,0:00:12.69,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.69,0:00:12.86,CapCut,,0,0,0,,{\1c&H00FFFF&}new{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.86,0:00:13.48,CapCut,,0,0,0,,{\1c&H00FFFF&}operational{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.48,0:00:14.00,CapCut,,0,0,0,,{\1c&H00FFFF&}backbone.{\1c&HFFFFFF&}

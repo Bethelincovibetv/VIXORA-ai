@@ -1,0 +1,59 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,36,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,120,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.14,CapCut,,0,0,0,,{\1c&H00FFFF&}The{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.14,0:00:00.43,CapCut,,0,0,0,,{\1c&H00FFFF&}future{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.43,0:00:00.67,CapCut,,0,0,0,,{\1c&H00FFFF&}isn't{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.67,0:00:01.01,CapCut,,0,0,0,,{\1c&H00FFFF&}coming,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.01,0:00:01.20,CapCut,,0,0,0,,{\1c&H00FFFF&}it's{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.20,0:00:01.54,CapCut,,0,0,0,,{\1c&H00FFFF&}already{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.54,0:00:01.78,CapCut,,0,0,0,,{\1c&H00FFFF&}here.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.78,0:00:01.96,CapCut,,0,0,0,,{\1c&H00FFFF&}Deep{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.96,0:00:02.15,CapCut,,0,0,0,,{\1c&H00FFFF&}tech{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.15,0:00:02.76,CapCut,,0,0,0,,{\1c&H00FFFF&}breakthroughs{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.76,0:00:02.91,CapCut,,0,0,0,,{\1c&H00FFFF&}are{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.91,0:00:03.38,CapCut,,0,0,0,,{\1c&H00FFFF&}redefining{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.38,0:00:03.75,CapCut,,0,0,0,,{\1c&H00FFFF&}reality,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.75,0:00:03.94,CapCut,,0,0,0,,{\1c&H00FFFF&}from{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.94,0:00:04.27,CapCut,,0,0,0,,{\1c&H00FFFF&}quantum{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.27,0:00:04.69,CapCut,,0,0,0,,{\1c&H00FFFF&}computing{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.69,0:00:04.79,CapCut,,0,0,0,,{\1c&H00FFFF&}to{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.79,0:00:05.31,CapCut,,0,0,0,,{\1c&H00FFFF&}sustainable{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.31,0:00:05.59,CapCut,,0,0,0,,{\1c&H00FFFF&}energy{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.59,0:00:05.73,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.73,0:00:06.20,CapCut,,0,0,0,,{\1c&H00FFFF&}AI-powered{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.20,0:00:06.53,CapCut,,0,0,0,,{\1c&H00FFFF&}medical{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.53,0:00:06.95,CapCut,,0,0,0,,{\1c&H00FFFF&}miracles.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.95,0:00:07.19,CapCut,,0,0,0,,{\1c&H00FFFF&}We're{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.19,0:00:07.51,CapCut,,0,0,0,,{\1c&H00FFFF&}talking{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.51,0:00:07.75,CapCut,,0,0,0,,{\1c&H00FFFF&}about{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.75,0:00:08.31,CapCut,,0,0,0,,{\1c&H00FFFF&}advancements{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.31,0:00:08.50,CapCut,,0,0,0,,{\1c&H00FFFF&}that{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.50,0:00:08.68,CapCut,,0,0,0,,{\1c&H00FFFF&}will{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.68,0:00:09.29,CapCut,,0,0,0,,{\1c&H00FFFF&}fundamentally{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.29,0:00:09.62,CapCut,,0,0,0,,{\1c&H00FFFF&}rewrite{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.62,0:00:10.09,CapCut,,0,0,0,,{\1c&H00FFFF&}industries{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.09,0:00:10.23,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.23,0:00:10.46,CapCut,,0,0,0,,{\1c&H00FFFF&}human{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.46,0:00:10.93,CapCut,,0,0,0,,{\1c&H00FFFF&}potential.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.93,0:00:11.08,CapCut,,0,0,0,,{\1c&H00FFFF&}Get{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.08,0:00:11.37,CapCut,,0,0,0,,{\1c&H00FFFF&}ready:{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.37,0:00:11.51,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.51,0:00:11.85,CapCut,,0,0,0,,{\1c&H00FFFF&}biggest{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.85,0:00:12.34,CapCut,,0,0,0,,{\1c&H00FFFF&}revolution{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.34,0:00:12.63,CapCut,,0,0,0,,{\1c&H00FFFF&}you've{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.63,0:00:12.83,CapCut,,0,0,0,,{\1c&H00FFFF&}ever{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.83,0:00:13.02,CapCut,,0,0,0,,{\1c&H00FFFF&}seen{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.02,0:00:13.12,CapCut,,0,0,0,,{\1c&H00FFFF&}is{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.12,0:00:13.56,CapCut,,0,0,0,,{\1c&H00FFFF&}unfolding{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.56,0:00:13.80,CapCut,,0,0,0,,{\1c&H00FFFF&}right{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.80,0:00:14.00,CapCut,,0,0,0,,{\1c&H00FFFF&}now.{\1c&HFFFFFF&}

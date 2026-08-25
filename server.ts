@@ -7,6 +7,12 @@ import {
   enqueueVideoJob, 
   getJob, 
   getAllJobs, 
+  registerServerAsset,
+  listServerAssets,
+  getServerAsset,
+  upsertServerProject,
+  listServerProjects,
+  getServerProject,
   CreateVideoParams 
 } from './services/serverVideoEngine';
 
@@ -99,6 +105,7 @@ async function startServer() {
 
   app.post('/api/public/v1/videos/create', handleVideoCreate);
   app.post('/api/videos/create', handleVideoCreate);
+  app.post('/videos/create', handleVideoCreate);
 
   /**
    * GET /api/public/v1/videos/status & GET /api/videos/status
@@ -152,13 +159,16 @@ async function startServer() {
 
   app.get('/api/public/v1/videos/status', handleVideoStatus);
   app.get('/api/videos/status', handleVideoStatus);
+  app.get('/videos/status', handleVideoStatus);
   app.post('/api/public/v1/videos/status', handleVideoStatus);
+  app.post('/api/videos/status', handleVideoStatus);
+  app.post('/videos/status', handleVideoStatus);
 
   /**
    * GET /api/public/v1/videos/list
    * Returns list of recent server-generated video jobs
    */
-  app.get('/api/public/v1/videos/list', (req, res) => {
+  const handleVideosList = (req: express.Request, res: express.Response) => {
     const jobs = getAllJobs();
     res.json({
       ok: true,
@@ -174,7 +184,128 @@ async function startServer() {
         created_at: j.created_at,
       })),
     });
-  });
+  };
+
+  app.get('/api/public/v1/videos/list', handleVideosList);
+  app.get('/api/videos/list', handleVideosList);
+  app.get('/videos/list', handleVideosList);
+
+  /**
+   * POST /assets/create, POST /api/assets/create, POST /api/public/v1/assets/create
+   */
+  const handleAssetCreate = (req: express.Request, res: express.Response) => {
+    try {
+      const { id, project_id, name, type, url, format, duration, resolution, metadata } = req.body || {};
+      const assetId = id || `asset_${Date.now()}`;
+      
+      const asset = registerServerAsset({
+        id: assetId,
+        project_id: project_id || `proj_${Date.now()}`,
+        name: name || 'Video Asset',
+        type: type || 'video',
+        url: url || '',
+        format: format || 'mp4',
+        duration: duration || '30s',
+        resolution: resolution || '1080p',
+        metadata: metadata || {},
+      });
+
+      return res.status(201).json({
+        ok: true,
+        asset,
+        data: asset,
+        message: 'Asset registered successfully',
+      });
+    } catch (err: any) {
+      console.error('[API /assets/create Error]:', err);
+      return res.status(500).json({
+        ok: false,
+        error: err?.message || 'Failed to register asset',
+      });
+    }
+  };
+
+  app.post('/api/public/v1/assets/create', handleAssetCreate);
+  app.post('/api/assets/create', handleAssetCreate);
+  app.post('/assets/create', handleAssetCreate);
+
+  /**
+   * GET /projects/list, POST /projects/list, GET /api/projects/list
+   * Supports ?include_assets=true and ?project_id=...
+   */
+  const handleProjectsList = (req: express.Request, res: express.Response) => {
+    try {
+      const includeAssets = req.query.include_assets === 'true' || req.body?.include_assets === true;
+      const projectId = (req.query.project_id as string) || req.body?.project_id;
+
+      if (projectId) {
+        const project = getServerProject(projectId, includeAssets);
+        return res.json({
+          ok: true,
+          projects: project ? [project] : [],
+          data: project ? [project] : [],
+        });
+      }
+
+      const projects = listServerProjects(includeAssets);
+      return res.json({
+        ok: true,
+        count: projects.length,
+        projects,
+        data: projects,
+      });
+    } catch (err: any) {
+      console.error('[API /projects/list Error]:', err);
+      return res.status(500).json({
+        ok: false,
+        error: err?.message || 'Failed to fetch projects list',
+      });
+    }
+  };
+
+  app.get('/api/public/v1/projects/list', handleProjectsList);
+  app.post('/api/public/v1/projects/list', handleProjectsList);
+  app.get('/api/projects/list', handleProjectsList);
+  app.post('/api/projects/list', handleProjectsList);
+  app.get('/projects/list', handleProjectsList);
+  app.post('/projects/list', handleProjectsList);
+
+  /**
+   * POST /projects/create
+   */
+  const handleProjectCreate = (req: express.Request, res: express.Response) => {
+    try {
+      const { id, title, topic, status, aspect_ratio, target_duration, script_text, voiceover_url, video_url } = req.body || {};
+      const projId = id || `proj_${Date.now()}`;
+      const project = upsertServerProject({
+        id: projId,
+        title: title || topic || 'New Project',
+        topic,
+        status: status || 'draft',
+        aspect_ratio,
+        target_duration,
+        script_text,
+        voiceover_url,
+        video_url,
+      });
+
+      return res.status(201).json({
+        ok: true,
+        project,
+        data: project,
+        message: 'Project created successfully',
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        ok: false,
+        error: err?.message || 'Failed to create project',
+      });
+    }
+  };
+
+  app.post('/api/public/v1/projects/create', handleProjectCreate);
+  app.post('/api/projects/create', handleProjectCreate);
+  app.post('/projects/create', handleProjectCreate);
 
   /**
    * GET /api/public/v1/assets/download/:filename
@@ -201,6 +332,7 @@ async function startServer() {
 
   app.get('/api/public/v1/assets/download/:filename', handleAssetDownload);
   app.get('/api/assets/download/:filename', handleAssetDownload);
+  app.get('/assets/download/:filename', handleAssetDownload);
 
   // ==========================================================================
   // VITE DEV MIDDLEWARE & PRODUCTION STATIC SERVING

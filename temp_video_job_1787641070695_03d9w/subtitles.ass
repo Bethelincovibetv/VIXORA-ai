@@ -1,0 +1,47 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,36,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,120,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.44,CapCut,,0,0,0,,{\1c&H00FFFF&}Unlock{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.44,0:00:00.73,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.73,0:00:01.25,CapCut,,0,0,0,,{\1c&H00FFFF&}morning{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.25,0:00:01.70,CapCut,,0,0,0,,{\1c&H00FFFF&}power!{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.70,0:00:02.22,CapCut,,0,0,0,,{\1c&H00FFFF&}Hydrate{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.22,0:00:03.05,CapCut,,0,0,0,,{\1c&H00FFFF&}immediately{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.05,0:00:03.12,CapCut,,0,0,0,,{\1c&H00FFFF&}–{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.12,0:00:03.57,CapCut,,0,0,0,,{\1c&H00FFFF&}water,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.57,0:00:03.80,CapCut,,0,0,0,,{\1c&H00FFFF&}not{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.80,0:00:04.32,CapCut,,0,0,0,,{\1c&H00FFFF&}coffee,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.32,0:00:04.77,CapCut,,0,0,0,,{\1c&H00FFFF&}first.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.77,0:00:05.16,CapCut,,0,0,0,,{\1c&H00FFFF&}Next,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.16,0:00:05.77,CapCut,,0,0,0,,{\1c&H00FFFF&}identify{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.77,0:00:06.08,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.08,0:00:06.31,CapCut,,0,0,0,,{\1c&H00FFFF&}top{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.31,0:00:06.70,CapCut,,0,0,0,,{\1c&H00FFFF&}three{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.70,0:00:07.08,CapCut,,0,0,0,,{\1c&H00FFFF&}tasks{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.08,0:00:07.31,CapCut,,0,0,0,,{\1c&H00FFFF&}for{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.31,0:00:07.85,CapCut,,0,0,0,,{\1c&H00FFFF&}focused{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.85,0:00:08.24,CapCut,,0,0,0,,{\1c&H00FFFF&}work.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.24,0:00:09.01,CapCut,,0,0,0,,{\1c&H00FFFF&}Crucially,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.01,0:00:09.39,CapCut,,0,0,0,,{\1c&H00FFFF&}delay{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.39,0:00:09.86,CapCut,,0,0,0,,{\1c&H00FFFF&}screen{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.86,0:00:10.16,CapCut,,0,0,0,,{\1c&H00FFFF&}time{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.16,0:00:10.40,CapCut,,0,0,0,,{\1c&H00FFFF&}for{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.40,0:00:10.55,CapCut,,0,0,0,,{\1c&H00FFFF&}at{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.55,0:00:10.93,CapCut,,0,0,0,,{\1c&H00FFFF&}least{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.93,0:00:11.09,CapCut,,0,0,0,,{\1c&H00FFFF&}30{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.09,0:00:11.71,CapCut,,0,0,0,,{\1c&H00FFFF&}minutes.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.71,0:00:12.16,CapCut,,0,0,0,,{\1c&H00FFFF&}That's{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.16,0:00:12.39,CapCut,,0,0,0,,{\1c&H00FFFF&}how{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.39,0:00:12.93,CapCut,,0,0,0,,{\1c&H00FFFF&}winners{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.93,0:00:13.31,CapCut,,0,0,0,,{\1c&H00FFFF&}start{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.31,0:00:13.69,CapCut,,0,0,0,,{\1c&H00FFFF&}their{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.69,0:00:14.00,CapCut,,0,0,0,,{\1c&H00FFFF&}day.{\1c&HFFFFFF&}

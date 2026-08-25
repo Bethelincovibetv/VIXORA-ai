@@ -1,0 +1,42 @@
+[Script Info]
+Title: Vixora Server Video
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: CapCut,Arial,36,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,120,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.51,CapCut,,0,0,0,,{\1c&H00FFFF&}Okay,{\1c&HFFFFFF&}
+Dialogue: 0,0:00:00.51,0:00:01.02,CapCut,,0,0,0,,{\1c&H00FFFF&}Quick{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.02,0:00:01.64,CapCut,,0,0,0,,{\1c&H00FFFF&}Square{\1c&HFFFFFF&}
+Dialogue: 0,0:00:01.64,0:00:02.15,CapCut,,0,0,0,,{\1c&H00FFFF&}Test:{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.15,0:00:02.46,CapCut,,0,0,0,,{\1c&H00FFFF&}can{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.46,0:00:02.77,CapCut,,0,0,0,,{\1c&H00FFFF&}you{\1c&HFFFFFF&}
+Dialogue: 0,0:00:02.77,0:00:03.08,CapCut,,0,0,0,,{\1c&H00FFFF&}see{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.08,0:00:03.39,CapCut,,0,0,0,,{\1c&H00FFFF&}all{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.39,0:00:03.69,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:03.69,0:00:04.41,CapCut,,0,0,0,,{\1c&H00FFFF&}squares{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.41,0:00:04.62,CapCut,,0,0,0,,{\1c&H00FFFF&}in{\1c&HFFFFFF&}
+Dialogue: 0,0:00:04.62,0:00:05.03,CapCut,,0,0,0,,{\1c&H00FFFF&}this{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.03,0:00:05.65,CapCut,,0,0,0,,{\1c&H00FFFF&}image?{\1c&HFFFFFF&}
+Dialogue: 0,0:00:05.65,0:00:06.14,CapCut,,0,0,0,,{\1c&H00FFFF&}Don't{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.14,0:00:06.63,CapCut,,0,0,0,,{\1c&H00FFFF&}rush;{\1c&HFFFFFF&}
+Dialogue: 0,0:00:06.63,0:00:07.03,CapCut,,0,0,0,,{\1c&H00FFFF&}it's{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.03,0:00:07.82,CapCut,,0,0,0,,{\1c&H00FFFF&}trickier{\1c&HFFFFFF&}
+Dialogue: 0,0:00:07.82,0:00:08.21,CapCut,,0,0,0,,{\1c&H00FFFF&}than{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.21,0:00:08.51,CapCut,,0,0,0,,{\1c&H00FFFF&}you{\1c&HFFFFFF&}
+Dialogue: 0,0:00:08.51,0:00:09.10,CapCut,,0,0,0,,{\1c&H00FFFF&}think.{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.10,0:00:09.60,CapCut,,0,0,0,,{\1c&H00FFFF&}Count{\1c&HFFFFFF&}
+Dialogue: 0,0:00:09.60,0:00:10.50,CapCut,,0,0,0,,{\1c&H00FFFF&}carefully{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.50,0:00:10.80,CapCut,,0,0,0,,{\1c&H00FFFF&}and{\1c&HFFFFFF&}
+Dialogue: 0,0:00:10.80,0:00:11.20,CapCut,,0,0,0,,{\1c&H00FFFF&}then{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.20,0:00:11.60,CapCut,,0,0,0,,{\1c&H00FFFF&}drop{\1c&HFFFFFF&}
+Dialogue: 0,0:00:11.60,0:00:12.00,CapCut,,0,0,0,,{\1c&H00FFFF&}your{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.00,0:00:12.60,CapCut,,0,0,0,,{\1c&H00FFFF&}number{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.60,0:00:12.80,CapCut,,0,0,0,,{\1c&H00FFFF&}in{\1c&HFFFFFF&}
+Dialogue: 0,0:00:12.80,0:00:13.10,CapCut,,0,0,0,,{\1c&H00FFFF&}the{\1c&HFFFFFF&}
+Dialogue: 0,0:00:13.10,0:00:14.00,CapCut,,0,0,0,,{\1c&H00FFFF&}comments!{\1c&HFFFFFF&}

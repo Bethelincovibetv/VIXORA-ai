@@ -79,7 +79,38 @@ export interface VideoJob {
   logs: string[];
 }
 
+export interface ServerAsset {
+  id: string;
+  project_id?: string;
+  name: string;
+  type: string;
+  url: string;
+  format?: string;
+  duration?: string;
+  resolution?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface ServerProject {
+  id: string;
+  title: string;
+  topic?: string;
+  status: string;
+  aspect_ratio?: string;
+  target_duration?: string;
+  created_at: string;
+  updated_at: string;
+  thumbnail_url?: string;
+  script_text?: string;
+  voiceover_url?: string;
+  video_url?: string;
+  assets?: ServerAsset[];
+}
+
 const jobStore = new Map<string, VideoJob>();
+const assetStore = new Map<string, ServerAsset>();
+const projectStore = new Map<string, ServerProject>();
 
 export function getJob(jobId: string): VideoJob | undefined {
   return jobStore.get(jobId);
@@ -102,6 +133,92 @@ export function updateJob(jobId: string, updates: Partial<VideoJob>): VideoJob {
   };
   jobStore.set(jobId, updated);
   return updated;
+}
+
+export function registerServerAsset(assetData: Partial<ServerAsset> & { id: string }): ServerAsset {
+  const asset: ServerAsset = {
+    id: assetData.id,
+    project_id: assetData.project_id || 'default_project',
+    name: assetData.name || 'Video Asset',
+    type: assetData.type || 'video',
+    url: assetData.url || '',
+    format: assetData.format || 'mp4',
+    duration: assetData.duration || '30s',
+    resolution: assetData.resolution || '1080p',
+    metadata: assetData.metadata || {},
+    created_at: assetData.created_at || new Date().toISOString(),
+  };
+  assetStore.set(asset.id, asset);
+
+  // Link to project if exists or create project record
+  if (asset.project_id) {
+    const existingProj = projectStore.get(asset.project_id) || {
+      id: asset.project_id,
+      title: asset.name,
+      status: 'ready',
+      created_at: asset.created_at,
+      updated_at: asset.created_at,
+    };
+    upsertServerProject({
+      ...existingProj,
+      video_url: asset.url,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  return asset;
+}
+
+export function getServerAsset(id: string): ServerAsset | undefined {
+  return assetStore.get(id);
+}
+
+export function listServerAssets(projectId?: string): ServerAsset[] {
+  const all = Array.from(assetStore.values());
+  if (projectId) {
+    return all.filter(a => a.project_id === projectId);
+  }
+  return all;
+}
+
+export function upsertServerProject(projectData: Partial<ServerProject> & { id: string }): ServerProject {
+  const existing = projectStore.get(projectData.id) || {
+    id: projectData.id,
+    title: projectData.title || 'Untitled Project',
+    status: 'draft',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const updated: ServerProject = {
+    ...existing,
+    ...projectData,
+    updated_at: new Date().toISOString(),
+  };
+
+  projectStore.set(updated.id, updated);
+  return updated;
+}
+
+export function listServerProjects(includeAssets: boolean = false): ServerProject[] {
+  const projects = Array.from(projectStore.values());
+  if (!includeAssets) {
+    return projects;
+  }
+  return projects.map(proj => ({
+    ...proj,
+    assets: listServerAssets(proj.id),
+  }));
+}
+
+export function getServerProject(id: string, includeAssets: boolean = false): ServerProject | undefined {
+  const proj = projectStore.get(id);
+  if (!proj) return undefined;
+  if (!includeAssets) return proj;
+  return {
+    ...proj,
+    assets: listServerAssets(proj.id),
+  };
 }
 
 // ============================================================================
@@ -363,8 +480,9 @@ Return ONLY the spoken narrator script text in 3-5 concise, punchy sentences wit
     });
 
     const isVertical = job.aspect_ratio === 'vertical';
-    const width = isVertical ? 1080 : 1920;
-    const height = isVertical ? 1920 : 1080;
+    const isSquare = job.aspect_ratio === 'square';
+    const width = isVertical ? 1080 : isSquare ? 1080 : 1920;
+    const height = isVertical ? 1920 : isSquare ? 1080 : 1080;
 
     const assFilePath = path.join(tempDir, 'subtitles.ass');
     const totalChars = sentences.reduce((sum, s) => sum + s.length, 0) || 1;
@@ -507,6 +625,40 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     const publicVideoUrl = `/api/public/v1/assets/download/${assetId}.mp4`;
     const thumbnailUrl = `https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=640`;
+
+    // Save asset to local server registry
+    registerServerAsset({
+      id: assetId,
+      project_id: job.project_id,
+      name: job.topic || 'Server Generated Video',
+      type: 'video',
+      url: publicVideoUrl,
+      format: job.format,
+      duration: `${Math.round(audioDuration)}s`,
+      resolution: job.resolution,
+      metadata: {
+        job_id: jobId,
+        aspect_ratio: job.aspect_ratio,
+        script: finalScript,
+        generated_server_side: true,
+      },
+    });
+
+    // Upsert project
+    if (job.project_id) {
+      upsertServerProject({
+        id: job.project_id,
+        title: job.topic || 'Server Generated Project',
+        topic: job.topic,
+        status: 'ready',
+        aspect_ratio: job.aspect_ratio,
+        target_duration: job.duration,
+        thumbnail_url: thumbnailUrl,
+        script_text: finalScript,
+        voiceover_url: `/api/public/v1/assets/download/${assetId}.mp4`,
+        video_url: publicVideoUrl,
+      });
+    }
 
     // Attempt registration via Lovable Cloud /assets/create API
     try {

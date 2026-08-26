@@ -740,6 +740,10 @@ const App: React.FC = () => {
 
   // Refs
   const liveSessionRef = useRef<any>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const inputAudioCtxRef = useRef<AudioContext | null>(null);
+  const outputAudioCtxRef = useRef<AudioContext | null>(null);
+  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const nextStartTimeRef = useRef<number>(0);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const frameIntervalRef = useRef<number | null>(null);
@@ -1895,6 +1899,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
       const ai = new GoogleGenAI({ apiKey: activeApiKey });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      
+      // Store in refs for complete lifecycle cleanup
+      mediaStreamRef.current = stream;
+      inputAudioCtxRef.current = inputCtx;
+      outputAudioCtxRef.current = outputCtx;
+
+      await inputCtx.resume();
+      await outputCtx.resume();
 
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -1903,9 +1915,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
             setIsLiveActive(true);
             setIsConnecting(false);
             setCallTimer(0);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = window.setInterval(() => setCallTimer(t => t + 1), 1000);
             
-            // Automatically prompt Visora AI to initiate the call and speak first!
+            // Automatically prompt Vixora AI to initiate the call and speak first!
             sessionPromise.then(session => {
               session.sendClientContent({
                 turns: [
@@ -1918,10 +1931,12 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 ],
                 turnComplete: true
               });
-            });
+            }).catch(console.error);
 
             const mediaSource = inputCtx.createMediaStreamSource(stream);
             const scriptProcessor = inputCtx.createScriptProcessor(2048, 1, 1);
+            scriptProcessorRef.current = scriptProcessor;
+
             scriptProcessor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
 
@@ -1935,7 +1950,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
               setMicVolumeLevel(normalizedLevel);
 
               const pcmBlob = createGenAIBlob(inputData);
-              sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
+              sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob })).catch(() => {});
             };
             mediaSource.connect(scriptProcessor);
             scriptProcessor.connect(inputCtx.destination);
@@ -1998,8 +2013,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 }
 
                 sessionPromise.then(s => s.sendToolResponse({
-                  functionResponses: { id: fc.id, name: fc.name, response: { result } }
-                }));
+                  functionResponses: [{ id: fc.id, name: fc.name, response: { output: result } }]
+                })).catch(console.error);
               }
             }
 
@@ -2017,12 +2032,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
             }
           },
           onclose: () => stopLiveAssistant(),
-          onerror: (e) => stopLiveAssistant(),
+          onerror: (e) => {
+            console.error("Live assistant error:", e);
+            setAppError("Live voice connection dropped. Please tap again to start call.");
+            stopLiveAssistant();
+          },
         },
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-          tools: [{ googleSearch: {} }, { functionDeclarations: [
+          tools: [{ functionDeclarations: [
             navigateToTabDeclaration,
             generateScriptDeclaration,
             sourceVideoDeclaration,
@@ -2051,8 +2070,9 @@ Structure: Full Masterclass / In-depth Documentary Script.
       });
 
       liveSessionRef.current = await sessionPromise;
-    } catch (err) {
-      setAppError("Mic access denied.");
+    } catch (err: any) {
+      console.error("Failed to start live assistant:", err);
+      setAppError(err?.message || "Microphone access denied or connection failed.");
       setIsConnecting(false);
     }
   };
@@ -2060,10 +2080,45 @@ Structure: Full Masterclass / In-depth Documentary Script.
   const stopLiveAssistant = () => {
     if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    if (liveSessionRef.current) try { liveSessionRef.current.close(); } catch(e){}
+    
+    // Stop all audio playback sources
+    audioSourcesRef.current.forEach(source => {
+      try { source.stop(); } catch(e) {}
+    });
+    audioSourcesRef.current.clear();
+
+    // Disconnect script processor
+    if (scriptProcessorRef.current) {
+      try { scriptProcessorRef.current.disconnect(); } catch(e) {}
+      scriptProcessorRef.current = null;
+    }
+
+    // Close Audio Contexts
+    if (inputAudioCtxRef.current) {
+      try { inputAudioCtxRef.current.close(); } catch(e) {}
+      inputAudioCtxRef.current = null;
+    }
+    if (outputAudioCtxRef.current) {
+      try { outputAudioCtxRef.current.close(); } catch(e) {}
+      outputAudioCtxRef.current = null;
+    }
+
+    // Stop Media Tracks
+    if (mediaStreamRef.current) {
+      try { mediaStreamRef.current.getTracks().forEach(track => track.stop()); } catch(e) {}
+      mediaStreamRef.current = null;
+    }
+
+    // Close Live Session WebSocket
+    if (liveSessionRef.current) {
+      try { liveSessionRef.current.close(); } catch(e) {}
+      liveSessionRef.current = null;
+    }
+
     setIsLiveActive(false);
     setIsConnecting(false);
     setLiveTranscription('');
+    setMicVolumeLevel(0);
     setCallTimer(0);
   };
 

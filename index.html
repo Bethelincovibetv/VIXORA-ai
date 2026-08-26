@@ -94,59 +94,71 @@
         html.light-mode p,
         html.light-mode label,
         html.light-mode strong,
-        html.light-mode b {
-          color: #0f172a;
-        }
-
-        /* All white text on light mode converted to sharp deep black or rich purple */
-        html.light-mode [class*="text-white"]:not(.btn-3d):not(.btn-3d *):not([class*="btn-3d-"]):not([class*="btn-3d-"] *):not(button[class*="bg-ggd-orange"]):not(button[class*="bg-ggd-orange"] *):not(button[class*="bg-rose-"]):not(button[class*="bg-rose-"] *):not(button[class*="bg-red-"]):not(button[class*="bg-red-"] *):not(button[class*="bg-purple-"]):not(button[class*="bg-purple-"] *):not(button[class*="bg-blue-"]):not(button[class*="bg-blue-"] *):not(button[class*="bg-emerald-"]):not(button[class*="bg-emerald-"] *):not(button[class*="bg-amber-"]):not(button[class*="bg-amber-"] *):not(button[class*="bg-orange-"]):not(button[class*="bg-orange-"] *):not([class*="bg-gradient-"]):not([class*="bg-gradient-"] *):not(.bg-ggd-orange):not(.bg-ggd-orange *):not(.bg-black):not(.bg-black *):not(video):not(canvas) {
+        html.light-mode b,
+        html.light-mode li,
+        html.light-mode td,
+        html.light-mode th {
           color: #0f172a !important;
         }
 
-        /* Text colors in light mode for muted and subtitle elements */
+        /* All white text on cards and panels becomes crisp high-contrast black/dark-slate */
+        html.light-mode .text-white,
+        html.light-mode [class*="text-white"] {
+          color: #0f172a !important;
+        }
+
+        /* Subtitle and muted text on light mode */
+        html.light-mode .text-slate-400,
+        html.light-mode .text-slate-500,
+        html.light-mode .text-slate-300,
+        html.light-mode .text-slate-200,
         html.light-mode [class*="text-slate-400"],
         html.light-mode [class*="text-slate-500"],
         html.light-mode [class*="text-slate-300"],
         html.light-mode [class*="text-slate-200"],
         html.light-mode [class*="text-white/60"],
         html.light-mode [class*="text-white/70"],
-        html.light-mode [class*="text-white/80"] {
+        html.light-mode [class*="text-white/80"],
+        html.light-mode [class*="text-white/90"] {
           color: #334155 !important;
         }
 
-        /* ICONS ON WHITE/LIGHT BACKGROUNDS: VIBRANT PURPLE OR CRISP BLACK */
-        html.light-mode i:not(.btn-3d *):not([class*="btn-3d-"] *):not(button[class*="bg-ggd-orange"] *):not(button[class*="bg-rose-"] *):not(button[class*="bg-red-"] *):not(button[class*="bg-purple-"] *):not(button[class*="bg-blue-"] *):not(button[class*="bg-emerald-"] *):not(button[class*="bg-amber-"] *):not(button[class*="bg-orange-"] *):not([class*="bg-gradient-"] *):not(.bg-black *):not(a[class*="bg-"] *) {
+        /* ICONS ON WHITE/LIGHT BACKGROUNDS: VIBRANT ROYAL PURPLE */
+        html.light-mode i,
+        html.light-mode svg {
           color: #7c3aed; /* Vibrant royal purple for icons */
         }
 
-        /* Keep colorful icon accents intact */
+        /* Specific icon brand accents */
         html.light-mode i.text-ggd-orange,
-        html.light-mode i[class*="text-orange-"] {
+        html.light-mode i[class*="text-orange-"],
+        html.light-mode [class*="text-orange-"] i {
           color: #ea580c !important;
         }
         html.light-mode i[class*="text-rose-"],
-        html.light-mode i[class*="text-red-"] {
+        html.light-mode i[class*="text-red-"],
+        html.light-mode [class*="text-rose-"] i,
+        html.light-mode [class*="text-red-"] i {
           color: #e11d48 !important;
         }
         html.light-mode i[class*="text-amber-"],
-        html.light-mode i[class*="text-yellow-"] {
+        html.light-mode i[class*="text-yellow-"],
+        html.light-mode [class*="text-amber-"] i {
           color: #d97706 !important;
         }
         html.light-mode i[class*="text-emerald-"],
-        html.light-mode i[class*="text-green-"] {
+        html.light-mode i[class*="text-green-"],
+        html.light-mode [class*="text-emerald-"] i {
           color: #059669 !important;
         }
         html.light-mode i[class*="text-blue-"],
-        html.light-mode i[class*="text-cyan-"] {
+        html.light-mode i[class*="text-cyan-"],
+        html.light-mode [class*="text-blue-"] i {
           color: #2563eb !important;
         }
         html.light-mode i[class*="text-purple-"],
-        html.light-mode i[class*="text-violet-"] {
-          color: #7c3aed !important;
-        }
-
-        /* Any white icon on light background turns royal purple */
-        html.light-mode i.text-white:not(.btn-3d *):not([class*="btn-3d-"] *):not(button[class*="bg-"] *):not([class*="bg-gradient-"] *):not(.bg-black *) {
+        html.light-mode i[class*="text-violet-"],
+        html.light-mode [class*="text-purple-"] i {
           color: #7c3aed !important;
         }
 
@@ -160,37 +172,57 @@
           border-color: #e2e8f0 !important;
         }
 
-        /* Preserve bright white text inside colorful buttons, badges, pills in light mode */
+        /* PRESERVE CRISP WHITE TEXT AND ICONS INSIDE SOLID COLORFUL BUTTONS, 3D BUTTONS, BADGES, AND VIDEO OVERLAYS */
         html.light-mode .btn-3d,
         html.light-mode .btn-3d *,
         html.light-mode [class*="btn-3d-"],
         html.light-mode [class*="btn-3d-"] *,
         html.light-mode button[class*="bg-ggd-orange"],
         html.light-mode button[class*="bg-ggd-orange"] *,
-        html.light-mode button[class*="bg-blue-"],
-        html.light-mode button[class*="bg-blue-"] *,
+        html.light-mode button[class*="bg-rose-"],
+        html.light-mode button[class*="bg-rose-"] *,
+        html.light-mode button[class*="bg-red-"],
+        html.light-mode button[class*="bg-red-"] *,
         html.light-mode button[class*="bg-purple-"],
         html.light-mode button[class*="bg-purple-"] *,
+        html.light-mode button[class*="bg-blue-"],
+        html.light-mode button[class*="bg-blue-"] *,
         html.light-mode button[class*="bg-emerald-"],
         html.light-mode button[class*="bg-emerald-"] *,
         html.light-mode button[class*="bg-amber-"],
         html.light-mode button[class*="bg-amber-"] *,
-        html.light-mode button[class*="bg-red-"],
-        html.light-mode button[class*="bg-red-"] *,
-        html.light-mode button[class*="bg-rose-"],
-        html.light-mode button[class*="bg-rose-"] *,
         html.light-mode button[class*="bg-orange-"],
         html.light-mode button[class*="bg-orange-"] *,
+        html.light-mode button[class*="bg-gradient-to-r"],
+        html.light-mode button[class*="bg-gradient-to-r"] *,
         html.light-mode a[class*="bg-emerald-"],
         html.light-mode a[class*="bg-emerald-"] *,
         html.light-mode a[class*="bg-ggd-orange"],
         html.light-mode a[class*="bg-ggd-orange"] *,
-        html.light-mode [class*="bg-gradient-"] span,
-        html.light-mode [class*="bg-gradient-"] p,
-        html.light-mode [class*="bg-gradient-"] i,
+        html.light-mode a[class*="bg-purple-"],
+        html.light-mode a[class*="bg-purple-"] *,
         html.light-mode .bg-ggd-orange,
-        html.light-mode .bg-ggd-orange * {
+        html.light-mode .bg-ggd-orange *,
+        html.light-mode span[class*="bg-rose-500"],
+        html.light-mode span[class*="bg-rose-500"] *,
+        html.light-mode span[class*="bg-orange-500"],
+        html.light-mode span[class*="bg-orange-500"] *,
+        html.light-mode span[class*="bg-purple-600"],
+        html.light-mode span[class*="bg-purple-600"] *,
+        html.light-mode span[class*="bg-emerald-600"],
+        html.light-mode span[class*="bg-emerald-600"] *,
+        html.light-mode span[class*="bg-blue-600"],
+        html.light-mode span[class*="bg-blue-600"] *,
+        html.light-mode .video-player-container,
+        html.light-mode .video-player-container *,
+        html.light-mode video,
+        html.light-mode canvas {
           color: #ffffff !important;
+        }
+
+        /* Invert specific video canvas control text back to clear view if on canvas */
+        html.light-mode canvas {
+          color: initial;
         }
 
         /* Light mode input fields, textareas & dropdowns */

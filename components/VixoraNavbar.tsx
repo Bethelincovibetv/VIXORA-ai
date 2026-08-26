@@ -103,9 +103,9 @@ export const VixoraNavbar: React.FC<VixoraNavbarProps> = ({
             </NavLink>
 
             {/* CURRENT ROUTE BADGE INDICATOR */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-ggd-orange/10 border border-ggd-orange/20 shrink-0">
+            <div className="hidden xs:flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl bg-ggd-orange/10 border border-ggd-orange/20 shrink-0">
               <i className={`fa-solid ${activeItem.icon} text-ggd-orange text-xs`}></i>
-              <span className="text-[10px] font-black uppercase tracking-tight text-ggd-orange truncate">
+              <span className="text-[10px] font-black uppercase tracking-tight text-ggd-orange truncate max-w-[90px] sm:max-w-none">
                 {activeItem.label}
               </span>
             </div>
@@ -232,16 +232,16 @@ export const VixoraNavbar: React.FC<VixoraNavbarProps> = ({
               <NavLink
                 key={dockItem.path}
                 to={dockItem.path}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all ${
+                className={`flex-1 min-h-[44px] min-w-[48px] flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all touch-manipulation active:scale-95 ${
                   active
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md font-black scale-105'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md font-black'
                     : themeMode === 'light'
-                    ? 'text-slate-600 hover:text-slate-900'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <i className={`fa-solid ${dockItem.icon} text-sm mb-0.5`}></i>
-                <span className="text-[8px] font-black uppercase tracking-tight">{dockItem.label}</span>
+                <span className="text-[8.5px] font-black uppercase tracking-tight">{dockItem.label}</span>
               </NavLink>
             );
           })}
@@ -249,16 +249,16 @@ export const VixoraNavbar: React.FC<VixoraNavbarProps> = ({
           {/* MORE MENU DROPDOWN BUTTON */}
           <button
             onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-            className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all ${
+            className={`min-h-[44px] min-w-[48px] flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all touch-manipulation active:scale-95 cursor-pointer ${
               isMoreMenuOpen 
-                ? 'bg-ggd-orange text-white' 
+                ? 'bg-ggd-orange text-white shadow-md' 
                 : themeMode === 'light' 
-                ? 'text-slate-600' 
-                : 'text-slate-400'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <i className="fa-solid fa-ellipsis text-sm mb-0.5"></i>
-            <span className="text-[8px] font-black uppercase tracking-tight">More</span>
+            <span className="text-[8.5px] font-black uppercase tracking-tight">More</span>
           </button>
         </div>
 

@@ -174,23 +174,23 @@ export const ToolsLibrary: React.FC<ToolsLibraryProps> = ({
 
                 {/* TOOL TITLE & DESC */}
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-tight group-hover:text-ggd-orange transition-colors">
+                  <h3 className={`text-sm font-black uppercase tracking-tight group-hover:text-ggd-orange transition-colors ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
                     {tool.name}
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">
+                  <p className={`text-xs mt-1 font-medium leading-relaxed ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                     {tool.shortDescription}
                   </p>
                 </div>
               </div>
 
               {/* ACTION FOOTER */}
-              <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+              <div className={`pt-4 mt-4 border-t flex items-center justify-between ${themeMode === 'light' ? 'border-slate-100' : 'border-white/5'}`}>
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                   {tool.category.toUpperCase()}
                 </span>
                 <button
                   onClick={() => handleLaunchTool(tool)}
-                  className="btn-3d btn-3d-orange px-3.5 py-2 text-[10.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95"
+                  className="btn-3d btn-3d-orange px-4 py-2.5 min-h-[44px] text-[10.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer touch-manipulation"
                 >
                   <span>{tool.actionType === 'chat_command' ? 'Invoke in Chat' : 'Launch Feature'}</span>
                   <i className="fa-solid fa-arrow-right text-[10px]"></i>

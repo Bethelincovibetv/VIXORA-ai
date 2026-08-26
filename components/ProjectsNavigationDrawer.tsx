@@ -134,7 +134,9 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
                             type="text" 
                             value={editingTitle} 
                             onChange={e => setEditingTitle(e.target.value)}
-                            className="w-full bg-black/40 border border-orange-500 px-2 py-0.5 rounded text-xs text-white font-bold outline-none"
+                            className={`w-full border border-orange-500 px-2 py-1 rounded-lg text-xs font-bold outline-none ${
+                              themeMode === 'light' ? 'bg-white text-slate-900' : 'bg-black/40 text-white'
+                            }`}
                             autoFocus
                           />
                           <button 
@@ -142,13 +144,15 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
                               onRenameProject(project.id, editingTitle);
                               setEditingProjectId(null);
                             }}
-                            className="text-emerald-400 text-xs px-1"
+                            className="text-emerald-500 hover:text-emerald-400 text-xs p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center cursor-pointer"
                           >
                             <i className="fa-solid fa-check"></i>
                           </button>
                         </div>
                       ) : (
-                        <p className="text-xs font-black uppercase truncate group-hover:text-ggd-orange transition-colors">
+                        <p className={`text-xs font-black uppercase truncate group-hover:text-ggd-orange transition-colors ${
+                          themeMode === 'light' ? 'text-slate-900' : 'text-white'
+                        }`}>
                           {project.title || project.topic}
                         </p>
                       )}
@@ -158,7 +162,7 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
                           <span className={`w-1 h-1 rounded-full ${badge.dot}`}></span>
                           <span>{badge.label}</span>
                         </span>
-                        <span className="text-[8px] font-mono font-bold text-slate-500">
+                        <span className={`text-[8px] font-mono font-bold ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                           {project.aspectRatio === 'vertical' ? '9:16' : project.aspectRatio === 'horizontal' ? '16:9' : '1:1'} • {project.targetDuration || '30s'}
                         </span>
                       </div>
@@ -166,11 +170,15 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
                   </div>
 
                   {/* OPTIONS MENU */}
-                  <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 opacity-90 sm:opacity-80 group-hover:opacity-100 shrink-0" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => onDuplicateProject(project)}
                       title="Duplicate Project"
-                      className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center text-[10px]"
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] transition-all cursor-pointer ${
+                        themeMode === 'light'
+                          ? 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                          : 'bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white'
+                      }`}
                     >
                       <i className="fa-solid fa-copy"></i>
                     </button>
@@ -180,14 +188,18 @@ export const ProjectsNavigationDrawer: React.FC<ProjectsNavigationDrawerProps> =
                         setEditingTitle(project.title || project.topic);
                       }}
                       title="Rename Project"
-                      className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center text-[10px]"
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] transition-all cursor-pointer ${
+                        themeMode === 'light'
+                          ? 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
+                          : 'bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white'
+                      }`}
                     >
                       <i className="fa-solid fa-pen"></i>
                     </button>
                     <button
                       onClick={() => onDeleteProject(project.id)}
                       title="Delete Project"
-                      className="w-6 h-6 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center text-[10px]"
+                      className="w-7 h-7 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center text-[11px] transition-all cursor-pointer"
                     >
                       <i className="fa-solid fa-trash-can"></i>
                     </button>

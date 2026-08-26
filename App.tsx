@@ -907,53 +907,70 @@ const App: React.FC = () => {
   ) => {
     const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
     const primaryKey = getEffectiveApiKey(userApiKey);
-    const targetModel = requestParams.model || "gemini-2.5-flash";
+    const targetModel = requestParams.model || "gemini-3.7-flash";
 
-    // Attempt 1: Primary resolved key
+    // Attempt 1: Server proxy with environment credentials (most secure & reliable)
     try {
-      const ai = new GoogleGenAI({ apiKey: primaryKey });
-      return await ai.models.generateContent({
-        model: targetModel,
-        contents: requestParams.contents,
-        config: requestParams.config
+      const serverRes = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: requestParams.contents,
+          systemInstruction: requestParams.config?.systemInstruction,
+          temperature: requestParams.config?.temperature,
+          model: targetModel,
+          responseMimeType: requestParams.config?.responseMimeType,
+          apiKey: primaryKey || undefined
+        })
       });
-    } catch (err1: any) {
-      console.warn(`[Gemini API Attempt 1 failed with key ending ...${primaryKey.slice(-4) || 'none'}]:`, err1?.message || err1);
 
-      // Attempt 2: Environment Key fallback if primaryKey was a user-specific key
-      if (envKey && primaryKey !== envKey) {
-        try {
-          console.info("[Gemini API Retrying with system environment API Key...]");
-          const aiEnv = new GoogleGenAI({ apiKey: envKey });
-          return await aiEnv.models.generateContent({
-            model: targetModel,
-            contents: requestParams.contents,
-            config: requestParams.config
-          });
-        } catch (err2: any) {
-          console.warn("[Gemini API Attempt 2 with envKey failed]:", err2?.message || err2);
+      if (serverRes.ok) {
+        const serverData = await serverRes.json();
+        if (serverData && serverData.ok) {
+          return {
+            text: serverData.text || '',
+            candidates: serverData.candidates || []
+          };
         }
       }
-
-      // Attempt 3: Retry without tools parameter if present (e.g. googleSearch grounding tool)
-      if (requestParams.config?.tools) {
-        try {
-          console.info("[Gemini API Retrying without tools config...]");
-          const activeKey = envKey || primaryKey;
-          const aiNoTools = new GoogleGenAI({ apiKey: activeKey });
-          const { tools, ...configWithoutTools } = requestParams.config;
-          return await aiNoTools.models.generateContent({
-            model: targetModel,
-            contents: requestParams.contents,
-            config: Object.keys(configWithoutTools).length > 0 ? configWithoutTools : undefined
-          });
-        } catch (err3: any) {
-          console.warn("[Gemini API Attempt 3 without tools failed]:", err3?.message || err3);
-        }
-      }
-
-      throw err1;
+    } catch (serverErr) {
+      console.warn("[Server AI proxy attempt failed, falling back to direct client execution]:", serverErr);
     }
+
+    // Attempt 2: Primary resolved key on client
+    if (primaryKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: primaryKey });
+        return await ai.models.generateContent({
+          model: targetModel,
+          contents: requestParams.contents,
+          config: requestParams.config
+        });
+      } catch (err1: any) {
+        console.warn(`[Gemini API Attempt with primaryKey failed]:`, err1?.message || err1);
+      }
+    }
+
+    // Attempt 3: Retry without tools parameter if present
+    if (requestParams.config?.tools && (envKey || primaryKey)) {
+      try {
+        const activeKey = envKey || primaryKey;
+        const aiNoTools = new GoogleGenAI({ apiKey: activeKey });
+        const { tools, ...configWithoutTools } = requestParams.config;
+        return await aiNoTools.models.generateContent({
+          model: targetModel,
+          contents: requestParams.contents,
+          config: Object.keys(configWithoutTools).length > 0 ? configWithoutTools : undefined
+        });
+      } catch (err3: any) {
+        console.warn("[Gemini API Attempt without tools failed]:", err3?.message || err3);
+      }
+    }
+
+    return {
+      text: "",
+      candidates: []
+    };
   };
 
   const activeVoicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2725,8 +2742,12 @@ Formatting Rules:
     </div>
   );
 
+  const isVideoCreationView = activeTab === 'videos' || activeTab === 'autopilot';
+
   return (
-    <div className={`max-w-xl mx-auto min-h-screen relative flex flex-col justify-center px-4 py-8 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
+    <div className={`w-full max-w-4xl lg:max-w-5xl mx-auto min-h-screen relative flex flex-col px-3 sm:px-6 pt-3 transition-colors duration-300 ${
+      isVideoCreationView ? 'pb-8 sm:pb-12' : 'pb-32 sm:pb-36'
+    } ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
       
       {showAbout && (
         <div className="fixed inset-0 z-[300] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
@@ -2820,18 +2841,20 @@ Formatting Rules:
         </div>
       )}
 
-      {/* GLOBAL URL-BASED NAVIGATION HEADER & DOCK */}
-      <VixoraNavbar
-        themeMode={themeMode}
-        onToggleTheme={() => setThemeMode(prev => prev === 'light' ? 'dark' : 'light')}
-        onOpenAccessibility={() => setShowAccessibilityModal(true)}
-        onOpenProjects={() => setIsSidebarOpen(true)}
-        onOpenGlobalApi={() => setShowGlobalApiModal(true)}
-        onOpenExportModal={() => setShowNativeExportModal(true)}
-        projectCount={projects.length}
-        activeProjectTitle={projects.find(p => p.id === activeProjectId)?.title}
-        isLiveActive={isLiveActive}
-      />
+      {/* GLOBAL URL-BASED NAVIGATION HEADER & DOCK (HIDDEN ON VIDEO CREATOR VIEW AS REQUESTED) */}
+      {!isVideoCreationView && (
+        <VixoraNavbar
+          themeMode={themeMode}
+          onToggleTheme={() => setThemeMode(prev => prev === 'light' ? 'dark' : 'light')}
+          onOpenAccessibility={() => setShowAccessibilityModal(true)}
+          onOpenProjects={() => setIsSidebarOpen(true)}
+          onOpenGlobalApi={() => setShowGlobalApiModal(true)}
+          onOpenExportModal={() => setShowNativeExportModal(true)}
+          projectCount={projects.length}
+          activeProjectTitle={projects.find(p => p.id === activeProjectId)?.title}
+          isLiveActive={isLiveActive}
+        />
+      )}
 
       {/* PROJECTS DRAWER MODAL */}
       {isSidebarOpen && (
@@ -3022,6 +3045,67 @@ Formatting Rules:
 
         {(activeTab === 'videos' || activeTab === 'autopilot') && (
           <div className="animate-rise space-y-4">
+            {/* IMMERSIVE VIDEO CREATION TOP NAVIGATION BAR */}
+            <div className={`p-2.5 sm:p-3 rounded-2xl border flex items-center justify-between gap-2 shadow-lg backdrop-blur-md sticky top-2 z-40 ${
+              themeMode === 'light' ? 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-200/50' : 'bg-slate-900/95 border-white/10 text-white shadow-black/50'
+            }`}>
+              <button
+                type="button"
+                onClick={() => {
+                  playProceduralSFX('click');
+                  handleSelectTab('studio');
+                }}
+                className={`px-3 py-2 rounded-xl border text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all min-h-[40px] cursor-pointer active:scale-95 ${
+                  themeMode === 'light'
+                    ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
+                }`}
+                title="Exit video creator and return to Voice Agent Studio"
+              >
+                <i className="fa-solid fa-arrow-left text-xs"></i>
+                <span className="hidden sm:inline">Back to Studio</span>
+                <span className="sm:hidden">Studio</span>
+              </button>
+
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0"></span>
+                <span className={`text-[11px] sm:text-xs font-black uppercase tracking-wider truncate ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  Video Creation Mode
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playProceduralSFX('click');
+                    setIsSidebarOpen(true);
+                  }}
+                  className={`px-2.5 py-2 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 transition-all min-h-[40px] cursor-pointer active:scale-95 ${
+                    themeMode === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' : 'bg-white/5 border-white/10 text-slate-300 hover:text-white'
+                  }`}
+                  title="Open Projects Library"
+                >
+                  <i className="fa-solid fa-folder-open text-amber-500"></i>
+                  <span className="hidden md:inline">Projects ({projects.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    playProceduralSFX('click');
+                    setThemeMode(prev => prev === 'light' ? 'dark' : 'light');
+                  }}
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                    themeMode === 'light' ? 'bg-amber-100 border-amber-300 text-amber-900' : 'bg-slate-800 border-white/10 text-amber-300'
+                  }`}
+                  title={themeMode === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                >
+                  <i className={`fa-solid ${themeMode === 'light' ? 'fa-moon' : 'fa-sun'}`}></i>
+                </button>
+              </div>
+            </div>
+
             {/* UNIFIED CREATOR HEADER */}
             <div className={`p-5 rounded-3xl border text-center relative overflow-hidden shadow-2xl ${themeMode === 'light' ? 'bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-white border-rose-200 shadow-rose-500/5' : 'bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border-rose-500/20'}`}>
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white mx-auto flex items-center justify-center text-xl mb-2 shadow-lg">

@@ -319,12 +319,14 @@ export function VixoraRemoteWidget() {
         </div>
 
         {/* Sub-Tabs Selector */}
-        <div className="mt-5 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-1">
+        <div className={`mt-5 pt-4 border-t flex items-center gap-2 overflow-x-auto pb-1 ${themeMode === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
           <button
             onClick={() => setActiveSubTab('endpoints')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer min-h-[44px] ${
               activeSubTab === 'endpoints'
                 ? 'bg-ggd-orange text-white shadow-lg'
+                : themeMode === 'light'
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border border-slate-200'
                 : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
             }`}
           >
@@ -334,37 +336,43 @@ export function VixoraRemoteWidget() {
 
           <button
             onClick={() => setActiveSubTab('apikeys')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer min-h-[44px] ${
               activeSubTab === 'apikeys'
                 ? 'bg-ggd-orange text-white shadow-lg'
+                : themeMode === 'light'
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border border-slate-200'
                 : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
             }`}
           >
-            <i className="fa-solid fa-key text-amber-400"></i>
+            <i className="fa-solid fa-key text-amber-500"></i>
             <span>API Keys Manager ({apiKeys.length})</span>
           </button>
 
           <button
             onClick={() => setActiveSubTab('embeds')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer min-h-[44px] ${
               activeSubTab === 'embeds'
                 ? 'bg-ggd-orange text-white shadow-lg'
+                : themeMode === 'light'
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border border-slate-200'
                 : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
             }`}
           >
-            <i className="fa-solid fa-tv text-emerald-400"></i>
+            <i className="fa-solid fa-tv text-emerald-500"></i>
             <span>Remote Display & Embed SDK</span>
           </button>
 
           <button
             onClick={() => setActiveSubTab('simulator')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer min-h-[44px] ${
               activeSubTab === 'simulator'
                 ? 'bg-ggd-orange text-white shadow-lg'
+                : themeMode === 'light'
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border border-slate-200'
                 : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
             }`}
           >
-            <i className="fa-solid fa-play text-purple-400"></i>
+            <i className="fa-solid fa-play text-purple-500"></i>
             <span>Live Remote Simulator</span>
           </button>
         </div>

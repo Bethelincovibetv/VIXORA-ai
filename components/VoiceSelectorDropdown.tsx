@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { VOICE_AVATAR_OPTIONS, VoiceOption } from '../constants';
+import { playProceduralSFX } from '../sfxLibrary';
 
 export interface VoiceSelectorDropdownProps {
   selectedVoice: string;
@@ -111,12 +112,15 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            setIsOpen(!isOpen);
+            playProceduralSFX('click');
+          }}
           className={`flex-1 min-w-0 flex items-center justify-between gap-2 p-2 rounded-2xl border transition-all text-left outline-none min-h-[48px] group active:scale-[0.99] ${
             isOpen 
               ? 'ring-2 ring-purple-500/40 border-purple-500 shadow-md' 
               : themeMode === 'light'
-                ? 'bg-white border-slate-300 hover:border-purple-400 text-slate-900 shadow-sm'
+                ? 'bg-white border-slate-300 hover:border-purple-500 text-slate-900 shadow-sm'
                 : 'bg-slate-900/90 border-white/15 hover:border-purple-400/60 text-white shadow-md'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           aria-haspopup="listbox"
@@ -131,14 +135,14 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                 alt={currentVoice.name}
                 className="w-9 h-9 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-purple-500/70 shadow-sm"
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border border-white dark:border-slate-900 flex items-center justify-center text-[7.5px] text-white font-bold">
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-[7.5px] text-white font-bold">
                 ✓
               </span>
             </div>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 truncate">
-                <span className="text-[11.5px] sm:text-[11px] font-black truncate text-slate-900 dark:text-white">
+                <span className={`text-[11.5px] sm:text-[11px] font-black truncate ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
                   {currentVoice.name}
                 </span>
                 {currentVoice.isVixoraVoice && (
@@ -147,14 +151,16 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                   </span>
                 )}
               </div>
-              <p className={`text-[9px] sm:text-[8.5px] font-semibold truncate ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+              <p className={`text-[9px] sm:text-[8.5px] font-semibold truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                 {currentVoice.flag} {currentVoice.accent}
               </p>
             </div>
           </div>
 
           {/* RIGHT: CHEVRON */}
-          <div className="shrink-0 flex items-center gap-1 pl-1 text-slate-400 group-hover:text-purple-400 transition-colors">
+          <div className={`shrink-0 flex items-center gap-1 pl-1 transition-colors ${
+            themeMode === 'light' ? 'text-slate-500 group-hover:text-purple-600' : 'text-slate-400 group-hover:text-purple-400'
+          }`}>
             <i className={`fa-solid fa-chevron-down text-[11px] transition-transform duration-200 ${isOpen ? 'rotate-180 text-purple-500' : ''}`}></i>
           </div>
         </button>
@@ -167,11 +173,11 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
             e.stopPropagation();
             onPreviewVoice(currentVoice);
           }}
-          className={`shrink-0 px-3 py-2 min-w-[48px] h-[48px] rounded-2xl border text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+          className={`shrink-0 px-3 py-2 min-w-[48px] h-[48px] rounded-2xl border text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer ${
             isCurrentPreviewing
               ? 'bg-purple-600 border-purple-500 text-white animate-pulse shadow-purple-500/25 ring-2 ring-purple-400/40'
               : themeMode === 'light'
-                ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700 hover:border-purple-400'
+                ? 'bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-800 hover:border-purple-500'
                 : 'bg-purple-950/40 hover:bg-purple-900/60 border-purple-500/40 text-purple-300 hover:border-purple-400'
           }`}
           title={isCurrentPreviewing ? 'Stop voice sample' : 'Play voice sample'}
@@ -211,19 +217,19 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
             }`}
           >
             {/* DRAG HANDLE & HEADER */}
-            <div className="p-4 pb-3 border-b border-slate-200 dark:border-white/10 shrink-0">
-              <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-white/20 mx-auto mb-3"></div>
+            <div className={`p-4 pb-3 border-b shrink-0 ${themeMode === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-slate-900/50'}`}>
+              <div className={`w-12 h-1.5 rounded-full mx-auto mb-3 ${themeMode === 'light' ? 'bg-slate-300' : 'bg-white/20'}`}></div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-sm">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center text-sm">
                     <i className="fa-solid fa-user-astronaut"></i>
                   </div>
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
                       Select Voice Narrator
                     </h3>
-                    <p className="text-[9px] font-semibold text-purple-400">
+                    <p className="text-[9px] font-bold text-purple-600 dark:text-purple-400">
                       {VOICE_AVATAR_OPTIONS.length} AI Voices • Tap avatar to select
                     </p>
                   </div>
@@ -232,7 +238,11 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 flex items-center justify-center text-xs hover:bg-rose-500 hover:text-white transition-all"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-all cursor-pointer ${
+                    themeMode === 'light'
+                      ? 'bg-slate-200 hover:bg-rose-500 hover:text-white text-slate-700'
+                      : 'bg-white/10 hover:bg-rose-500 hover:text-white text-slate-300'
+                  }`}
                   aria-label="Close"
                 >
                   <i className="fa-solid fa-xmark"></i>
@@ -250,7 +260,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                     placeholder="Search narrator, accent, or style..."
                     className={`w-full py-2 pl-8 pr-3 rounded-xl border text-[11px] font-medium outline-none transition-all ${
                       themeMode === 'light'
-                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-purple-500 focus:bg-white'
+                        ? 'bg-white border-slate-300 text-slate-900 focus:border-purple-500'
                         : 'bg-white/5 border-white/10 text-white focus:border-purple-500 focus:bg-white/10'
                     }`}
                   />
@@ -258,7 +268,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-purple-500"
                     >
                       <i className="fa-solid fa-xmark"></i>
                     </button>
@@ -271,12 +281,15 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                     <button
                       key={g}
                       type="button"
-                      onClick={() => setGenderFilter(g)}
-                      className={`flex-1 py-1 px-2 rounded-lg text-[9px] font-black uppercase transition-all ${
+                      onClick={() => {
+                        setGenderFilter(g);
+                        playProceduralSFX('click');
+                      }}
+                      className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer ${
                         genderFilter === g
                           ? 'bg-purple-600 text-white shadow-sm'
                           : themeMode === 'light'
-                            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                             : 'bg-white/5 text-slate-400 hover:text-white'
                       }`}
                     >
@@ -296,14 +309,17 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                   <button
                     type="button"
                     onClick={() => { setSearchQuery(''); setGenderFilter('all'); }}
-                    className="text-[10px] text-purple-400 font-extrabold underline mt-1"
+                    className="text-[10px] text-purple-600 dark:text-purple-400 font-extrabold underline mt-1"
                   >
                     Reset filters
                   </button>
                 </div>
               ) : (
                 filteredVoices.map((option) => {
-                  const isSelected = option.voiceName.toLowerCase() === (selectedVoice || 'kore').toLowerCase() || option.id === selectedVoice;
+                  const isSelected = 
+                    option.voiceName.toLowerCase() === (selectedVoice || 'kore').toLowerCase() || 
+                    option.id.toLowerCase() === (selectedVoice || '').toLowerCase() ||
+                    option.name.toLowerCase() === (selectedVoice || '').toLowerCase();
                   const isOptionPreviewing = previewingVoiceId === option.id;
 
                   return (
@@ -311,6 +327,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                       key={option.id}
                       onClick={() => {
                         onSelectVoice(option.voiceName);
+                        playProceduralSFX('click');
                         setIsOpen(false);
                       }}
                       className={`p-2.5 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.98] min-h-[56px] ${
@@ -319,7 +336,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                             ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-400/40 shadow-sm'
                             : 'bg-purple-950/50 border-purple-500 ring-2 ring-purple-500/40 shadow-md'
                           : themeMode === 'light'
-                            ? 'bg-slate-50/80 hover:bg-purple-50/40 border-slate-200'
+                            ? 'bg-slate-50 hover:bg-purple-50/60 border-slate-200'
                             : 'bg-white/5 hover:bg-white/10 border-white/10'
                       }`}
                     >
@@ -330,7 +347,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                             src={option.avatar}
                             alt={option.name}
                             className={`w-11 h-11 rounded-full object-cover border-2 shadow-sm ${
-                              isSelected ? 'border-purple-500 ring-2 ring-purple-400/40' : 'border-white/30'
+                              isSelected ? 'border-purple-500 ring-2 ring-purple-400/40' : 'border-slate-300 dark:border-white/30'
                             }`}
                           />
                           <span className="absolute -bottom-1 -right-1 text-xs">
@@ -340,13 +357,13 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`text-xs font-black truncate ${isSelected ? 'text-purple-600 dark:text-purple-300' : 'text-slate-900 dark:text-white'}`}>
+                            <span className={`text-xs font-black truncate ${isSelected ? 'text-purple-600' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
                               {option.name}
                             </span>
                             <span className={`px-1.5 py-0.2 rounded-md text-[7.5px] font-black uppercase ${
                               option.gender === 'Female'
-                                ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
-                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                ? 'bg-pink-500/20 text-pink-600 dark:text-pink-400 border border-pink-500/30'
+                                : 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
                             }`}>
                               {option.gender}
                             </span>
@@ -367,11 +384,11 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                         <button
                           type="button"
                           onClick={() => onPreviewVoice(option)}
-                          className={`min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+                          className={`min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer ${
                             isOptionPreviewing
                               ? 'bg-purple-600 border-purple-500 text-white animate-pulse'
                               : themeMode === 'light'
-                                ? 'bg-white border-slate-300 text-purple-700 hover:bg-purple-50'
+                                ? 'bg-white border-slate-300 text-purple-700 hover:bg-purple-100'
                                 : 'bg-slate-900 border-white/15 text-purple-300 hover:bg-purple-900/40'
                           }`}
                           title={isOptionPreviewing ? "Stop audio preview" : "Play audio preview"}
@@ -400,11 +417,14 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
             </div>
 
             {/* CONFIRM / DONE BUTTON */}
-            <div className="p-3 border-t border-slate-200 dark:border-white/10 shrink-0">
+            <div className={`p-3 border-t shrink-0 ${themeMode === 'light' ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-slate-900/50'}`}>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-98"
+                onClick={() => {
+                  setIsOpen(false);
+                  playProceduralSFX('sparkle');
+                }}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
               >
                 <i className="fa-solid fa-check"></i>
                 <span>Use {currentVoice.name} Narrator</span>
@@ -421,22 +441,22 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
         <div
           className={`hidden sm:block absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border shadow-2xl p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl ${
             themeMode === 'light'
-              ? 'bg-white/98 border-slate-200 text-slate-900 shadow-slate-900/15'
+              ? 'bg-white border-slate-200 text-slate-900 shadow-slate-900/15'
               : 'bg-slate-900/98 border-white/20 text-white shadow-black/80'
           }`}
           role="listbox"
         >
           {/* POPOVER HEADER */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10 px-1">
+          <div className={`flex items-center justify-between pb-2 border-b px-1 ${themeMode === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 flex items-center gap-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1">
                 <i className="fa-solid fa-user-astronaut"></i> Choose Voice Narrator
               </span>
-              <span className="px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[8px] font-extrabold">
+              <span className="px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[8px] font-extrabold">
                 {VOICE_AVATAR_OPTIONS.length} AI Voices
               </span>
             </div>
-            <span className={`text-[8px] font-bold ${themeMode === 'light' ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-[8px] font-bold ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
               Click avatar to select • 🔊 to test
             </span>
           </div>
@@ -460,7 +480,10 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
           {/* VOICE OPTIONS LIST */}
           <div className="max-h-[290px] overflow-y-auto space-y-1.5 pr-0.5 custom-scrollbar">
             {filteredVoices.map((option) => {
-              const isSelected = option.voiceName.toLowerCase() === (selectedVoice || 'kore').toLowerCase() || option.id === selectedVoice;
+              const isSelected = 
+                option.voiceName.toLowerCase() === (selectedVoice || 'kore').toLowerCase() || 
+                option.id.toLowerCase() === (selectedVoice || '').toLowerCase() ||
+                option.name.toLowerCase() === (selectedVoice || '').toLowerCase();
               const isOptionPreviewing = previewingVoiceId === option.id;
 
               return (
@@ -468,15 +491,16 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                   key={option.id}
                   onClick={() => {
                     onSelectVoice(option.voiceName);
+                    playProceduralSFX('click');
                     setIsOpen(false);
                   }}
                   className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
                     isSelected
                       ? themeMode === 'light'
-                        ? 'bg-purple-50 border-purple-400 ring-1 ring-purple-400 shadow-sm'
+                        ? 'bg-purple-50 border-purple-500 ring-1 ring-purple-400 shadow-sm'
                         : 'bg-purple-950/40 border-purple-500/80 ring-1 ring-purple-500/50 shadow-md'
                       : themeMode === 'light'
-                        ? 'bg-slate-50/70 hover:bg-purple-50/50 border-slate-200 hover:border-purple-300'
+                        ? 'bg-slate-50 hover:bg-purple-50/60 border-slate-200 hover:border-purple-300'
                         : 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/20'
                   }`}
                   role="option"
@@ -491,7 +515,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                         className={`w-9 h-9 rounded-full object-cover border-2 shadow-sm transition-transform ${
                           isSelected
                             ? 'border-purple-500 scale-105 ring-2 ring-purple-400/40'
-                            : 'border-white/30 dark:border-white/10'
+                            : 'border-slate-300 dark:border-white/20'
                         }`}
                       />
                       <span className="absolute -bottom-1 -right-1 text-xs">
@@ -501,14 +525,14 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-[11px] font-black truncate ${isSelected ? 'text-purple-600 dark:text-purple-300' : 'text-slate-900 dark:text-white'}`}>
+                        <span className={`text-[11px] font-black truncate ${isSelected ? 'text-purple-600' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
                           {option.name}
                         </span>
 
                         <span className={`px-1.5 py-0.2 rounded-md text-[7.5px] font-black uppercase ${
                           option.gender === 'Female'
-                            ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
-                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            ? 'bg-pink-500/20 text-pink-600 dark:text-pink-400 border border-pink-500/30'
+                            : 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
                         }`}>
                           {option.gender}
                         </span>
@@ -531,7 +555,7 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
                     <button
                       type="button"
                       onClick={() => onPreviewVoice(option)}
-                      className={`px-2.5 py-1.5 rounded-xl border text-[8.5px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+                      className={`px-2.5 py-1.5 rounded-xl border text-[8.5px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer ${
                         isOptionPreviewing
                           ? 'bg-purple-600 border-purple-500 text-white animate-pulse'
                           : themeMode === 'light'
@@ -569,8 +593,8 @@ export const VoiceSelectorDropdown: React.FC<VoiceSelectorDropdownProps> = ({
           </div>
 
           {/* FOOTER NOTICE */}
-          <div className="pt-1 text-center border-t border-slate-200 dark:border-white/10">
-            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500">
+          <div className={`pt-1 text-center border-t ${themeMode === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
+            <span className={`text-[8px] font-bold ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
               ⚡ Powered by Google AI Voice Engine with High-Fidelity Audio Synthesis
             </span>
           </div>

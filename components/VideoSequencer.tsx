@@ -530,68 +530,59 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     }
   }, [selectedMusicUrl]);
 
-  // Extract mood or theme from script text using Gemini AI & query Pexels key to keep alignment
+  // Extract mood or theme from script text using server Gemini AI & royalty-free music alignment
   useEffect(() => {
     if (!scriptText || scriptText === "Enter script and create voiceover") return;
 
+    let isMounted = true;
+
     const detectMoodAndSearch = async () => {
+      let matchedMood = 'motivational';
+
+      // 1. Client-side heuristic baseline
+      const lower = (scriptText || '').toLowerCase();
+      if (lower.includes('calm') || lower.includes('peace') || lower.includes('serene') || lower.includes('relax') || lower.includes('meditat') || lower.includes('sleep') || lower.includes('gentle')) matchedMood = 'calm';
+      else if (lower.includes('upbeat') || lower.includes('happy') || lower.includes('fun') || lower.includes('celebrat') || lower.includes('joy') || lower.includes('dance') || lower.includes('party')) matchedMood = 'upbeat';
+      else if (lower.includes('dramatic') || lower.includes('epic') || lower.includes('intense') || lower.includes('crisis') || lower.includes('mystery') || lower.includes('cinematic') || lower.includes('power')) matchedMood = 'dramatic';
+      else if (lower.includes('tech') || lower.includes('ai ') || lower.includes('future') || lower.includes('cyber') || lower.includes('software') || lower.includes('digital') || lower.includes('robot') || lower.includes('code')) matchedMood = 'tech';
+      else if (lower.includes('corporate') || lower.includes('business') || lower.includes('finance') || lower.includes('money') || lower.includes('market') || lower.includes('startup') || lower.includes('revenue') || lower.includes('invest')) matchedMood = 'corporate';
+
+      // 2. Query server mood detection endpoint for AI accuracy
       try {
-        const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || '';
-        // If no credentials, we silent fallback cleanly to default motivational selection
-        if (!activeApiKey) return;
-
-        const ai = new GoogleGenAI({
-          apiKey: activeApiKey,
-          httpOptions: {
-            headers: { 'User-Agent': 'aistudio-build' }
-          }
+        const res = await fetch('/api/scripts/detect-mood', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scriptText })
         });
-
-        const prompt = `Analyze the script text below. Determine the single most dominant mood or theme of this script. Select EXACTLY one of the following words: "motivational", "calm", "upbeat", "dramatic", "tech", "corporate".\n\nScript: "${scriptText.replace(/"/g, '\\"')}"`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt
-        });
-
-        const moodText = response.text?.trim().toLowerCase() || 'motivational';
-        let matchedMood = 'motivational';
-        if (moodText.includes('calm')) matchedMood = 'calm';
-        else if (moodText.includes('upbeat')) matchedMood = 'upbeat';
-        else if (moodText.includes('dramatic') || moodText.includes('epic')) matchedMood = 'dramatic';
-        else if (moodText.includes('tech') || moodText.includes('future') || moodText.includes('cyber')) matchedMood = 'tech';
-        else if (moodText.includes('corporate') || moodText.includes('business')) matchedMood = 'corporate';
-
-        setExtractedMood(matchedMood);
-        if (onMoodDetected) {
-          onMoodDetected(matchedMood);
-        }
-        console.log("[+] AI detected dominant script mood:", matchedMood);
-
-        // Standard matching of royalty-free background visual theme tags using existing Pexels credentials
-        try {
-          const PEXELS_API_KEY = 'wFE0bEysdabca67O2GKWXtE92HWh5XHBtcBmw14VaGcBfkB39q69mxb5';
-          const pexelsSearch = await fetch(`https://api.pexels.com/videos/search?query=${matchedMood}&per_page=1`, {
-            headers: { Authorization: PEXELS_API_KEY }
-          });
-          if (pexelsSearch.ok) {
-            console.log("[+] Authenticated Pexels query triggered for background music matching mood:", matchedMood);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.mood) {
+            matchedMood = data.mood;
           }
-        } catch (e) {
-          console.error("[-] Swallowed Pexels API log query error:", e);
-        }
-
-        // Auto selection matching the track
-        const matchedTrack = musicTracks.find(t => t.mood === matchedMood);
-        if (matchedTrack) {
-          setSelectedMusicUrl(matchedTrack.url);
         }
       } catch (err) {
-        console.error("[-] Mood detection or Pexels search failed:", err);
+        // Fallback gracefully to heuristic mood
+      }
+
+      if (!isMounted) return;
+
+      setExtractedMood(matchedMood);
+      if (onMoodDetected) {
+        onMoodDetected(matchedMood);
+      }
+
+      // Auto selection matching the track
+      const matchedTrack = musicTracks.find(t => t.mood === matchedMood);
+      if (matchedTrack) {
+        setSelectedMusicUrl(matchedTrack.url);
       }
     };
 
     detectMoodAndSearch();
+
+    return () => {
+      isMounted = false;
+    };
   }, [scriptText]);
   const audioSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const audioStartTimeRef = useRef<number>(0);
@@ -665,94 +656,92 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     }
   };
 
-  // Auto trigger word-level alignment using Gemini 3.5-flash
+  // Auto trigger word-level alignment using server Gemini AI & seamless proportional fallback
   useEffect(() => {
     if (!voiceoverBase64 || !scriptText) {
       setAlignedWords(null);
       return;
     }
 
+    let isMounted = true;
+
+    const generateLocalProportionalWords = (text: string, totalSec = 30): TimeWord[] => {
+      const words = (text || '').trim().split(/\s+/).filter(w => w.length > 0);
+      if (words.length === 0) return [];
+      const weights = words.map(w => Math.max(1, Math.min(6, w.replace(/[^a-zA-Z0-9]/g, '').length)));
+      const totalWeight = weights.reduce((a, b) => a + b, 0);
+      const usableDuration = Math.max(1, totalSec - 0.2);
+      let currentStart = 0.1;
+      return words.map((word, idx) => {
+        const wordDur = (weights[idx] / totalWeight) * usableDuration;
+        const start = Number(currentStart.toFixed(2));
+        const end = Number((currentStart + wordDur).toFixed(2));
+        currentStart += wordDur;
+        return { text: word, start, end, index: idx };
+      });
+    };
+
     const triggerAlignment = async () => {
       setIsAligning(true);
       setAlignmentError(null);
       try {
-        const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-        if (!activeApiKey) {
-          throw new Error("AI credentials uninitialized.");
-        }
-
         const wavBase64 = getWavBase64(voiceoverBase64);
+        const targetSec = parseTargetDurationSeconds(targetDuration, 30);
 
-        const ai = new GoogleGenAI({
-          apiKey: activeApiKey,
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build',
+        let resolvedWords: TimeWord[] | null = null;
+
+        try {
+          const res = await fetch('/api/scripts/align-words', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              scriptText,
+              voiceoverBase64: wavBase64,
+              duration: targetSec
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.words) && data.words.length > 0) {
+              resolvedWords = data.words.map((item: any, idx: number) => ({
+                text: item.text,
+                start: Number(item.start) || 0,
+                end: Number(item.end) || 0.5,
+                index: idx
+              }));
             }
           }
-        });
-
-        const prompt = `Analyze the provided voiceover speech audio and the script text below. ` +
-          `Your task is to perform forced audio-to-text alignment to find the EXACT start and end timestamps (in seconds) for EVERY single word spoken in the audio. ` +
-          `The spoken text in the audio is precisely: "${scriptText.replace(/"/g, '\\"')}"\n\n` +
-          `Please output a JSON list of objects, representing every word in order. Ensure each word's start and end times correspond EXACTLY to when it is heard spoken in the audio. Do not skip or drop any word. Ensure word timings are fully continuous and aligned with standard speaker cadence.`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            {
-              inlineData: {
-                data: wavBase64,
-                mimeType: "audio/wav"
-              }
-            },
-            { text: prompt }
-          ],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  text: { type: Type.STRING },
-                  start: { type: Type.NUMBER },
-                  end: { type: Type.NUMBER }
-                },
-                required: ["text", "start", "end"]
-              }
-            }
-          }
-        });
-
-        const jsonText = response.text?.trim();
-        if (!jsonText) {
-          throw new Error("AIGenerator did not return matching timestamps.");
+        } catch (fetchErr) {
+          // Server fetch fallback
         }
 
-        const parsedContent = JSON.parse(jsonText);
-        if (Array.isArray(parsedContent) && parsedContent.length > 0) {
-          const timeWords: TimeWord[] = parsedContent.map((item: any, idx: number) => ({
-            text: item.text,
-            start: Number(item.start),
-            end: Number(item.end),
-            index: idx
-          }));
-          setAlignedWords(timeWords);
-          console.log("[+] AI Word Caption Alignment succeeded! Generated words count:", timeWords.length);
-        } else {
-          throw new Error("Invalid timestamps format.");
+        if (!resolvedWords || resolvedWords.length === 0) {
+          resolvedWords = generateLocalProportionalWords(scriptText, targetSec);
+        }
+
+        if (isMounted && resolvedWords) {
+          setAlignedWords(resolvedWords);
         }
       } catch (err: any) {
-        console.error("[-] AI forced audio-text alignment failed:", err);
-        setAlignmentError(err?.message || "Sync alignment failed.");
+        const targetSec = parseTargetDurationSeconds(targetDuration, 30);
+        const fallbackWords = generateLocalProportionalWords(scriptText, targetSec);
+        if (isMounted) {
+          setAlignedWords(fallbackWords);
+        }
       } finally {
-        setIsAligning(false);
+        if (isMounted) {
+          setIsAligning(false);
+        }
       }
     };
 
     triggerAlignment();
-  }, [voiceoverBase64, scriptText]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [voiceoverBase64, scriptText, targetDuration]);
 
   // Parse Script and Sourced Videos to build Timeline
   useEffect(() => {
@@ -2256,32 +2245,36 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             )}
 
             {/* SFX PANEL */}
-            <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-indigo-50/60 border-indigo-200' : 'bg-indigo-950/30 border-indigo-500/20'}`}>
+            <div className={`rounded-2xl p-4 border space-y-3 ${themeMode === 'light' ? 'bg-indigo-50/70 border-indigo-200' : 'bg-indigo-950/30 border-indigo-500/20'}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                  <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${themeMode === 'light' ? 'text-indigo-950' : 'text-indigo-300'}`}>
                     <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i>
                     Procedural Sound Effects ({sfxPlacements.length})
                   </h3>
-                  <p className="text-[8.5px] text-slate-400 font-medium">Auto-synthesize transition whooshes, pops & chimes</p>
+                  <p className={`text-[8.5px] font-medium ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Auto-synthesize transition whooshes, pops & chimes</p>
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => setAutoSfxEnabled(!autoSfxEnabled)}
-                    className={`px-2.5 py-1.5 rounded-xl text-[8.5px] font-black uppercase border transition-all flex items-center gap-1 min-h-[32px] ${
+                    className={`px-2.5 py-1.5 rounded-xl text-[8.5px] font-black uppercase border transition-all flex items-center gap-1 min-h-[32px] cursor-pointer ${
                       autoSfxEnabled 
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' 
-                        : 'bg-slate-800 border-white/10 text-slate-400'
+                        ? themeMode === 'light'
+                          ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                          : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' 
+                        : themeMode === 'light'
+                          ? 'bg-white border-slate-300 text-slate-600'
+                          : 'bg-slate-800 border-white/10 text-slate-400'
                     }`}
                   >
-                    <i className={`fa-solid ${autoSfxEnabled ? 'fa-bolt text-emerald-400' : 'fa-power-off'}`}></i>
+                    <i className={`fa-solid ${autoSfxEnabled ? 'fa-bolt text-emerald-500' : 'fa-power-off'}`}></i>
                     Auto SFX: {autoSfxEnabled ? 'ON' : 'OFF'}
                   </button>
 
                   <button
                     onClick={() => setShowSfxModal(true)}
-                    className="px-3 py-1.5 bg-ggd-orange text-white text-[9px] font-black uppercase rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1 min-h-[32px]"
+                    className="px-3 py-1.5 bg-ggd-orange text-white text-[9px] font-black uppercase rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1 min-h-[32px] cursor-pointer"
                   >
                     <i className="fa-solid fa-plus text-[8px]"></i> Add SFX
                   </button>
@@ -2289,7 +2282,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               </div>
 
               {sfxPlacements.length === 0 ? (
-                <p className="text-[9px] italic text-center py-3 text-slate-400">
+                <p className={`text-[9px] italic text-center py-3 ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                   No custom sound effects added yet. Click "+ Add SFX" to place sound effects at current playhead time.
                 </p>
               ) : (
@@ -2297,24 +2290,26 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
                   {sfxPlacements.map((sfx) => (
                     <div 
                       key={sfx.id} 
-                      className="p-2.5 rounded-xl border border-white/5 bg-slate-900/60 flex items-center justify-between gap-2"
+                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
+                        themeMode === 'light' ? 'bg-white border-indigo-200 shadow-sm' : 'border-white/5 bg-slate-900/60'
+                      }`}
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
                         <button
                           onClick={() => playProceduralSFX(sfx.synthType)}
-                          className="w-7 h-7 rounded-lg bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white flex items-center justify-center text-[10px] transition-all shrink-0 min-h-[28px]"
+                          className="w-7 h-7 rounded-lg bg-ggd-orange/20 text-ggd-orange hover:bg-ggd-orange hover:text-white flex items-center justify-center text-[10px] transition-all shrink-0 min-h-[28px] cursor-pointer"
                           title="Preview SFX"
                         >
                           <i className="fa-solid fa-play"></i>
                         </button>
                         <div className="overflow-hidden text-left">
-                          <p className="text-[9.5px] font-black uppercase truncate text-white">{sfx.name}</p>
+                          <p className={`text-[9.5px] font-black uppercase truncate ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>{sfx.name}</p>
                           <p className="text-[8px] text-ggd-orange font-mono font-bold">At timestamp: {sfx.timestamp.toFixed(1)}s</p>
                         </div>
                       </div>
                       <button
                         onClick={() => setSfxPlacements(prev => prev.filter(p => p.id !== sfx.id))}
-                        className="text-slate-400 hover:text-red-400 p-1.5 text-[11px] transition-all shrink-0"
+                        className="text-slate-400 hover:text-red-500 p-1.5 text-[11px] transition-all shrink-0 cursor-pointer"
                         title="Remove SFX"
                       >
                         <i className="fa-solid fa-trash-can"></i>
@@ -2331,7 +2326,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         {activeEditorTab === 'export' && (
           <div className="space-y-4 animate-fadeIn">
             <div className={`p-4 border rounded-2xl space-y-4 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/10'}`}>
-              <h3 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${themeMode === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
                 <i className="fa-solid fa-clapperboard"></i>
                 Export Format & Video Resolution
               </h3>
@@ -2339,17 +2334,29 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Format Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400">File Format</label>
+                  <label className={`text-[9px] font-black uppercase ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>File Format</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setExportFormat('mp4')}
-                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportFormat === 'mp4' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] cursor-pointer ${
+                        exportFormat === 'mp4' 
+                          ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' 
+                          : themeMode === 'light' 
+                            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' 
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                     >
                       MP4 (Universal)
                     </button>
                     <button
                       onClick={() => setExportFormat('webm')}
-                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportFormat === 'webm' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                      className={`py-3 text-[10px] font-black uppercase rounded-xl border transition-all min-h-[44px] cursor-pointer ${
+                        exportFormat === 'webm' 
+                          ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' 
+                          : themeMode === 'light' 
+                            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' 
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                     >
                       WebM (High Speed)
                     </button>
@@ -2358,23 +2365,41 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
                 {/* Resolution Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Export Resolution</label>
+                  <label className={`text-[9px] font-black uppercase ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Export Resolution</label>
                   <div className="grid grid-cols-3 gap-1.5">
                     <button
                       onClick={() => setExportResolution('720p')}
-                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '720p' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] cursor-pointer ${
+                        exportResolution === '720p' 
+                          ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' 
+                          : themeMode === 'light' 
+                            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' 
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                     >
                       720p HD
                     </button>
                     <button
                       onClick={() => setExportResolution('1080p')}
-                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '1080p' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] cursor-pointer ${
+                        exportResolution === '1080p' 
+                          ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' 
+                          : themeMode === 'light' 
+                            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' 
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                     >
                       1080p Full HD
                     </button>
                     <button
                       onClick={() => setExportResolution('4K')}
-                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] ${exportResolution === '4K' ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' : 'bg-slate-800/80 border-white/10 text-slate-400'}`}
+                      className={`py-3 text-[9.5px] font-black uppercase rounded-xl border transition-all min-h-[44px] cursor-pointer ${
+                        exportResolution === '4K' 
+                          ? 'bg-ggd-orange text-white border-ggd-orange shadow-md' 
+                          : themeMode === 'light' 
+                            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' 
+                            : 'bg-slate-800/80 border-white/10 text-slate-400 hover:text-white'
+                      }`}
                     >
                       4K Ultra
                     </button>

@@ -508,6 +508,379 @@ Return JSON in this EXACT schema:
   app.post('/scripts/generate', handleScriptGenerate);
 
   // ==========================================================================
+  // 2B. MOOD DETECTION & SCRIPT THEME ALIGNMENT ENDPOINT
+  // ==========================================================================
+
+  function extractFallbackMood(scriptText: string): string {
+    const lower = (scriptText || '').toLowerCase();
+    if (lower.includes('calm') || lower.includes('peace') || lower.includes('serene') || lower.includes('relax') || lower.includes('meditat') || lower.includes('sleep') || lower.includes('gentle')) return 'calm';
+    if (lower.includes('upbeat') || lower.includes('happy') || lower.includes('fun') || lower.includes('celebrat') || lower.includes('joy') || lower.includes('dance') || lower.includes('party')) return 'upbeat';
+    if (lower.includes('dramatic') || lower.includes('epic') || lower.includes('intense') || lower.includes('crisis') || lower.includes('mystery') || lower.includes('cinematic') || lower.includes('power')) return 'dramatic';
+    if (lower.includes('tech') || lower.includes('ai ') || lower.includes('future') || lower.includes('cyber') || lower.includes('software') || lower.includes('digital') || lower.includes('robot') || lower.includes('code')) return 'tech';
+    if (lower.includes('corporate') || lower.includes('business') || lower.includes('finance') || lower.includes('money') || lower.includes('market') || lower.includes('startup') || lower.includes('revenue') || lower.includes('invest')) return 'corporate';
+    return 'motivational';
+  }
+
+  const handleMoodDetect = async (req: express.Request, res: express.Response) => {
+    try {
+      const { scriptText, apiKey } = req.body || {};
+      if (!scriptText || typeof scriptText !== 'string') {
+        return res.json({ ok: true, mood: 'motivational', trackUrl: BGM_TRACKS['motivational'] });
+      }
+
+      let matchedMood = extractFallbackMood(scriptText);
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return !clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here' || clean.startsWith('AIzaSy...');
+      };
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
+      if (effectiveKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: effectiveKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.7-flash',
+            contents: `Analyze the script text below. Determine the single most dominant mood or theme of this script. Select EXACTLY one of the following words: "motivational", "calm", "upbeat", "dramatic", "tech", "corporate".\n\nScript: "${scriptText.replace(/"/g, '\\"')}"`
+          });
+          const text = response.text?.trim().toLowerCase() || '';
+          if (text.includes('calm')) matchedMood = 'calm';
+          else if (text.includes('upbeat')) matchedMood = 'upbeat';
+          else if (text.includes('dramatic') || text.includes('epic')) matchedMood = 'dramatic';
+          else if (text.includes('tech') || text.includes('future') || text.includes('cyber')) matchedMood = 'tech';
+          else if (text.includes('corporate') || text.includes('business')) matchedMood = 'corporate';
+          else if (text.includes('motivational')) matchedMood = 'motivational';
+        } catch (geminiErr) {
+          // Graceful fallback to heuristic analysis
+        }
+      }
+
+      const trackUrl = BGM_TRACKS[matchedMood] || BGM_TRACKS['motivational'];
+      return res.json({
+        ok: true,
+        mood: matchedMood,
+        trackUrl,
+        availableMoods: Object.keys(BGM_TRACKS)
+      });
+    } catch (err: any) {
+      return res.json({
+        ok: true,
+        mood: 'motivational',
+        trackUrl: BGM_TRACKS['motivational']
+      });
+    }
+  };
+
+  app.post(['/api/scripts/detect-mood', '/api/public/v1/scripts/detect-mood', '/api/ai/detect-mood'], handleMoodDetect);
+
+  // ==========================================================================
+  // 2C. FORCED AUDIO-TEXT WORD ALIGNMENT ENDPOINT
+  // ==========================================================================
+
+  function generateProportionalWordTimestamps(scriptText: string, totalDurationSec: number = 30): Array<{ text: string; start: number; end: number; index: number }> {
+    const words = (scriptText || '').trim().split(/\s+/).filter(w => w.length > 0);
+    if (words.length === 0) return [];
+    
+    const weights = words.map(w => Math.max(1, Math.min(6, w.replace(/[^a-zA-Z0-9]/g, '').length)));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const usableDuration = Math.max(1, (totalDurationSec || 30) - 0.2);
+    let currentStart = 0.1;
+    
+    return words.map((word, idx) => {
+      const wordDur = (weights[idx] / totalWeight) * usableDuration;
+      const start = Number(currentStart.toFixed(2));
+      const end = Number((currentStart + wordDur).toFixed(2));
+      currentStart += wordDur;
+      return {
+        text: word,
+        start,
+        end,
+        index: idx
+      };
+    });
+  }
+
+  const handleAlignWords = async (req: express.Request, res: express.Response) => {
+    try {
+      const { scriptText, voiceoverBase64, duration = 30, apiKey } = req.body || {};
+      if (!scriptText || typeof scriptText !== 'string') {
+        return res.json({ ok: true, words: [] });
+      }
+
+      const totalDurationSec = Number(duration) > 0 ? Number(duration) : 30;
+      let alignedWords: Array<{ text: string; start: number; end: number; index: number }> | null = null;
+
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return !clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here' || clean.startsWith('AIzaSy...');
+      };
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
+      if (effectiveKey && voiceoverBase64) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: effectiveKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+
+          const prompt = `Analyze the provided voiceover speech audio and the script text below. ` +
+            `Your task is to perform forced audio-to-text alignment to find the EXACT start and end timestamps (in seconds) for EVERY single word spoken in the audio. ` +
+            `The spoken text in the audio is precisely: "${scriptText.replace(/"/g, '\\"')}"\n\n` +
+            `Please output a JSON list of objects, representing every word in order: [{"text": "word", "start": 0.0, "end": 0.5}].`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.7-flash',
+            contents: [
+              {
+                inlineData: {
+                  data: voiceoverBase64,
+                  mimeType: 'audio/wav'
+                }
+              },
+              { text: prompt }
+            ],
+            config: {
+              responseMimeType: 'application/json'
+            }
+          });
+
+          const jsonText = response.text?.trim();
+          if (jsonText) {
+            const parsed = JSON.parse(jsonText);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              alignedWords = parsed.map((item: any, idx: number) => ({
+                text: item.text,
+                start: Number(item.start) || 0,
+                end: Number(item.end) || 0.5,
+                index: idx
+              }));
+            }
+          }
+        } catch (geminiErr) {
+          // Graceful fallback to proportional alignment
+        }
+      }
+
+      if (!alignedWords || alignedWords.length === 0) {
+        alignedWords = generateProportionalWordTimestamps(scriptText, totalDurationSec);
+      }
+
+      return res.json({
+        ok: true,
+        words: alignedWords,
+        count: alignedWords.length
+      });
+    } catch (err: any) {
+      const fallbackWords = generateProportionalWordTimestamps(req.body?.scriptText || '', Number(req.body?.duration) || 30);
+      return res.json({
+        ok: true,
+        words: fallbackWords,
+        count: fallbackWords.length
+      });
+    }
+  };
+
+  app.post(['/api/scripts/align-words', '/api/public/v1/scripts/align-words', '/api/ai/align-words'], handleAlignWords);
+
+  // ==========================================================================
+  // 2D. SISTER VIXORA CONTENT MASTER COACH ENDPOINTS
+  // ==========================================================================
+
+  const handleCoachChat = async (req: express.Request, res: express.Response) => {
+    try {
+      const { message, niche = 'General', goal = 'Grow viral audience', apiKey } = req.body || {};
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return !clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here' || clean.startsWith('AIzaSy...');
+      };
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
+      const systemInstruction = `You are "Sister Vixora Content Master", an elite AI Content Coach and Faith-Aligned Media Strategist.
+Your persona is a warm, highly intelligent, articulate Nigerian sister with immense warmth, spiritual wisdom, and deep social media mastery.
+CORE DIRECTIVES:
+1. Speak with warmth, clarity, and authority ("My dear creator", "God bless your talent", "Let us align your niche with God's purpose").
+2. ALWAYS provide actionable, high-converting content advice for Facebook, WhatsApp status, TikTok, Instagram, and YouTube.
+3. FORMATTING RULE: NEVER use asterisks (* or **) anywhere in your response. Write in clean plain text with standard line breaks or bullets (•).
+4. If the user asks for a video template, generate JSON format inside your response containing:
+[TEMPLATE_JSON]
+{
+  "title": "Title",
+  "description": "Desc",
+  "niche": "${niche}",
+  "aspectRatio": "vertical",
+  "targetDuration": "30s",
+  "captionTemplate": "bold-yellow",
+  "sfxEnabled": true,
+  "scriptStyle": "Engaging Hook -> Insight -> Call to Action"
+}
+[/TEMPLATE_JSON]`;
+
+      let responseText = '';
+      if (effectiveKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: effectiveKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.7-flash',
+            contents: `User Niche: ${niche}\nUser Goal: ${goal}\nUser Message: ${message || 'Guide my content strategy'}`,
+            config: { systemInstruction, temperature: 0.7 }
+          });
+          responseText = response.text || '';
+        } catch (e) {
+          // fallback
+        }
+      }
+
+      if (!responseText) {
+        responseText = `Praise God my dear creator! For your ${niche} journey with the goal of "${goal}", here is your immediate viral breakthrough blueprint:\n\n1. Hook with Authenticity: Start your video directly with the core problem your audience faces in ${niche}. Avoid long greetings.\n\n2. Share Actionable Truth: Deliver 1 clear, unforgettable insight that transforms their perspective.\n\n3. Call to Purposeful Action: Invite them to comment their biggest question or join your community for deeper growth.\n\nGod has given you a unique voice — step out in confidence and let your light shine!`;
+      }
+
+      return res.json({ ok: true, text: responseText });
+    } catch (err: any) {
+      return res.json({
+        ok: true,
+        text: 'God bless your creative journey! Focus on high-value, authentic storytelling in your niche to build genuine trust with your audience.'
+      });
+    }
+  };
+
+  app.post(['/api/ai/coach-chat', '/api/public/v1/ai/coach-chat'], handleCoachChat);
+
+  const handleCoachStrategy = async (req: express.Request, res: express.Response) => {
+    try {
+      const { niche = 'General', goal = 'Viral Audience Growth', apiKey } = req.body || {};
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return !clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here' || clean.startsWith('AIzaSy...');
+      };
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
+      const defaultRoadmap = {
+        title: `4-Week ${niche} Viral Content Mastery`,
+        niche,
+        platform: "Multi-Platform (WhatsApp, Facebook, TikTok)",
+        goal,
+        faithAlignment: "Honoring God with truthful, uplifting, and high-value content",
+        roadmapItems: [
+          {
+            week: "Week 1",
+            topic: "The High-Impact Origin Hook",
+            hook: `Why 90% of creators in ${niche} fail to reach their true audience...`,
+            platform: "TikTok & Facebook Reels",
+            monetizationAngle: "Build trust and introduce free community link"
+          },
+          {
+            week: "Week 2",
+            topic: "Debunking Common Myths",
+            hook: `Stop doing this if you want divine breakthrough in ${niche}!`,
+            platform: "WhatsApp Status & Instagram Stories",
+            monetizationAngle: "Direct 1-on-1 consultations"
+          },
+          {
+            week: "Week 3",
+            topic: "Transformational Value Breakdown",
+            hook: `Here is the exact framework to master ${niche}...`,
+            platform: "YouTube Shorts & Facebook Page",
+            monetizationAngle: "Digital downloadable guide / masterclass"
+          },
+          {
+            week: "Week 4",
+            topic: "Community Call to Action & Scaling",
+            hook: `Ready to take your ${niche} journey to the next level?`,
+            platform: "WhatsApp Broadcast & All Channels",
+            monetizationAngle: "Premium inner circle membership"
+          }
+        ]
+      };
+
+      if (effectiveKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: effectiveKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+          const prompt = `Create a 4-week Viral Content Roadmap for the niche "${niche}" with goal "${goal}".
+Return strictly valid JSON with keys: title, niche, platform, goal, faithAlignment, roadmapItems (array of objects with week, topic, hook, platform, monetizationAngle).`;
+          const resAI = await ai.models.generateContent({
+            model: 'gemini-3.7-flash',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
+          });
+          if (resAI.text) {
+            const parsed = JSON.parse(resAI.text);
+            return res.json({ ok: true, data: parsed });
+          }
+        } catch (e) {
+          // fallback
+        }
+      }
+
+      return res.json({ ok: true, data: defaultRoadmap });
+    } catch (err: any) {
+      return res.json({ ok: true, data: null });
+    }
+  };
+
+  app.post(['/api/ai/coach-strategy', '/api/public/v1/ai/coach-strategy'], handleCoachStrategy);
+
+  // ==========================================================================
+  // 2E. GENERAL SERVER-SIDE GEMINI PROXY ENDPOINTS
+  // ==========================================================================
+
+  const handleAIGenerate = async (req: express.Request, res: express.Response) => {
+    try {
+      const { contents, systemInstruction, temperature = 0.7, model = 'gemini-3.7-flash', responseMimeType, apiKey } = req.body || {};
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return !clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here' || clean.startsWith('AIzaSy...');
+      };
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+
+      if (!effectiveKey) {
+        return res.status(400).json({ ok: false, error: 'No server Gemini API key configured.' });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: effectiveKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+
+      const config: any = { temperature };
+      if (systemInstruction) config.systemInstruction = systemInstruction;
+      if (responseMimeType) config.responseMimeType = responseMimeType;
+
+      const aiResponse = await ai.models.generateContent({
+        model: model || 'gemini-3.7-flash',
+        contents,
+        config
+      });
+
+      return res.json({
+        ok: true,
+        text: aiResponse.text || '',
+        candidates: aiResponse.candidates || []
+      });
+    } catch (err: any) {
+      console.warn('[Server /api/ai/generate error]:', err?.message || err);
+      return res.status(500).json({
+        ok: false,
+        error: err?.message || 'Server AI generation error'
+      });
+    }
+  };
+
+  app.post(['/api/ai/generate', '/api/public/v1/ai/generate'], handleAIGenerate);
+
+  // ==========================================================================
   // 3. GOOGLE AI VOICEOVER (GEMINI TTS) - FLAGSHIP GOOGLE KORE VOICE
   // ==========================================================================
 

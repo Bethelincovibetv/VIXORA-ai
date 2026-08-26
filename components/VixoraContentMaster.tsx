@@ -144,48 +144,31 @@ export const VixoraContentMaster: React.FC<VixoraContentMasterProps> = ({
     setIsLoading(true);
 
     try {
-      const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || '';
-      
-      const systemInstruction = `You are "Sister Vixora Content Master", an elite AI Content Coach and Faith-Aligned Media Strategist.
-Your persona is a warm, highly intelligent, articulate Nigerian sister with immense warmth, spiritual wisdom, and deep social media mastery (like a ChatGPT voice agent with Nigerian warmth).
+      let responseText = '';
 
-CORE DIRECTIVES:
-1. Speak with warmth, clarity, and authority ("My dear creator", "God bless your talent", "Let us align your niche with God's purpose").
-2. ALWAYS provide actionable, high-converting content advice for Facebook, WhatsApp status, TikTok, Instagram, and YouTube.
-3. FORMATTING RULE: NEVER use asterisks (* or **) anywhere in your response. Do not use markdown bold or italic syntax with asterisks. Write in clean plain text with standard line breaks or bullets (•) without asterisks.
-4. If the user asks for a content roadmap or strategy, structure a 4-item or 4-week roadmap with clear hooks and call-to-actions.
-5. If the user asks to create a video template, generate JSON format inside your response containing:
-   [TEMPLATE_JSON]
-   {
-     "title": "Title",
-     "description": "Desc",
-     "niche": "Niche",
-     "aspectRatio": "vertical",
-     "targetDuration": "30s",
-     "captionTemplate": "bold-yellow",
-     "sfxEnabled": true,
-     "scriptStyle": "Engaging Hook -> Faith Insight -> Call to Action"
-   }
-   [/TEMPLATE_JSON]
-6. Always remind creators to align their monetization with biblical truth, honesty, and high-value service.`;
-
-      const ai = new GoogleGenAI({
-        apiKey: activeApiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
-
-      const prompt = `User Niche: ${niche}\nUser Goal: ${goal}\nUser Message: ${promptToUse}`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7
+      try {
+        const res = await fetch('/api/ai/coach-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: promptToUse,
+            niche,
+            goal
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.text) {
+            responseText = data.text;
+          }
         }
-      });
+      } catch (fetchErr) {
+        // Fallback below
+      }
 
-      const responseText = response.text || "Praise God my dear creator! I am reviewing your request. How else can I guide your viral content journey today?";
+      if (!responseText) {
+        responseText = `Praise God my dear creator! For your ${niche} content journey with the goal of "${goal}", here is your immediate breakthrough strategy:\n\n1. Hook Your Audience: Start directly with the core transformation or question in your niche without preamble.\n\n2. Deliver Core Value: Share 1 impactful, memorable tip or revelation that builds immediate authority and trust.\n\n3. Call to Purposeful Action: Ask your viewers to save this video, share with someone who needs encouragement, or comment their thoughts.\n\nKeep shining your light with integrity and bold creativity!`;
+      }
 
       // Check for embedded Template JSON
       let generatedTemplate: VideoTemplate | undefined = undefined;
@@ -247,60 +230,63 @@ CORE DIRECTIVES:
   const handleGenerateRoadmap = async () => {
     setIsLoading(true);
     try {
-      const activeApiKey = (window as any).__GEMINI_API_KEY__ || process.env.GEMINI_API_KEY || '';
-      const ai = new GoogleGenAI({
-        apiKey: activeApiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
+      let parsed: any = null;
 
-      const prompt = `Create a 4-week Viral Content Roadmap for the niche "${niche}" with goal "${goal}".
-Return strictly valid JSON in this exact format:
-{
-  "title": "4-Week ${niche} Viral Content Mastery",
-  "niche": "${niche}",
-  "platform": "Multi-Platform (WhatsApp, Facebook, TikTok)",
-  "goal": "${goal}",
-  "faithAlignment": "Honoring God with truthful, uplifting, and high-value content",
-  "roadmapItems": [
-    {
-      "week": "Week 1",
-      "topic": "The High-Impact Origin Hook",
-      "hook": "Why 90% of creators in ${niche} fail to reach their true audience...",
-      "platform": "TikTok & Facebook Reels",
-      "monetizationAngle": "Build trust and introduce free community link"
-    },
-    {
-      "week": "Week 2",
-      "topic": "Debunking Common Myths",
-      "hook": "Stop doing this if you want divine breakthrough in ${niche}!",
-      "platform": "WhatsApp Status & Instagram Stories",
-      "monetizationAngle": "Direct 1-on-1 WhatsApp consultations"
-    },
-    {
-      "week": "Week 3",
-      "topic": "Transformational Testimony & Value Breakdown",
-      "hook": "Here is the exact framework God gave me to master ${niche}...",
-      "platform": "YouTube Shorts & Facebook Page",
-      "monetizationAngle": "Digital downloadable guide / masterclass"
-    },
-    {
-      "week": "Week 4",
-      "topic": "Community Call to Action & Scaling",
-      "hook": "Ready to take your ${niche} journey to the next level?",
-      "platform": "WhatsApp Broadcast & All Channels",
-      "monetizationAngle": "Premium inner circle membership"
-    }
-  ]
-}`;
+      try {
+        const res = await fetch('/api/ai/coach-strategy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ niche, goal })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.data) {
+            parsed = data.data;
+          }
+        }
+      } catch (fetchErr) {
+        // Fallback below
+      }
 
-      const res = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-
-      const rawText = res.text || '{}';
-      const cleanJson = rawText.substring(rawText.indexOf('{'), rawText.lastIndexOf('}') + 1);
-      const parsed = JSON.parse(cleanJson);
+      if (!parsed) {
+        parsed = {
+          title: `4-Week ${niche} Viral Content Mastery`,
+          niche,
+          platform: "Multi-Platform (WhatsApp, Facebook, TikTok)",
+          goal,
+          faithAlignment: "Honoring God with truthful, uplifting, and high-value content",
+          roadmapItems: [
+            {
+              week: "Week 1",
+              topic: "The High-Impact Origin Hook",
+              hook: `Why 90% of creators in ${niche} fail to reach their true audience...`,
+              platform: "TikTok & Facebook Reels",
+              monetizationAngle: "Build trust and introduce free community link"
+            },
+            {
+              week: "Week 2",
+              topic: "Debunking Common Myths",
+              hook: `Stop doing this if you want breakthrough in ${niche}!`,
+              platform: "WhatsApp Status & Instagram Stories",
+              monetizationAngle: "Direct 1-on-1 consultations"
+            },
+            {
+              week: "Week 3",
+              topic: "Transformational Value Breakdown",
+              hook: `Here is the exact framework to master ${niche}...`,
+              platform: "YouTube Shorts & Facebook Page",
+              monetizationAngle: "Digital downloadable guide / masterclass"
+            },
+            {
+              week: "Week 4",
+              topic: "Community Call to Action & Scaling",
+              hook: `Ready to take your ${niche} journey to the next level?`,
+              platform: "WhatsApp Broadcast & All Channels",
+              monetizationAngle: "Premium inner circle membership"
+            }
+          ]
+        };
+      }
 
       const newRoadmap: ContentRoadmap = {
         id: 'rdmp_' + Date.now(),

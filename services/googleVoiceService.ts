@@ -3,7 +3,7 @@
  * High-fidelity Google AI Speech Synthesis with Google Kore Flagship voice.
  */
 
-export const DEFAULT_GEMINI_KEY = 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
+export const DEFAULT_GEMINI_KEY = '';
 
 export interface GoogleVoiceProfile {
   id: string;
@@ -19,14 +19,14 @@ export interface GoogleVoiceProfile {
 
 export const GOOGLE_VOICES: GoogleVoiceProfile[] = [
   {
-    id: 'kore_flagship',
-    name: 'Vixora Voice (Google Kore - Flagship High Energy)',
+    id: 'vixora_studio_voice',
+    name: 'Vixora Studio Voice (Signature Flagship AI)',
     voiceName: 'Kore',
-    accent: 'High Energy Engaging Voice',
+    accent: 'Vixora Studio Signature Voice (High-Energy & Crystal Clear)',
     gender: 'Female',
-    description: 'Vibrant, high-energy, natural AI voice with emotional dynamics powered by Google AI.',
-    sampleText: 'Welcome to Vixora Voice Agent Studio! I am your energetic AI partner, ready to cook viral videos and scripts with you!',
-    badge: 'FLAGSHIP GOOGLE AI VOICE',
+    description: 'The official signature Vixora Studio AI voice. Vibrant, charismatic, high-energy tone engineered for maximum video retention, viral hooks, and immersive narration.',
+    sampleText: 'Welcome to Vixora Studio! I am your signature AI studio voice, ready to bring your video scripts and audio creations to life!',
+    badge: 'OFFICIAL VIXORA STUDIO VOICE',
     isVixoraVoice: true
   },
   {
@@ -140,7 +140,7 @@ export async function synthesizeGoogleVoice(
         voice: targetVoice,
         speed,
         format,
-        apiKey: customApiKey || DEFAULT_GEMINI_KEY
+        apiKey: customApiKey || undefined
       })
     });
 

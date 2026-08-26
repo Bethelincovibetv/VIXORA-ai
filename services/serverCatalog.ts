@@ -14,14 +14,14 @@ export interface ServerVoiceOption {
 
 export const SERVER_VOICE_OPTIONS: ServerVoiceOption[] = [
   {
-    id: 'kore_flagship',
-    name: 'Vixora Voice (Google Kore - Flagship High Energy)',
+    id: 'vixora_studio_voice',
+    name: 'Vixora Studio Voice (Signature Flagship AI)',
     voiceName: 'Kore',
-    accent: 'High Energy Engaging Voice',
+    accent: 'Vixora Studio Signature Voice (High-Energy & Crystal Clear)',
     gender: 'Female',
-    description: 'Vibrant, high-energy, natural AI voice with emotional dynamics powered by Google AI.',
-    sampleText: 'Welcome to Vixora Voice Agent Studio! I am your energetic AI partner, ready to cook viral videos and scripts with you!',
-    badge: 'FLAGSHIP GOOGLE AI VOICE',
+    description: 'The official signature Vixora Studio AI voice. Vibrant, charismatic, high-energy tone engineered for maximum video retention, viral hooks, and immersive narration.',
+    sampleText: 'Welcome to Vixora Studio! I am your signature AI studio voice, ready to bring your video scripts and audio creations to life!',
+    badge: 'OFFICIAL VIXORA STUDIO VOICE',
     isVixoraVoice: true
   },
   {

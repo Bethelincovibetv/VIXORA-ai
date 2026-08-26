@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light-mode">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -38,53 +38,133 @@
         body { 
           font-family: 'Inter', sans-serif; 
           -webkit-tap-highlight-color: transparent; 
+          background-color: #f8fafc;
+          color: #0f172a;
+          overflow-x: hidden;
+          transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        html:not(.light-mode) body {
           background-color: #020617;
           color: #f8fafc;
-          overflow-x: hidden;
-          transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Light Mode Accessibility Overrides */
         html.light-mode body {
-          background-color: #f8fafc;
-          color: #0f172a;
+          background-color: #f8fafc !important;
+          color: #0f172a !important;
         }
 
         html.light-mode .mesh-container {
-          opacity: 0.1;
+          opacity: 0.12;
         }
 
         /* Convert dark card panels to clean white cards in light mode */
         html.light-mode div[class*="bg-slate-900"],
         html.light-mode div[class*="bg-slate-950"],
         html.light-mode div[class*="bg-black/"],
-        html.light-mode div[class*="bg-slate-800"] {
+        html.light-mode div[class*="bg-slate-800"],
+        html.light-mode section[class*="bg-slate-900"],
+        html.light-mode section[class*="bg-slate-950"],
+        html.light-mode aside[class*="bg-slate-900"],
+        html.light-mode aside[class*="bg-slate-950"] {
           background-color: #ffffff !important;
           color: #0f172a !important;
           border-color: #e2e8f0 !important;
-          box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+          box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
         }
 
+        /* Sub-panels and nested containers in light mode */
+        html.light-mode div[class*="bg-white/5"],
+        html.light-mode div[class*="bg-white/10"],
+        html.light-mode div[class*="bg-white/15"],
+        html.light-mode div[class*="bg-white/20"] {
+          background-color: #f1f5f9 !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+        }
+
+        /* Universal text visibility in light mode */
         html.light-mode h1, 
         html.light-mode h2, 
         html.light-mode h3, 
         html.light-mode h4,
+        html.light-mode h5,
+        html.light-mode h6,
         html.light-mode p,
         html.light-mode label,
-        html.light-mode span:not(.text-white):not(.btn-3d *):not(.bg-ggd-orange *):not(.bg-blue-600 *):not(.bg-purple-600 *):not(.bg-emerald-600 *):not(.bg-amber-500 *) {
+        html.light-mode strong,
+        html.light-mode b {
           color: #0f172a;
         }
 
-        html.light-mode p.text-slate-400,
-        html.light-mode span.text-slate-400,
-        html.light-mode p.text-slate-500,
-        html.light-mode span.text-slate-500 {
-          color: #475569 !important;
+        /* All white text on light mode converted to sharp deep black or rich purple */
+        html.light-mode [class*="text-white"]:not(.btn-3d):not(.btn-3d *):not([class*="btn-3d-"]):not([class*="btn-3d-"] *):not(button[class*="bg-ggd-orange"]):not(button[class*="bg-ggd-orange"] *):not(button[class*="bg-rose-"]):not(button[class*="bg-rose-"] *):not(button[class*="bg-red-"]):not(button[class*="bg-red-"] *):not(button[class*="bg-purple-"]):not(button[class*="bg-purple-"] *):not(button[class*="bg-blue-"]):not(button[class*="bg-blue-"] *):not(button[class*="bg-emerald-"]):not(button[class*="bg-emerald-"] *):not(button[class*="bg-amber-"]):not(button[class*="bg-amber-"] *):not(button[class*="bg-orange-"]):not(button[class*="bg-orange-"] *):not([class*="bg-gradient-"]):not([class*="bg-gradient-"] *):not(.bg-ggd-orange):not(.bg-ggd-orange *):not(.bg-black):not(.bg-black *):not(video):not(canvas) {
+          color: #0f172a !important;
+        }
+
+        /* Text colors in light mode for muted and subtitle elements */
+        html.light-mode [class*="text-slate-400"],
+        html.light-mode [class*="text-slate-500"],
+        html.light-mode [class*="text-slate-300"],
+        html.light-mode [class*="text-slate-200"],
+        html.light-mode [class*="text-white/60"],
+        html.light-mode [class*="text-white/70"],
+        html.light-mode [class*="text-white/80"] {
+          color: #334155 !important;
+        }
+
+        /* ICONS ON WHITE/LIGHT BACKGROUNDS: VIBRANT PURPLE OR CRISP BLACK */
+        html.light-mode i:not(.btn-3d *):not([class*="btn-3d-"] *):not(button[class*="bg-ggd-orange"] *):not(button[class*="bg-rose-"] *):not(button[class*="bg-red-"] *):not(button[class*="bg-purple-"] *):not(button[class*="bg-blue-"] *):not(button[class*="bg-emerald-"] *):not(button[class*="bg-amber-"] *):not(button[class*="bg-orange-"] *):not([class*="bg-gradient-"] *):not(.bg-black *):not(a[class*="bg-"] *) {
+          color: #7c3aed; /* Vibrant royal purple for icons */
+        }
+
+        /* Keep colorful icon accents intact */
+        html.light-mode i.text-ggd-orange,
+        html.light-mode i[class*="text-orange-"] {
+          color: #ea580c !important;
+        }
+        html.light-mode i[class*="text-rose-"],
+        html.light-mode i[class*="text-red-"] {
+          color: #e11d48 !important;
+        }
+        html.light-mode i[class*="text-amber-"],
+        html.light-mode i[class*="text-yellow-"] {
+          color: #d97706 !important;
+        }
+        html.light-mode i[class*="text-emerald-"],
+        html.light-mode i[class*="text-green-"] {
+          color: #059669 !important;
+        }
+        html.light-mode i[class*="text-blue-"],
+        html.light-mode i[class*="text-cyan-"] {
+          color: #2563eb !important;
+        }
+        html.light-mode i[class*="text-purple-"],
+        html.light-mode i[class*="text-violet-"] {
+          color: #7c3aed !important;
+        }
+
+        /* Any white icon on light background turns royal purple */
+        html.light-mode i.text-white:not(.btn-3d *):not([class*="btn-3d-"] *):not(button[class*="bg-"] *):not([class*="bg-gradient-"] *):not(.bg-black *) {
+          color: #7c3aed !important;
+        }
+
+        /* Borders in light mode */
+        html.light-mode [class*="border-white/5"],
+        html.light-mode [class*="border-white/10"],
+        html.light-mode [class*="border-white/15"],
+        html.light-mode [class*="border-white/20"],
+        html.light-mode [class*="border-slate-800"],
+        html.light-mode [class*="border-slate-900"] {
+          border-color: #e2e8f0 !important;
         }
 
         /* Preserve bright white text inside colorful buttons, badges, pills in light mode */
         html.light-mode .btn-3d,
         html.light-mode .btn-3d *,
+        html.light-mode [class*="btn-3d-"],
+        html.light-mode [class*="btn-3d-"] *,
         html.light-mode button[class*="bg-ggd-orange"],
         html.light-mode button[class*="bg-ggd-orange"] *,
         html.light-mode button[class*="bg-blue-"],
@@ -95,31 +175,54 @@
         html.light-mode button[class*="bg-emerald-"] *,
         html.light-mode button[class*="bg-amber-"],
         html.light-mode button[class*="bg-amber-"] *,
+        html.light-mode button[class*="bg-red-"],
+        html.light-mode button[class*="bg-red-"] *,
+        html.light-mode button[class*="bg-rose-"],
+        html.light-mode button[class*="bg-rose-"] *,
+        html.light-mode button[class*="bg-orange-"],
+        html.light-mode button[class*="bg-orange-"] *,
+        html.light-mode a[class*="bg-emerald-"],
+        html.light-mode a[class*="bg-emerald-"] *,
+        html.light-mode a[class*="bg-ggd-orange"],
+        html.light-mode a[class*="bg-ggd-orange"] *,
         html.light-mode [class*="bg-gradient-"] span,
         html.light-mode [class*="bg-gradient-"] p,
-        html.light-mode [class*="bg-gradient-"] i {
+        html.light-mode [class*="bg-gradient-"] i,
+        html.light-mode .bg-ggd-orange,
+        html.light-mode .bg-ggd-orange * {
           color: #ffffff !important;
         }
 
-        /* Light mode input fields & dropdowns */
-        html.light-mode input, 
+        /* Light mode input fields, textareas & dropdowns */
+        html.light-mode input:not([type="checkbox"]):not([type="radio"]), 
         html.light-mode textarea, 
         html.light-mode select {
-          background-color: #f8fafc !important;
+          background-color: #ffffff !important;
           color: #0f172a !important;
           border-color: #cbd5e1 !important;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         html.light-mode input::placeholder, 
         html.light-mode textarea::placeholder {
           color: #64748b !important;
+          opacity: 1;
         }
 
-        /* Bottom Navigation Bar Light Mode styling */
-        html.light-mode nav.fixed {
+        /* Code and Pre blocks */
+        html.light-mode pre,
+        html.light-mode code {
+          background-color: #f1f5f9 !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+        }
+
+        /* Navbar & Bottom Bar Light Mode */
+        html.light-mode nav.fixed,
+        html.light-mode header {
           background-color: rgba(255, 255, 255, 0.95) !important;
           border-color: #cbd5e1 !important;
-          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.12);
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08);
         }
 
         html.light-mode nav.fixed button span {

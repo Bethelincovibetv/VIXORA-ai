@@ -1747,14 +1747,22 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           <div className="flex items-center gap-2.5">
             <button 
               onClick={togglePlayPause} 
-              className="w-11 h-11 rounded-2xl bg-white text-slate-950 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all font-bold shrink-0 shadow-lg min-h-[44px]"
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center active:scale-95 transition-all font-bold shrink-0 shadow-lg min-h-[44px] ${
+                themeMode === 'light'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-orange-500/20'
+                  : 'bg-white text-slate-950 hover:bg-slate-200'
+              }`}
             >
               {isPlaying ? <i className="fa-solid fa-pause text-base"></i> : <i className="fa-solid fa-play text-base ml-0.5"></i>}
             </button>
 
             <button 
               onClick={stopPlayback} 
-              className="w-11 h-11 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center border border-white/10 shrink-0 min-h-[44px]"
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center border shrink-0 min-h-[44px] transition-all ${
+                themeMode === 'light'
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 shadow-sm'
+                  : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+              }`}
               title="Stop & Reset"
             >
               <i className="fa-solid fa-stop text-sm"></i>
@@ -1767,7 +1775,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
               step="0.05" 
               value={currentTime} 
               onChange={handleSeek} 
-              className="flex-1 accent-ggd-orange h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+              className="flex-1 accent-ggd-orange h-2 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer"
             />
           </div>
         </div>
@@ -1775,16 +1783,20 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
 
       {/* CAPCUT MOBILE EDITOR TOOL DOCK BAR (STICKY / TABBED BOTTOM TOOLBAR) */}
       <div className="space-y-3">
-        <div className="flex items-center gap-1 overflow-x-auto p-1.5 rounded-2xl border bg-black/40 border-white/10 scrollbar-hide">
+        <div className={`flex items-center gap-1 overflow-x-auto p-1.5 rounded-2xl border shadow-lg scrollbar-hide ${
+          themeMode === 'light' ? 'bg-slate-100/90 border-slate-200' : 'bg-black/40 border-white/10'
+        }`}>
           <button
             onClick={() => setActiveEditorTab('timeline')}
             className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
               activeEditorTab === 'timeline'
                 ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : themeMode === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-white border border-transparent'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <i className="fa-solid fa-layer-group text-xs"></i>
+            <i className={`fa-solid fa-layer-group text-xs ${activeEditorTab === 'timeline' ? 'text-white' : 'text-ggd-orange'}`}></i>
             <span>Clips ({segments.length})</span>
           </button>
 
@@ -1793,10 +1805,12 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
               activeEditorTab === 'audio'
                 ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : themeMode === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-white border border-transparent'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <i className="fa-solid fa-music text-xs"></i>
+            <i className={`fa-solid fa-music text-xs ${activeEditorTab === 'audio' ? 'text-white' : 'text-purple-600'}`}></i>
             <span>Music</span>
           </button>
 
@@ -1805,10 +1819,12 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
               activeEditorTab === 'captions'
                 ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : themeMode === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-white border border-transparent'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <i className="fa-solid fa-closed-captioning text-xs"></i>
+            <i className={`fa-solid fa-closed-captioning text-xs ${activeEditorTab === 'captions' ? 'text-white' : 'text-blue-600'}`}></i>
             <span>Captions</span>
           </button>
 
@@ -1817,10 +1833,12 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
               activeEditorTab === 'speed'
                 ? 'bg-ggd-orange text-white shadow-lg border border-ggd-orange'
+                : themeMode === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-white border border-transparent'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <i className="fa-solid fa-gauge-high text-xs"></i>
+            <i className={`fa-solid fa-gauge-high text-xs ${activeEditorTab === 'speed' ? 'text-white' : 'text-amber-600'}`}></i>
             <span>Speed & SFX</span>
           </button>
 
@@ -1829,6 +1847,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
             className={`flex-1 min-w-[85px] py-2.5 px-3 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all min-h-[44px] ${
               activeEditorTab === 'export'
                 ? 'bg-emerald-600 text-white shadow-lg border border-emerald-500'
+                : themeMode === 'light'
+                ? 'text-emerald-700 hover:text-emerald-900 hover:bg-white border border-transparent'
                 : 'text-emerald-400 hover:text-white hover:bg-emerald-500/10'
             }`}
           >

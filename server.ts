@@ -559,40 +559,58 @@ Return JSON in this EXACT schema:
         });
       }
 
-      const googleVoiceName = resolveGoogleVoiceName(voice);
-      const effectiveKey = apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
-      
-      const ai = new GoogleGenAI({
-        apiKey: effectiveKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return (
+          !clean ||
+          clean === 'undefined' ||
+          clean === 'null' ||
+          clean === 'your_gemini_api_key_here' ||
+          clean.includes('AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA') ||
+          clean.includes('AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk') ||
+          clean.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ||
+          clean.startsWith('AIzaSy...') ||
+          clean === 'AIzaSy...'
+        );
+      };
 
+      const googleVoiceName = resolveGoogleVoiceName(voice);
+      const effectiveKey = (!isInvalidKey(apiKey) ? apiKey : '') || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      
       let audioBuffer: Buffer | null = null;
       let rawBase64 = '';
 
-      try {
-        const speechRes = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-tts-preview',
-          contents: text,
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: googleVoiceName
+      if (effectiveKey) {
+        try {
+          const ai = new GoogleGenAI({
+            apiKey: effectiveKey,
+            httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+          });
+
+          const speechRes = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-tts-preview',
+            contents: text,
+            config: {
+              responseModalities: [Modality.AUDIO],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: googleVoiceName
+                  }
                 }
               }
             }
-          }
-        });
+          });
 
-        const inlineData = speechRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-        if (inlineData?.data) {
-          rawBase64 = inlineData.data;
-          audioBuffer = pcmToWavBuffer(rawBase64, 24000, 1);
+          const inlineData = speechRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+          if (inlineData?.data) {
+            rawBase64 = inlineData.data;
+            audioBuffer = pcmToWavBuffer(rawBase64, 24000, 1);
+          }
+        } catch (genaiErr: any) {
+          console.warn('[Google AI Voice synthesis notice]:', genaiErr?.message || genaiErr);
         }
-      } catch (genaiErr: any) {
-        console.warn('[Google AI Voice synthesis warning]:', genaiErr?.message || genaiErr);
       }
 
       const wordCount = text.split(/\s+/).length;

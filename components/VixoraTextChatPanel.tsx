@@ -162,6 +162,7 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
           clean === 'undefined' ||
           clean === 'null' ||
           clean === 'your_gemini_api_key_here' ||
+          clean.includes('AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA') ||
           clean.includes('AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk') ||
           clean.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ||
           clean.startsWith('AIzaSy...')
@@ -646,15 +647,17 @@ If user asks to open profile, settings, studio, autopilot, scripts, voiceover, t
 
         {/* ACTION SHEET / TOOLS POPOVER MENU */}
         {isAddMenuOpen && (
-          <div className="absolute bottom-20 left-4 right-4 z-[260] bg-slate-900 border border-white/15 rounded-3xl p-4 shadow-2xl animate-rise max-h-96 overflow-y-auto space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+          <div className={`absolute bottom-20 left-4 right-4 z-[260] border rounded-3xl p-4 shadow-2xl animate-rise max-h-96 overflow-y-auto space-y-3 ${
+            themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/15 text-white'
+          }`}>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10">
               <h4 className="text-xs font-black uppercase tracking-wider text-ggd-orange flex items-center gap-2">
                 <i className="fa-solid fa-plus-circle"></i>
                 <span>Add & Invoke AI Tools</span>
               </h4>
               <button 
                 onClick={() => setIsAddMenuOpen(false)}
-                className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs text-white"
+                className="w-6 h-6 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center text-xs text-slate-600 dark:text-white hover:bg-slate-200"
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
@@ -664,26 +667,30 @@ If user asks to open profile, settings, studio, autopilot, scripts, voiceover, t
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={() => imageInputRef.current?.click()}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-2.5 text-left active:scale-95 transition-all"
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left active:scale-95 transition-all ${
+                  themeMode === 'light' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5 hover:bg-white/10 border-white/10'
+                }`}
               >
                 <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-ggd-orange flex items-center justify-center text-xs">
                   <i className="fa-solid fa-image"></i>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-white">Upload Image</p>
+                  <p className={`text-[11px] font-bold ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>Upload Image</p>
                   <p className="text-[8.5px] text-slate-400">Attach graphic/photo</p>
                 </div>
               </button>
 
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-2.5 text-left active:scale-95 transition-all"
+                className={`p-3 rounded-2xl border flex items-center gap-2.5 text-left active:scale-95 transition-all ${
+                  themeMode === 'light' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5 hover:bg-white/10 border-white/10'
+                }`}
               >
-                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs">
                   <i className="fa-solid fa-file-lines"></i>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-white">Upload File</p>
+                  <p className={`text-[11px] font-bold ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>Upload File</p>
                   <p className="text-[8.5px] text-slate-400">Script or doc text</p>
                 </div>
               </button>
@@ -696,18 +703,22 @@ If user asks to open profile, settings, studio, autopilot, scripts, voiceover, t
                   setIsAddMenuOpen(false);
                   appContext.setActiveTab('tools');
                 }}
-                className="w-full p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 border border-emerald-500/30 flex items-center justify-between text-left transition-all active:scale-95 group shadow-lg"
+                className={`w-full p-3 rounded-2xl border flex items-center justify-between text-left transition-all active:scale-95 group shadow-lg ${
+                  themeMode === 'light'
+                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
+                    : 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 border-emerald-500/30'
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs shrink-0 shadow-md">
                     <i className="fa-solid fa-shapes"></i>
                   </div>
                   <div>
-                    <p className="text-[11px] font-black text-white group-hover:text-emerald-400 transition-colors">Tools Library</p>
+                    <p className={`text-[11px] font-black group-hover:text-emerald-500 transition-colors ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>Tools Library</p>
                     <p className="text-[8.5px] text-slate-400">Open full suite of 12 AI creation tools</p>
                   </div>
                 </div>
-                <i className="fa-solid fa-arrow-right text-xs text-emerald-400 group-hover:translate-x-1 transition-transform"></i>
+                <i className="fa-solid fa-arrow-right text-xs text-emerald-500 group-hover:translate-x-1 transition-transform"></i>
               </button>
             </div>
           </div>

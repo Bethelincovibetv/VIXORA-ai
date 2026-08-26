@@ -383,7 +383,7 @@ const App: React.FC = () => {
 
   // Theme & Accessibility States
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('vixora_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('vixora_theme') as 'dark' | 'light') || 'light';
   });
   const [accessibilityMode, setAccessibilityMode] = useState<{
     highContrast: boolean;
@@ -587,7 +587,8 @@ const App: React.FC = () => {
   
   // Voiceover State
   const [voiceoverText, setVoiceoverText] = useState('');
-  const [selectedVoice, setSelectedVoice] = useState('Kore'); // Default Vixora Voice (Kore)
+  const [selectedVoice, setSelectedVoice] = useState('Kore'); // Default Vixora Studio Voice (Kore)
+  const [voiceoverSpeed, setVoiceoverSpeed] = useState<number>(1.0);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [isGeneratingVoiceover, setIsGeneratingVoiceover] = useState(false);
   const [lastVoiceoverAudio, setLastVoiceoverAudio] = useState<string | null>(null);
@@ -870,6 +871,7 @@ const App: React.FC = () => {
     const clean = key.trim();
     if (!clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here') return true;
     if (
+      clean.includes('AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA') ||
       clean.includes('AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk') ||
       clean.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ||
       clean.startsWith('AIzaSy...') ||
@@ -881,15 +883,14 @@ const App: React.FC = () => {
   };
 
   const getEffectiveApiKey = (userApiKey?: string): string => {
-    const defaultKey = 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
-    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || defaultKey;
+    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
     if (!isInvalidOrLeakedKey(userApiKey)) {
       return userApiKey!.trim();
     }
     if (!isInvalidOrLeakedKey(envKey)) {
       return envKey.trim();
     }
-    return defaultKey;
+    return '';
   };
 
   const generateGeminiContentWithFallback = async (
@@ -1775,10 +1776,11 @@ Structure: Full Masterclass / In-depth Documentary Script.
     setAppError(null);
 
     try {
-      // Synthesize using Fish Audio S2-Pro API
+      // Synthesize using Vixora Studio Voice (Kore) / Google Voice Engine
       const result = await synthesizeFishAudio({
         text: text.replace(/\*/g, ''),
         voiceName: selectedVoice || 'Kore',
+        speed: voiceoverSpeed || 1.0,
         format: 'mp3'
       });
 
@@ -1794,16 +1796,17 @@ Structure: Full Masterclass / In-depth Documentary Script.
         const updatedHistory = [newEntry, ...voiceoverHistory];
         setVoiceoverHistory(updatedHistory);
         syncSaveVoiceover(newEntry);
+        setActiveVoiceoverId(newId);
         playProceduralSFX('bell');
       } else {
         if (result.error) {
-          setAppError(`Fish Audio (${result.statusCode || 'Error'}): ${result.error}`);
+          setAppError(`Vixora Voice (${result.statusCode || 'Error'}): ${result.error}`);
         } else {
-          setAppError("Voiceover synthesis with Fish Audio failed. Please check network/API status.");
+          setAppError("Voiceover synthesis with Vixora Voice Engine failed. Please check network/API status.");
         }
       }
     } catch (err: any) {
-      setAppError(`Fish Audio voiceover error: ${err?.message || err}`);
+      setAppError(`Vixora Voice error: ${err?.message || err}`);
     } finally {
       setIsGeneratingVoiceover(false);
     }
@@ -2367,10 +2370,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
   // --- RENDERING ---
 
   if (!user) return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-slate-950 text-white">
+    <div className={`min-h-screen flex items-center justify-center p-4 sm:p-6 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
       <div className="w-full max-w-md space-y-6 animate-rise">
         {wizardStep === 0 ? (
-          <div className="text-center space-y-6 bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+          <div className={`text-center space-y-6 p-6 sm:p-8 rounded-3xl border shadow-2xl backdrop-blur-xl relative overflow-hidden ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/90 border-white/10 text-white'}`}>
             <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-orange-500/20 blur-2xl pointer-events-none"></div>
             
             <div className="w-20 h-20 rounded-3xl mx-auto overflow-hidden shadow-[0_0_50px_rgba(255,102,0,0.4)] border border-white/20 bg-slate-900 p-2 flex items-center justify-center">
@@ -2379,16 +2382,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
             <div className="space-y-2">
               <h1 className="text-3xl font-black uppercase tracking-tighter">VIXORA <span className="text-ggd-orange">STUDIO</span></h1>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">AI Video Creator & Voice Production Engine</p>
+              <p className={`text-[11px] font-bold uppercase tracking-widest ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>AI Video Creator & Voice Production Engine</p>
             </div>
 
             {/* Backend Integration Badge */}
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-left space-y-1">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-left space-y-1">
               <div className="flex items-center gap-2">
                 <i className="fa-solid fa-cloud text-xs"></i>
                 <span className="text-[10px] font-black uppercase tracking-wider">Vixora Cloud Sync Active</span>
               </div>
-              <p className="text-[9px] text-emerald-300/80 leading-normal">
+              <p className="text-[9px] leading-normal opacity-90">
                 Persistent video projects, cloud asset storage, and authenticated creator workspace ready.
               </p>
             </div>
@@ -2408,7 +2411,11 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   setAuthMode('signup');
                   setWizardStep(1);
                 }} 
-                className="w-full py-3.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white font-black uppercase rounded-2xl text-xs tracking-wider transition-all cursor-pointer"
+                className={`w-full py-3.5 border font-black uppercase rounded-2xl text-xs tracking-wider transition-all cursor-pointer ${
+                  themeMode === 'light'
+                    ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                    : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
+                }`}
               >
                 Create New Account
               </button>
@@ -2426,14 +2433,18 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   localStorage.setItem('ggd_creator_user', JSON.stringify(demoUser));
                   setWizardStep(3);
                 }} 
-                className="w-full py-2.5 text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
+                className={`w-full py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                  themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                }`}
               >
                 ⚡ Quick Instant Creator Mode
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-5 text-left bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl relative">
+          <div className={`space-y-5 text-left p-6 sm:p-8 rounded-3xl border shadow-2xl backdrop-blur-xl relative ${
+            themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/90 border-white/10 text-white'
+          }`}>
             {/* Header & Mode Switcher */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -2446,7 +2457,9 @@ Structure: Full Masterclass / In-depth Documentary Script.
               </div>
               
               {/* Segmented Mode Selector */}
-              <div className="p-1 rounded-xl bg-black/40 border border-white/10 flex items-center gap-1">
+              <div className={`p-1 rounded-xl border flex items-center gap-1 ${
+                themeMode === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/10'
+              }`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2456,7 +2469,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
                     authMode === 'signin'
                       ? 'bg-ggd-orange text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Sign In
@@ -2470,7 +2483,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
                     authMode === 'signup'
                       ? 'bg-ggd-orange text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Sign Up
@@ -2480,8 +2493,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
             {/* Error Banner */}
             {authErrorMsg && (
-              <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2">
-                <i className="fa-solid fa-triangle-exclamation text-red-400 shrink-0"></i>
+              <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-600 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation text-red-500 shrink-0"></i>
                 <span className="leading-snug">{authErrorMsg}</span>
               </div>
             )}
@@ -2489,12 +2502,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
             <form onSubmit={handleSupabaseAuthSubmit} className="space-y-3.5">
               {authMode === 'signup' && (
                 <div>
-                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Full Name *</label>
+                  <label className={`text-[9px] font-black uppercase tracking-wider mb-1 block ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Full Name *</label>
                   <input 
                     type="text"
                     value={wizardData.fullName} 
                     onChange={e => setWizardData({...wizardData, fullName: e.target.value})} 
-                    className="w-full p-3 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                    className={`w-full p-3 border rounded-xl font-bold outline-none focus:border-ggd-orange text-xs ${
+                      themeMode === 'light' 
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' 
+                        : 'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+                    }`} 
                     placeholder="e.g. Bethel Inco" 
                     required={authMode === 'signup'}
                   />
@@ -2502,32 +2519,42 @@ Structure: Full Masterclass / In-depth Documentary Script.
               )}
 
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Email Address *</label>
+                <label className={`text-[9px] font-black uppercase tracking-wider mb-1 block ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Email Address *</label>
                 <input 
                   type="email" 
                   value={wizardData.email || ''} 
                   onChange={e => setWizardData({...wizardData, email: e.target.value})} 
-                  className="w-full p-3 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                  className={`w-full p-3 border rounded-xl font-bold outline-none focus:border-ggd-orange text-xs ${
+                    themeMode === 'light' 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' 
+                      : 'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+                  }`} 
                   placeholder="e.g. creator@example.com" 
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1 block">Password *</label>
+                <label className={`text-[9px] font-black uppercase tracking-wider mb-1 block ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>Password *</label>
                 <div className="relative">
                   <input 
                     type={showPassword ? "text" : "password"} 
                     value={authPassword} 
                     onChange={e => setAuthPassword(e.target.value)} 
-                    className="w-full p-3 pr-10 bg-white/5 border border-white/10 rounded-xl font-bold outline-none focus:border-ggd-orange text-xs text-white" 
+                    className={`w-full p-3 pr-10 border rounded-xl font-bold outline-none focus:border-ggd-orange text-xs ${
+                      themeMode === 'light' 
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' 
+                        : 'bg-white/5 border-white/10 text-white placeholder:text-slate-500'
+                    }`} 
                     placeholder="Min. 6 characters" 
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${
+                      themeMode === 'light' ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    }`}
                   >
                     <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                   </button>
@@ -2553,7 +2580,9 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 <button 
                   type="button"
                   onClick={() => setWizardStep(0)} 
-                  className="w-full py-2 text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  className={`w-full py-2 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                    themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                  }`}
                 >
                   ← Back to Welcome
                 </button>
@@ -2863,12 +2892,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
         {(activeTab === 'videos' || activeTab === 'autopilot') && (
           <div className="animate-rise space-y-4">
             {/* UNIFIED CREATOR HEADER */}
-            <div className={`p-5 rounded-3xl border text-center relative overflow-hidden shadow-2xl ${themeMode === 'light' ? 'bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-white border-rose-200' : 'bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border-rose-500/20'}`}>
+            <div className={`p-5 rounded-3xl border text-center relative overflow-hidden shadow-2xl ${themeMode === 'light' ? 'bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-white border-rose-200 shadow-rose-500/5' : 'bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-950 border-rose-500/20'}`}>
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white mx-auto flex items-center justify-center text-xl mb-2 shadow-lg">
                 <i className="fa-solid fa-clapperboard"></i>
               </div>
-              <h2 className="text-xl font-black uppercase tracking-tight">Vixora AI Video Creator</h2>
-              <p className={`text-xs mt-1 font-medium max-w-md mx-auto ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+              <h2 className={`text-xl sm:text-2xl font-black uppercase tracking-tight ${themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                Vixora AI Video Creator
+              </h2>
+              <p className={`text-xs mt-1 font-medium max-w-md mx-auto ${themeMode === 'light' ? 'text-slate-700 font-semibold' : 'text-slate-400'}`}>
                 Unified AI Studio Video Production Engine. Generate faceless videos from a topic prompt or paste your custom script.
               </p>
             </div>
@@ -2883,10 +2914,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                   creatorInputMode === 'topic'
                     ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg scale-[1.01]'
-                    : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    : themeMode === 'light' ? 'text-slate-800 hover:text-slate-950 hover:bg-white/80' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <i className="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                <i className={`fa-solid fa-wand-magic-sparkles text-sm ${creatorInputMode === 'topic' ? 'text-white' : themeMode === 'light' ? 'text-rose-600' : 'text-slate-400'}`}></i>
                 <span>Create from Topic (AI Autopilot)</span>
               </button>
 
@@ -2896,10 +2927,10 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
                   creatorInputMode === 'script'
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg scale-[1.01]'
-                    : themeMode === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                    : themeMode === 'light' ? 'text-slate-800 hover:text-slate-950 hover:bg-white/80' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <i className="fa-solid fa-scroll text-sm"></i>
+                <i className={`fa-solid fa-scroll text-sm ${creatorInputMode === 'script' ? 'text-white' : themeMode === 'light' ? 'text-amber-600' : 'text-slate-400'}`}></i>
                 <span>Create from Script (Manual)</span>
               </button>
             </div>
@@ -3555,51 +3586,92 @@ Structure: Full Masterclass / In-depth Documentary Script.
         )}
 
         {activeTab === 'voiceover' && (
-          <div className="animate-rise space-y-4">
-             {/* VIXORA VOICE PROFILE & GENERATOR */}
-             <div className={`rounded-2xl p-5 border space-y-4 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
-                
-                {/* ACTIVE VOICE SELECTION BANNER */}
-                <div className={`p-4 rounded-2xl border flex items-center justify-between gap-3.5 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+          <div className="animate-rise space-y-4 text-left">
+             {/* VIXORA STUDIO VOICE FLAGSHIP HERO & STUDIO CONTROLS */}
+             <div className={`rounded-3xl p-6 border space-y-5 shadow-2xl relative overflow-hidden ${
+               themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+             }`}>
+                {/* Background Ambient Glow */}
+                <div className="absolute top-0 right-0 w-80 h-80 bg-ggd-orange/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+
+                {/* SIGNATURE VIXORA STUDIO VOICE PROFILE BANNER */}
+                <div className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10 shadow-lg ${
+                  themeMode === 'light' 
+                    ? 'bg-gradient-to-r from-orange-50 via-amber-50 to-white border-orange-200' 
+                    : 'bg-gradient-to-r from-orange-950/40 via-slate-900 to-slate-900/90 border-orange-500/30'
+                }`}>
                   {(() => {
                     const currentVo = VOICE_AVATAR_OPTIONS.find(v => v.voiceName === selectedVoice) || VOICE_AVATAR_OPTIONS[0];
+                    const isPreviewing = previewingVoiceId === currentVo.id;
                     return (
-                      <div className="flex items-center gap-3.5 text-left">
-                        <div className="relative shrink-0">
-                          <img 
-                            src={currentVo.avatar} 
-                            alt={currentVo.name} 
-                            className="w-14 h-14 rounded-full object-cover border-2 border-ggd-orange shadow-md"
-                            referrerPolicy="no-referrer"
-                          />
-                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full shadow-[0_0_8px_#10b981]"></span>
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-black uppercase tracking-tight text-ggd-orange">{currentVo.name}</h3>
-                            <span className="px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase bg-ggd-orange/15 text-ggd-orange border border-ggd-orange/30">
-                              {currentVo.flag} {currentVo.accent}
+                      <>
+                        <div className="flex items-center gap-4">
+                          <div className="relative shrink-0">
+                            <img 
+                              src={currentVo.avatar} 
+                              alt={currentVo.name} 
+                              className="w-16 h-16 rounded-2xl object-cover border-2 border-ggd-orange shadow-xl"
+                              referrerPolicy="no-referrer"
+                            />
+                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full shadow-[0_0_10px_#10b981] flex items-center justify-center">
+                              <i className="fa-solid fa-check text-[7px] text-white"></i>
                             </span>
                           </div>
-                          <p className={`text-[9.5px] font-medium leading-tight ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                            {currentVo.description}
-                          </p>
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+                                {currentVo.name}
+                              </h3>
+                              <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase bg-ggd-orange text-white shadow-sm flex items-center gap-1">
+                                <i className="fa-solid fa-bolt text-[7px]"></i>
+                                {currentVo.badge || 'OFFICIAL VIXORA STUDIO VOICE'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-medium leading-relaxed max-w-xl text-slate-600 dark:text-slate-300">
+                              {currentVo.description}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            disabled={isPreviewing}
+                            onClick={() => handlePreviewVoice(currentVo)}
+                            className={`px-3.5 py-2 rounded-xl text-[9px] font-black uppercase flex items-center gap-1.5 shadow-md transition-all active:scale-95 ${
+                              isPreviewing
+                                ? 'bg-ggd-orange text-white animate-pulse'
+                                : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:brightness-110'
+                            }`}
+                          >
+                            {isPreviewing ? (
+                              <>
+                                <i className="fa-solid fa-spinner animate-spin"></i>
+                                <span>Sampling...</span>
+                              </>
+                            ) : (
+                              <>
+                                <i className="fa-solid fa-play text-[8px]"></i>
+                                <span>Preview Audio</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </>
                     );
                   })()}
                 </div>
 
-                {/* VOICE AVATARS GRID SELECTION WITH PREVIEWS */}
-                <div className="space-y-2 text-left">
+                {/* VOICE AVATARS SELECTION PALETTE */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black uppercase tracking-wider text-ggd-orange flex items-center gap-1.5">
-                      <i className="fa-solid fa-users"></i> Available Voice Avatars
+                      <i className="fa-solid fa-microphone-lines"></i> Select Studio Voice Engine
                     </label>
-                    <span className="text-[8px] font-black uppercase text-slate-400">Click avatar to select voice</span>
+                    <span className="text-[8px] font-black uppercase text-slate-400">Click avatar to select voice profile</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                     {VOICE_AVATAR_OPTIONS.map((v) => {
                       const isSelected = selectedVoice === v.voiceName;
                       const isPreviewingThis = previewingVoiceId === v.id;
@@ -3607,34 +3679,44 @@ Structure: Full Masterclass / In-depth Documentary Script.
                         <div
                           key={v.id}
                           onClick={() => setSelectedVoice(v.voiceName)}
-                          className={`p-3 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between group ${
                             isSelected
                               ? 'bg-ggd-orange/15 border-ggd-orange shadow-md ring-2 ring-ggd-orange/30'
                               : themeMode === 'light'
-                                ? 'bg-white border-slate-200 hover:border-ggd-orange/40'
-                                : 'bg-black/30 border-white/10 hover:border-white/20'
+                                ? 'bg-slate-50 border-slate-200 hover:border-ggd-orange/40 hover:bg-orange-50/40'
+                                : 'bg-slate-950/60 border-white/10 hover:border-white/20 hover:bg-white/5'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 mb-2">
+                          {v.isVixoraVoice && (
+                            <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-ggd-orange text-white text-[7px] font-black uppercase shadow tracking-tight">
+                              Official
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-2 mb-2">
                             <img
                               src={v.avatar}
                               alt={v.name}
-                              className="w-10 h-10 rounded-full object-cover border border-ggd-orange/30 shrink-0 shadow-sm"
+                              className={`w-9 h-9 rounded-xl object-cover shrink-0 shadow-sm border ${
+                                isSelected ? 'border-ggd-orange' : 'border-slate-300 dark:border-white/10'
+                              }`}
                               referrerPolicy="no-referrer"
                             />
                             <div className="min-w-0 flex-1">
-                              <p className={`text-[10px] font-black uppercase truncate ${isSelected ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                                {v.name}
+                              <p className={`text-[9.5px] font-black uppercase truncate ${
+                                isSelected ? 'text-ggd-orange' : themeMode === 'light' ? 'text-slate-900' : 'text-white'
+                              }`}>
+                                {v.voiceName}
                               </p>
-                              <p className={`text-[8px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                                {v.flag} {v.accent}
+                              <p className="text-[7.5px] font-bold uppercase truncate text-slate-500 dark:text-slate-400">
+                                {v.gender} • {v.flag || '🎙️'}
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-white/5">
-                            <span className={`text-[7.5px] font-bold uppercase truncate ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                              {v.gender}
+                          <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-200 dark:border-white/5">
+                            <span className={`text-[7.5px] font-black uppercase truncate ${isSelected ? 'text-ggd-orange' : 'text-slate-400'}`}>
+                              {isSelected ? '✓ Selected' : 'Choose'}
                             </span>
                             <button
                               type="button"
@@ -3643,19 +3725,15 @@ Structure: Full Masterclass / In-depth Documentary Script.
                                 e.stopPropagation();
                                 handlePreviewVoice(v);
                               }}
-                              className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 transition-all shrink-0 ${
+                              className={`px-2 py-0.5 rounded-lg text-[7.5px] font-black uppercase flex items-center gap-1 transition-all shrink-0 ${
                                 isPreviewingThis
                                   ? 'bg-ggd-orange text-white animate-pulse'
-                                  : 'bg-ggd-orange/10 text-ggd-orange hover:bg-ggd-orange hover:text-white border border-ggd-orange/20'
+                                  : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-ggd-orange hover:text-white'
                               }`}
                               title={`Preview ${v.name}'s voice`}
                             >
-                              {isPreviewingThis ? (
-                                <i className="fa-solid fa-spinner animate-spin"></i>
-                              ) : (
-                                <i className="fa-solid fa-play text-[7px]"></i>
-                              )}
-                              <span>{isPreviewingThis ? 'Playing...' : 'Preview'}</span>
+                              <i className={`fa-solid ${isPreviewingThis ? 'fa-spinner animate-spin' : 'fa-play text-[6px]'}`}></i>
+                              <span>{isPreviewingThis ? 'Playing' : 'Test'}</span>
                             </button>
                           </div>
                         </div>
@@ -3664,64 +3742,198 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   </div>
                 </div>
 
-                {/* SCRIPT INPUT AREA */}
+                {/* VIXORA PRESET INSPIRATION HOOKS */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <i className="fa-solid fa-wand-magic-sparkles text-ggd-orange"></i> Vixora Studio Voice Audio Presets
+                    </label>
+                    <span className="text-[8px] font-bold uppercase text-slate-400">Click to load preset script hook</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      {
+                        title: '⚡ Viral Shorts Hook',
+                        text: "Stop scrolling right now! If you're looking to scale your online income this year, here are three simple secrets top creators never tell you."
+                      },
+                      {
+                        title: '🎬 Cinematic Narrative',
+                        text: "In a world of constant noise and endless distractions, one historic technological shift is quietly reshaping our future forever."
+                      },
+                      {
+                        title: '💡 Tech Explainer',
+                        text: "Here is the exact step-by-step breakdown to automate your full video production workflow in less than two minutes."
+                      },
+                      {
+                        title: '🔥 High-Energy Motivation',
+                        text: "Your only limitation is the hesitation inside your mind. Push through the doubt, take action today, and claim your success."
+                      },
+                      {
+                        title: '🎙️ Podcast Host',
+                        text: "Welcome back to another studio session! Grab your headphones, get comfortable, and let's jump straight into today's deep dive."
+                      }
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setVoiceoverText(preset.text);
+                          setSelectedVoice('Kore');
+                          playProceduralSFX('sparkle');
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-[8.5px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1.5 ${
+                          voiceoverText === preset.text
+                            ? 'bg-ggd-orange text-white border-ggd-orange shadow-md'
+                            : themeMode === 'light'
+                              ? 'bg-slate-100 border-slate-200 text-slate-700 hover:border-ggd-orange/40 hover:bg-orange-50'
+                              : 'bg-white/5 border-white/10 text-slate-300 hover:border-ggd-orange/40 hover:bg-white/10'
+                        }`}
+                      >
+                        <span>{preset.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SCRIPT INPUT AREA WITH WORD / TIME COUNTER */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-xs">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Voiceover Script Text</label>
-                    {generatedScript && (
-                      <button 
-                        onClick={() => setVoiceoverText(generatedScript)} 
-                        className="text-[8px] font-bold uppercase text-ggd-orange hover:underline flex items-center gap-1"
-                      >
-                        <i className="fa-solid fa-file-import"></i> Import Active Script
-                      </button>
-                    )}
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Voiceover Script Text
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {generatedScript && (
+                        <button 
+                          onClick={() => {
+                            setVoiceoverText(generatedScript);
+                            playProceduralSFX('sparkle');
+                          }} 
+                          className="text-[8px] font-bold uppercase text-ggd-orange hover:underline flex items-center gap-1"
+                        >
+                          <i className="fa-solid fa-file-import"></i> Import Active Script
+                        </button>
+                      )}
+                      {videoScriptInput && videoScriptInput !== generatedScript && (
+                        <button 
+                          onClick={() => {
+                            setVoiceoverText(videoScriptInput);
+                            playProceduralSFX('sparkle');
+                          }} 
+                          className="text-[8px] font-bold uppercase text-blue-400 hover:underline flex items-center gap-1"
+                        >
+                          <i className="fa-solid fa-video"></i> Import Video Script
+                        </button>
+                      )}
+                    </div>
                   </div>
+
                   <textarea 
                     value={voiceoverText} 
                     onChange={e => setVoiceoverText(e.target.value)} 
-                    className={`w-full h-32 border rounded-xl p-3 text-xs outline-none focus:border-ggd-orange font-medium ${themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-black/40 border-white/10 text-white'}`} 
-                    placeholder="Type or paste text here for Vixora Voice to narrate..." 
+                    className={`w-full h-32 border rounded-2xl p-4 text-xs outline-none focus:border-ggd-orange font-medium leading-relaxed transition-all ${
+                      themeMode === 'light' 
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' 
+                        : 'bg-black/50 border-white/10 text-white placeholder:text-slate-500'
+                    }`} 
+                    placeholder="Type or paste any text here for Vixora Studio Voice to synthesize into crystal-clear audio narration..." 
                   />
+
+                  {/* SPEED MULTIPLIER & METRICS BAR */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    {/* Speed Selector */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[8px] font-black uppercase text-slate-400 mr-1 flex items-center gap-1">
+                        <i className="fa-solid fa-gauge-high"></i> Speed:
+                      </span>
+                      {[
+                        { label: '0.85x Relaxed', value: 0.85 },
+                        { label: '1.0x Natural', value: 1.0 },
+                        { label: '1.15x Fast Viral', value: 1.15 },
+                        { label: '1.3x Hyper', value: 1.3 },
+                      ].map(spd => (
+                        <button
+                          key={spd.value}
+                          type="button"
+                          onClick={() => setVoiceoverSpeed(spd.value)}
+                          className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${
+                            voiceoverSpeed === spd.value
+                              ? 'bg-ggd-orange text-white shadow-sm'
+                              : themeMode === 'light'
+                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                          }`}
+                        >
+                          {spd.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Word & Estimated Duration Stats */}
+                    {voiceoverText.trim() && (
+                      <div className="flex items-center gap-2 text-[8.5px] font-mono text-slate-400">
+                        <span>{voiceoverText.trim().split(/\s+/).length} words</span>
+                        <span>•</span>
+                        <span className="text-ggd-orange font-bold">
+                          ~{Math.max(2, Math.round((voiceoverText.trim().split(/\s+/).length / 140) * 60 / (voiceoverSpeed || 1.0)))}s audio
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* PRIMARY GENERATION ACTION BUTTON */}
                 <button 
                   disabled={isGeneratingVoiceover || !voiceoverText.trim()} 
                   onClick={() => handleGenerateVoiceover()} 
-                  className="btn-3d btn-3d-blue w-full py-3.5 text-xs tracking-wider shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="btn-3d btn-3d-orange w-full py-4 text-xs tracking-wider shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                    {isGeneratingVoiceover ? (
                      <>
-                       <i className="fa-solid fa-spinner animate-spin"></i>
-                       <span>Vixora Engine Synthesizing Voice...</span>
+                       <i className="fa-solid fa-spinner animate-spin text-sm"></i>
+                       <span>Vixora Studio Engine Synthesizing Voiceover...</span>
                      </>
                    ) : (
                      <>
-                       <i className="fa-solid fa-microphone-lines"></i>
-                       <span>Generate Vixora Voice</span>
+                       <i className="fa-solid fa-microphone-lines text-sm"></i>
+                       <span>Synthesize with Vixora Studio Voice ({selectedVoice})</span>
                      </>
                    )}
                 </button>
              </div>
 
-             {/* ACTIVE PLAYBACK PLAYER CONSOLE */}
+             {/* ACTIVE PLAYBACK & TIMELINE INTEGRATION CONSOLE */}
              {activeVoiceoverId && (
-                <div className={`p-4 border rounded-2xl space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-blue-50/70 border-blue-200' : 'bg-gradient-to-r from-blue-950/30 to-slate-900 border-blue-500/30'}`}>
+                <div className={`p-5 border rounded-3xl space-y-4 shadow-2xl animate-rise ${
+                  themeMode === 'light' ? 'bg-gradient-to-r from-orange-50/80 to-amber-50/80 border-orange-200' : 'bg-gradient-to-r from-orange-950/30 via-slate-900 to-slate-900 border-orange-500/30'
+                }`}>
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3.5">
                       <div className="relative shrink-0">
-                        <img src={vixoraAgentAvatar} alt="Vixora" className="w-10 h-10 rounded-full border border-ggd-orange" />
+                        <img 
+                          src={vixoraAgentAvatar} 
+                          alt="Vixora Studio" 
+                          className="w-12 h-12 rounded-2xl border-2 border-ggd-orange object-cover shadow-md" 
+                          referrerPolicy="no-referrer"
+                        />
                         {isVoiceoverPlaying && (
-                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-ggd-orange"></span>
                           </span>
                         )}
                       </div>
                       <div className="text-left space-y-0.5">
-                        <span className="text-[7.5px] font-black uppercase text-blue-400 tracking-wider">Active Playback • Vixora Voice</span>
-                        <p className="text-xs font-black uppercase truncate max-w-[180px]">
-                          {voiceoverHistory.find(h => h.id === activeVoiceoverId)?.text || "Vixora Narration"}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase text-ggd-orange tracking-wider flex items-center gap-1">
+                            <i className="fa-solid fa-circle-play"></i> Active Playback • Vixora Studio Voice
+                          </span>
+                          <span className="text-[7.5px] px-2 py-0.5 rounded-full bg-ggd-orange/15 text-ggd-orange font-bold uppercase">
+                            {voiceoverSpeed}x Speed
+                          </span>
+                        </div>
+                        <p className="text-xs font-black uppercase truncate max-w-md text-slate-900 dark:text-white">
+                          {voiceoverHistory.find(h => h.id === activeVoiceoverId)?.text || "Vixora Narration Audio"}
                         </p>
                       </div>
                     </div>
@@ -3731,7 +3943,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                         const item = voiceoverHistory.find(h => h.id === activeVoiceoverId);
                         if (item) togglePlayVoiceoverItem(item.id, item.audioBase64);
                       }} 
-                      className="w-11 h-11 rounded-full bg-ggd-orange text-white flex items-center justify-center text-base shadow-lg active:scale-95 transition-all shrink-0"
+                      className="w-12 h-12 rounded-2xl bg-ggd-orange text-white flex items-center justify-center text-lg shadow-lg active:scale-95 hover:brightness-110 transition-all shrink-0"
                       title={isVoiceoverPlaying ? "Pause Playback" : "Play Voiceover"}
                     >
                       <i className={`fa-solid ${isVoiceoverPlaying ? 'fa-pause' : 'fa-play pl-0.5'}`}></i>
@@ -3739,8 +3951,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   </div>
 
                   {/* PROGRESS BAR & TIMING */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-400">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-400 font-mono">
                       <span>{formatAudioTime(voiceoverCurrentTime)}</span>
                       <span>{formatAudioTime(voiceoverDuration)}</span>
                     </div>
@@ -3758,17 +3970,35 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     />
                   </div>
 
-                  {/* ACTION BUTTONS */}
-                  <div className="flex gap-2 pt-1">
+                  {/* DUAL ACTION BUTTONS: USE IN VIDEO CREATOR & DOWNLOAD MP3 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <button 
+                      onClick={() => {
+                        const item = voiceoverHistory.find(h => h.id === activeVoiceoverId);
+                        if (item) {
+                          setVideoScriptInput(item.text);
+                          setLastVoiceoverAudio(item.audioBase64);
+                          setSelectedVoice(selectedVoice || 'Kore');
+                          handleSelectTab('videos');
+                          playProceduralSFX('sparkle');
+                        }
+                      }}
+                      className="py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                    >
+                      <i className="fa-solid fa-clapperboard"></i>
+                      <span>Use in Video Creator Studio</span>
+                    </button>
+
                     <button 
                       onClick={() => {
                         const item = voiceoverHistory.find(h => h.id === activeVoiceoverId);
                         if (item) downloadVoiceoverMp3(item.audioBase64, item.text);
                         else downloadVoiceoverMp3();
                       }} 
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <i className="fa-solid fa-file-audio"></i> Download MP3
+                      <i className="fa-solid fa-download"></i>
+                      <span>Download Studio MP3</span>
                     </button>
                   </div>
                 </div>
@@ -3776,11 +4006,11 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
              {/* PREVIOUS PLAYBACKS HISTORY */}
              {voiceoverHistory.length > 0 && (
-                <div className={`p-5 rounded-2xl border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
+                <div className={`p-5 rounded-3xl border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
                   <div className="flex justify-between items-center border-b pb-2 dark:border-white/10 border-slate-200">
                     <div className="flex items-center gap-2">
                       <i className="fa-solid fa-history text-ggd-orange text-xs"></i>
-                      <h3 className="text-xs font-black uppercase tracking-wider">Previous Playbacks ({voiceoverHistory.length})</h3>
+                      <h3 className="text-xs font-black uppercase tracking-wider">Audio Creation History ({voiceoverHistory.length})</h3>
                     </div>
                   </div>
 
@@ -3792,33 +4022,48 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       return (
                         <div 
                           key={item.id} 
-                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                          className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
                             isItemActive 
-                              ? 'border-ggd-orange bg-ggd-orange/10' 
+                              ? 'border-ggd-orange bg-ggd-orange/10 shadow-sm' 
                               : themeMode === 'light' ? 'bg-slate-50 border-slate-200 hover:border-slate-300' : 'bg-white/5 border-white/5 hover:border-white/10'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 overflow-hidden">
                             <button 
                               onClick={() => togglePlayVoiceoverItem(item.id, item.audioBase64)}
-                              className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs transition-all active:scale-95 shadow ${
-                                isItemPlaying ? 'bg-ggd-orange text-white animate-pulse' : 'bg-blue-600 text-white hover:bg-blue-500'
+                              className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-xs transition-all active:scale-95 shadow ${
+                                isItemPlaying ? 'bg-ggd-orange text-white animate-pulse' : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                               }`}
                               title={isItemPlaying ? "Pause" : "Play"}
                             >
                               <i className={`fa-solid ${isItemPlaying ? 'fa-pause' : 'fa-play pl-0.5'}`}></i>
                             </button>
                             <div className="text-left space-y-0.5 overflow-hidden">
-                              <p className="text-[10px] font-bold uppercase truncate max-w-[180px]">{item.text}</p>
+                              <p className="text-[10px] font-black uppercase truncate max-w-xs text-slate-900 dark:text-white">
+                                {item.text}
+                              </p>
                               <div className="flex items-center gap-2 text-[7.5px] text-slate-400 font-mono">
                                 <span>{item.date}</span>
                                 <span>•</span>
-                                <span className="text-ggd-orange font-sans font-bold">Vixora Voice</span>
+                                <span className="text-ggd-orange font-sans font-bold">Vixora Studio Voice</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
+                            <button 
+                              onClick={() => {
+                                setVideoScriptInput(item.text);
+                                setLastVoiceoverAudio(item.audioBase64);
+                                setSelectedVoice(selectedVoice || 'Kore');
+                                handleSelectTab('videos');
+                                playProceduralSFX('sparkle');
+                              }}
+                              className="px-2.5 py-1.5 bg-blue-600/15 hover:bg-blue-600/25 text-blue-500 border border-blue-600/30 rounded-lg text-[8px] font-black uppercase transition-all"
+                              title="Use in Video Creator"
+                            >
+                              <i className="fa-solid fa-video mr-1"></i> Video
+                            </button>
                             <button 
                               onClick={() => downloadVoiceoverMp3(item.audioBase64, item.text)} 
                               className="px-2.5 py-1.5 bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-500 border border-emerald-600/30 rounded-lg text-[8px] font-black uppercase transition-all"

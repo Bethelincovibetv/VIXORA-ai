@@ -44,56 +44,61 @@ export interface VoiceOption {
 
 export const VOICE_AVATAR_OPTIONS: VoiceOption[] = [
   {
-    id: 'kore_nigerian',
-    name: 'Vixora Voice (Kore - Highly Energetic Lady)',
+    id: 'vixora_studio_voice',
+    name: 'Vixora Studio Voice (Signature Flagship AI)',
     voiceName: 'Kore',
-    accent: 'Highly Energetic Nigerian Female Accent',
+    accent: 'Vixora Studio Signature Voice (High-Energy & Crystal Clear)',
     gender: 'Female',
     avatar: vixoraAgentAvatar,
-    description: 'Vibrant, highly energetic, natural Nigerian female AI tone. Energetic, witty, warm flagship Vixora Studio voice.',
-    sampleText: 'Welcome to Vixora Studio! I am your energetic Nigerian AI partner, ready to cook viral videos with you!',
-    badge: 'FLAGSHIP HIGHLY ENERGETIC NIGERIAN VOICE',
+    description: 'The official signature Vixora Studio AI voice. Vibrant, charismatic, high-energy tone engineered for maximum video retention, viral hooks, and immersive narration.',
+    sampleText: 'Welcome to Vixora Studio! I am your signature AI studio voice, ready to bring your video scripts and audio creations to life!',
+    badge: 'OFFICIAL VIXORA STUDIO VOICE',
+    flag: '⚡',
     isVixoraVoice: true
   },
   {
     id: 'aoede_warm',
-    name: 'Aoede',
+    name: 'Aoede (Warm Storyteller)',
     voiceName: 'Aoede',
-    accent: 'Warm Storytelling Accent',
+    accent: 'Warm & Engaging Accent',
     gender: 'Female',
     avatar: voiceAvatarAoede,
-    description: 'Gentle, engaging female narrator tone for documentary and lifestyle shorts.',
-    sampleText: 'Empower your content with high-retention storytelling and effortless clarity.'
+    description: 'Gentle, engaging female narrator tone for documentary, storytelling, and lifestyle shorts.',
+    sampleText: 'Empower your content with high-retention storytelling, crystal clarity, and authentic pacing.',
+    flag: '🎙️'
   },
   {
     id: 'puck_high_energy',
-    name: 'Puck',
+    name: 'Puck (Viral High Energy)',
     voiceName: 'Puck',
     accent: 'High Energy Viral Accent',
     gender: 'Male',
     avatar: voiceAvatarPuck,
     description: 'Upbeat, fast-paced viral male voice ideal for TikTok and YouTube Shorts hooks.',
-    sampleText: 'Stop scrolling right now! Here are three secrets to build wealth before 30.'
+    sampleText: 'Stop scrolling right now! Here are three secrets to build wealth before 30.',
+    flag: '🔥'
   },
   {
     id: 'charon_dramatic',
-    name: 'Charon',
+    name: 'Charon (Deep Cinematic)',
     voiceName: 'Charon',
     accent: 'Deep Cinematic Accent',
     gender: 'Male',
     avatar: voiceAvatarCharon,
     description: 'Authoritative deep cinematic tone for true crime, history, and mysteries.',
-    sampleText: 'In a world driven by constant evolution, one historic truth remains untouched.'
+    sampleText: 'In a world driven by constant evolution, one historic truth remains untouched.',
+    flag: '🎬'
   },
   {
     id: 'fenrir_bold',
-    name: 'Fenrir',
+    name: 'Fenrir (Bold & Direct)',
     voiceName: 'Fenrir',
     accent: 'Bold & Direct Accent',
     gender: 'Male',
     avatar: voiceAvatarFenrir,
     description: 'Strong, articulate male tone for tech reviews, news, and business breakdowns.',
-    sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough of the decade.'
+    sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough of the decade.',
+    flag: '⚡'
   }
 ];
 

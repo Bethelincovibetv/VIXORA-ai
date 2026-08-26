@@ -25,7 +25,7 @@ export function getSupabase() {
 let geminiClient: GoogleGenAI | null = null;
 export function getGemini(): GoogleGenAI {
   if (!geminiClient) {
-    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
+    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
     geminiClient = new GoogleGenAI({ 
       apiKey: key,
       httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }

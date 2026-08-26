@@ -12,8 +12,9 @@ import { CompleteApiModal } from './components/CompleteApiModal';
 import { NativeExportDownloadModal } from './components/NativeExportDownloadModal';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
 import { VixoraNavbar } from './components/VixoraNavbar';
+import { VoiceSelectorDropdown } from './components/VoiceSelectorDropdown';
 import { VixoraAppContext } from './services/vixoraAgentTools';
-import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
+import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS, VIRAL_PROMPT_NICHES } from './constants';
 import { synthesizeFishAudio, FISH_AUDIO_VOICES } from './services/fishAudioService';
 import { playProceduralSFX } from './sfxLibrary';
 import { 
@@ -620,6 +621,9 @@ const App: React.FC = () => {
   const [videoRatio, setVideoRatio] = useState<'vertical' | 'horizontal' | 'square'>('vertical');
   const [selectedNicheFilter, setSelectedNicheFilter] = useState<string>('all');
   const [creatorInputMode, setCreatorInputMode] = useState<'topic' | 'script'>('topic');
+  const [isEnhancingScript, setIsEnhancingScript] = useState<boolean>(false);
+  const [activeViralCategory, setActiveViralCategory] = useState<string>('hooks');
+  const [isCreatorMusicPlaying, setIsCreatorMusicPlaying] = useState<boolean>(false);
 
   // Created Video Gallery History State
   const [createdVideos, setCreatedVideos] = useState<CreatedVideo[]>(() => {
@@ -952,36 +956,95 @@ const App: React.FC = () => {
     }
   };
 
-  // Voice preview function (Powered by Fish Audio S2-Pro)
+  const activeVoicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Voice preview function (Powered by Google AI / Fish Audio Voice Engine)
   const handlePreviewVoice = async (voiceOption: typeof VOICE_AVATAR_OPTIONS[0]) => {
-    if (previewingVoiceId) return;
+    // If clicking the currently playing voice preview, toggle stop immediately
+    if (previewingVoiceId === voiceOption.id) {
+      if (activeVoicePreviewAudioRef.current) {
+        activeVoicePreviewAudioRef.current.pause();
+        activeVoicePreviewAudioRef.current = null;
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setPreviewingVoiceId(null);
+      return;
+    }
+
+    // Stop any existing playing preview
+    if (activeVoicePreviewAudioRef.current) {
+      activeVoicePreviewAudioRef.current.pause();
+      activeVoicePreviewAudioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
     setPreviewingVoiceId(voiceOption.id);
+
     try {
-      const sampleText = voiceOption.sampleText || `Hello, I'm ${voiceOption.name}, ready to narrate your high-impact video.`;
+      const sampleText = voiceOption.sampleText || `Hello, I am ${voiceOption.name}, ready to narrate your high-impact video with crystal clear pacing.`;
       const result = await synthesizeFishAudio({
         text: sampleText,
         voiceName: voiceOption.voiceName,
         format: 'mp3'
       });
+
       if (result.ok && result.audioBase64) {
         const blob = createAudioBlobFromBase64(result.audioBase64);
         const url = URL.createObjectURL(blob);
         const previewAudio = new Audio(url);
+        activeVoicePreviewAudioRef.current = previewAudio;
+
         previewAudio.onended = () => {
-          setPreviewingVoiceId(null);
+          setPreviewingVoiceId((current) => (current === voiceOption.id ? null : current));
           URL.revokeObjectURL(url);
+          if (activeVoicePreviewAudioRef.current === previewAudio) {
+            activeVoicePreviewAudioRef.current = null;
+          }
         };
+
         previewAudio.onerror = () => {
-          setPreviewingVoiceId(null);
+          setPreviewingVoiceId((current) => (current === voiceOption.id ? null : current));
+          URL.revokeObjectURL(url);
+          if (activeVoicePreviewAudioRef.current === previewAudio) {
+            activeVoicePreviewAudioRef.current = null;
+          }
         };
+
         await previewAudio.play();
       } else {
-        playProceduralSFX('sparkle');
-        setPreviewingVoiceId(null);
+        // Fallback to Web Speech API or procedural sound
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(sampleText);
+          utterance.pitch = voiceOption.gender === 'Female' ? 1.2 : 0.9;
+          utterance.rate = 1.05;
+          utterance.onend = () => {
+            setPreviewingVoiceId((current) => (current === voiceOption.id ? null : current));
+          };
+          utterance.onerror = () => {
+            setPreviewingVoiceId((current) => (current === voiceOption.id ? null : current));
+          };
+          window.speechSynthesis.speak(utterance);
+        } else {
+          playProceduralSFX('sparkle');
+          setPreviewingVoiceId(null);
+        }
       }
     } catch (e) {
-      console.warn("Voice preview error:", e);
-      setPreviewingVoiceId(null);
+      console.warn("Voice preview error, falling back:", e);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const sampleText = voiceOption.sampleText || `Hello, I am ${voiceOption.name}.`;
+        const utterance = new SpeechSynthesisUtterance(sampleText);
+        utterance.pitch = voiceOption.gender === 'Female' ? 1.2 : 0.9;
+        utterance.onend = () => setPreviewingVoiceId(null);
+        utterance.onerror = () => setPreviewingVoiceId(null);
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setPreviewingVoiceId(null);
+      }
     }
   };
 
@@ -1710,6 +1773,74 @@ Structure: Full Masterclass / In-depth Documentary Script.
       return fallbackText;
     } finally {
       setIsGeneratingScript(false);
+    }
+  };
+
+  // --- AI SCRIPT ENHANCER ACTIONS ---
+  const handleEnhanceScript = async (action: 'hook' | 'condense' | 'emotional' | 'cta') => {
+    const currentText = videoScriptInput.trim() || generatedScript.trim() || scriptTopic.trim();
+    if (!currentText) {
+      setAppError("Please enter or generate a script first to polish with AI.");
+      return;
+    }
+    setIsEnhancingScript(true);
+    setAppError(null);
+    try {
+      let instruction = '';
+      if (action === 'hook') {
+        instruction = 'Rewrite the opening 1-2 sentences of this script into an irresistible, high-curiosity viral hook that stops viewers from scrolling in the first 2 seconds. Keep the rest of the script unchanged.';
+      } else if (action === 'condense') {
+        instruction = 'Condense and trim this script into fast-paced, punchy short sentences suitable for a 30-second video (~65-75 words). Remove any filler words while keeping maximum punch.';
+      } else if (action === 'emotional') {
+        instruction = 'Infuse this script with dramatic emotional tension, powerful sensory action verbs, and urgent narrative momentum.';
+      } else if (action === 'cta') {
+        instruction = 'Add a high-converting, viral call to action at the end asking the audience to comment their thoughts and follow for part 2.';
+      }
+
+      const prompt = `${instruction}
+
+Original Script:
+"${currentText}"
+
+Formatting Rules:
+- Return ONLY the clean, plain-text narrated speech.
+- Do NOT use markdown bolding (**), asterisks (*), hashtags (#), or stage directions.
+- Keep the tone natural, authoritative, and direct.`;
+
+      const res = await generateGeminiContentWithFallback(user?.apiKey, {
+        model: "gemini-2.5-flash",
+        contents: prompt
+      });
+
+      const updated = res.text?.replace(/[*#]/g, '').trim();
+      if (updated) {
+        setVideoScriptInput(updated);
+        setGeneratedScript(updated);
+        playProceduralSFX('sparkle');
+      }
+    } catch (err: any) {
+      console.error("AI Enhance script error:", err);
+      setAppError(`Script enhancement notice: ${err.message || 'Updated automatically'}`);
+    } finally {
+      setIsEnhancingScript(false);
+    }
+  };
+
+  const togglePlayCreatorBgMusic = (trackUrl: string) => {
+    if (isCreatorMusicPlaying && previewAudioRef.src.includes(trackUrl)) {
+      previewAudioRef.pause();
+      setIsCreatorMusicPlaying(false);
+    } else {
+      previewAudioRef.pause();
+      previewAudioRef.src = trackUrl;
+      previewAudioRef.volume = globalMusicVolume || 0.15;
+      previewAudioRef.play().then(() => {
+        setIsCreatorMusicPlaying(true);
+      }).catch(e => {
+        console.warn("Audio preview failed:", e);
+        setIsCreatorMusicPlaying(false);
+      });
+      previewAudioRef.onended = () => setIsCreatorMusicPlaying(false);
     }
   };
 
@@ -2937,60 +3068,124 @@ Structure: Full Masterclass / In-depth Documentary Script.
 
             {/* INPUT CONSOLE: CREATE FROM TOPIC MODE */}
             {creatorInputMode === 'topic' && (
-              <div className={`p-5 rounded-3xl border space-y-4 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
-                    <i className="fa-solid fa-bolt"></i> Enter Video Topic or Choose Preset
+              <div className={`p-4 sm:p-6 rounded-3xl border space-y-5 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
+                {/* HEADER & RANDOMIZER */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <i className="fa-solid fa-bolt"></i> 1. Choose Viral Blueprint or Enter Topic
                   </label>
-                  <span className="text-[8px] font-black uppercase text-slate-400">1-Click Automated Generator</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allPrompts = VIRAL_PROMPT_NICHES.flatMap(n => n.prompts);
+                      const randomPrompt = allPrompts[Math.floor(Math.random() * allPrompts.length)];
+                      setScriptTopic(randomPrompt);
+                      playProceduralSFX('sparkle');
+                    }}
+                    className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase flex items-center gap-1.5 transition-all border ${
+                      themeMode === 'light' ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100' : 'bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20'
+                    }`}
+                  >
+                    <i className="fa-solid fa-dice text-xs animate-spin"></i>
+                    <span>🎲 Surprise Viral Topic</span>
+                  </button>
                 </div>
-                
-                {/* QUICK PRESET INSPIRATION TAGS */}
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {[
-                    "5 Money Rules for Wealth",
-                    "Naija Tech Startup Hacks",
-                    "Mindset Shift for 2026",
-                    "Ancient African History",
-                    "Daily Stoic Advice"
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      onClick={() => setScriptTopic(preset)}
-                      className={`px-2.5 py-1 rounded-full text-[8.5px] font-bold transition-all active:scale-95 ${scriptTopic === preset ? 'bg-rose-500 text-white shadow-md' : themeMode === 'light' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}
-                    >
-                      ⚡ {preset}
-                    </button>
-                  ))}
+
+                {/* VIRAL NICHE CATEGORY TABS */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
+                    {VIRAL_PROMPT_NICHES.map((niche) => {
+                      const isActive = activeViralCategory === niche.id;
+                      return (
+                        <button
+                          key={niche.id}
+                          type="button"
+                          onClick={() => setActiveViralCategory(niche.id)}
+                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0 flex items-center gap-1.5 transition-all ${
+                            isActive
+                              ? `bg-gradient-to-r ${niche.color} text-white shadow-md scale-105`
+                              : themeMode === 'light'
+                              ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <i className={`fa-solid ${niche.icon} text-[10px]`}></i>
+                          <span>{niche.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* PROMPT INSPIRATION CARDS */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {VIRAL_PROMPT_NICHES.find(n => n.id === activeViralCategory)?.prompts.map((prompt) => {
+                      const isSelected = scriptTopic === prompt;
+                      return (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => {
+                            setScriptTopic(prompt);
+                            playProceduralSFX('click');
+                          }}
+                          className={`p-2.5 rounded-2xl text-left text-xs font-semibold transition-all border flex items-center justify-between gap-2 group ${
+                            isSelected
+                              ? 'bg-rose-500/15 border-rose-500 text-rose-500 shadow-md scale-[1.01]'
+                              : themeMode === 'light'
+                              ? 'bg-slate-50 hover:bg-rose-50/50 border-slate-200 text-slate-800 hover:border-rose-300'
+                              : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-200 hover:border-rose-400/40'
+                          }`}
+                        >
+                          <span className="line-clamp-2">{prompt}</span>
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[10px] transition-all ${
+                            isSelected ? 'bg-rose-500 text-white' : 'bg-black/10 group-hover:bg-rose-500 group-hover:text-white text-slate-400'
+                          }`}>
+                            <i className="fa-solid fa-arrow-right text-[9px]"></i>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* 3D TACTILE TOPIC INPUT FIELD */}
-                <div className={`p-1.5 rounded-2xl border-2 transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.5),0_4px_12px_rgba(244,63,94,0.25)] flex items-center gap-2 ${themeMode === 'light' ? 'bg-gradient-to-b from-white to-slate-100 border-rose-400' : 'bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-rose-500/60'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#9f1239] border border-rose-300/40">
-                    <i className="fa-solid fa-wand-magic-sparkles text-sm animate-pulse"></i>
+                <div className="space-y-1.5">
+                  <div className={`p-1.5 rounded-2xl border-2 transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.5),0_4px_12px_rgba(244,63,94,0.25)] flex items-center gap-2 ${themeMode === 'light' ? 'bg-gradient-to-b from-white to-slate-100 border-rose-400' : 'bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-rose-500/60'}`}>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#9f1239] border border-rose-300/40">
+                      <i className="fa-solid fa-wand-magic-sparkles text-sm animate-pulse"></i>
+                    </div>
+                    <input 
+                      value={scriptTopic} 
+                      onChange={e => setScriptTopic(e.target.value)}
+                      className={`w-full bg-transparent p-2 text-xs sm:text-sm font-black outline-none ${themeMode === 'light' ? 'text-slate-900 placeholder-slate-400' : 'text-white placeholder-slate-400'}`} 
+                      placeholder="Enter custom video topic or select a viral blueprint above..." 
+                    />
+                    {scriptTopic && (
+                      <button 
+                        onClick={() => setScriptTopic('')}
+                        className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
+                        title="Clear topic"
+                      >
+                        <i className="fa-solid fa-xmark text-xs"></i>
+                      </button>
+                    )}
                   </div>
-                  <input 
-                    value={scriptTopic} 
-                    onChange={e => setScriptTopic(e.target.value)}
-                    className={`w-full bg-transparent p-2 text-xs sm:text-sm font-black outline-none ${themeMode === 'light' ? 'text-slate-900 placeholder-slate-400' : 'text-white placeholder-slate-400'}`} 
-                    placeholder="Enter custom video topic e.g. 3 secrets of successful entrepreneurs..." 
-                  />
                   {scriptTopic && (
-                    <button 
-                      onClick={() => setScriptTopic('')}
-                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
-                      title="Clear topic"
-                    >
-                      <i className="fa-solid fa-xmark text-xs"></i>
-                    </button>
+                    <div className="flex items-center justify-between px-1 text-[9px] font-bold text-slate-400">
+                      <span>Ready to produce video for topic: <strong className="text-rose-400 font-black">"{scriptTopic.slice(0, 45)}{scriptTopic.length > 45 ? '...' : ''}"</strong></span>
+                      <span>{scriptTopic.length} chars</span>
+                    </div>
                   )}
                 </div>
 
                 {/* PRODUCTION OPTIONS TOOLBAR */}
-                <div className="pt-2 text-left border-t border-white/10">
-                  <p className="text-[9.5px] font-black uppercase text-slate-400 mb-2.5 flex items-center gap-1.5">
-                    <i className="fa-solid fa-sliders text-rose-500"></i> Configure Production Options
-                  </p>
+                <div className="pt-3 text-left border-t border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-1.5">
+                      <i className="fa-solid fa-sliders text-rose-500"></i> 2. Configure Production Engine
+                    </p>
+                    <span className="text-[8.5px] font-black uppercase text-rose-400">Full Audio, Video & Subtitle Sync</span>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {/* TOOL 1: ASPECT RATIO */}
@@ -3000,27 +3195,27 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1">
                         <i className="fa-solid fa-mobile-screen"></i> Video Aspect Ratio
                       </span>
-                      <div className="grid grid-cols-3 gap-1">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('vertical')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'vertical' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-rose-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-mobile-screen text-[10px]"></i> 9:16
+                          <i className="fa-solid fa-mobile-screen text-[11px]"></i> 9:16
                         </button>
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('horizontal')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'horizontal' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-rose-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-display text-[10px]"></i> 16:9
+                          <i className="fa-solid fa-display text-[11px]"></i> 16:9
                         </button>
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('square')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'square' ? 'bg-rose-500 text-white border-rose-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-rose-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-square text-[8px]"></i> 1:1
+                          <i className="fa-solid fa-square text-[9px]"></i> 1:1
                         </button>
                       </div>
                     </div>
@@ -3032,13 +3227,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-1">
                         <i className="fa-solid fa-clock"></i> Target Duration
                       </span>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5">
                         {['15s', '30s', '1min', '2min', '3min', '5min'].map((dur) => (
                           <button 
                             key={dur}
                             type="button"
                             onClick={() => setTargetVideoDuration(dur)}
-                            className={`flex-1 min-w-[36px] py-1.5 px-2 rounded-xl text-[8.5px] font-black uppercase border transition-all text-center min-h-[36px] ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                            className={`py-1.5 px-2 rounded-xl text-[9px] sm:text-[8.5px] font-black uppercase border transition-all text-center min-h-[44px] sm:min-h-[38px] flex items-center justify-center ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                           >
                             {dur}
                           </button>
@@ -3050,24 +3245,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
                       themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
                     }`}>
-                      <span className="text-[9px] font-black uppercase text-purple-400 flex items-center gap-1">
-                        <i className="fa-solid fa-microphone"></i> Voiceover Accent
-                      </span>
-                      <select
-                        value={selectedVoice}
-                        onChange={(e) => setSelectedVoice(e.target.value)}
-                        className={`w-full border text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[40px] ${
-                          themeMode === 'light'
-                            ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
-                            : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
-                        }`}
-                      >
-                        {VOICE_AVATAR_OPTIONS.map((v) => (
-                          <option key={v.id} value={v.voiceName}>
-                            {v.flag} {v.name} ({v.accent} - {v.gender})
-                          </option>
-                        ))}
-                      </select>
+                      <VoiceSelectorDropdown
+                        selectedVoice={selectedVoice}
+                        onSelectVoice={(voice) => setSelectedVoice(voice)}
+                        previewingVoiceId={previewingVoiceId}
+                        onPreviewVoice={handlePreviewVoice}
+                        themeMode={themeMode}
+                        label="Voiceover Character"
+                      />
                     </div>
 
                     {/* TOOL 4: VIDEO NICHE CATEGORY */}
@@ -3075,12 +3260,12 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
                     }`}>
                       <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                        <i className="fa-solid fa-film"></i> Footage Niche
+                        <i className="fa-solid fa-film"></i> Footage Niche Style
                       </span>
                       <select
                         value={selectedNicheFilter}
                         onChange={(e) => setSelectedNicheFilter(e.target.value)}
-                        className={`w-full border text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[40px] ${
+                        className={`w-full border text-[10px] sm:text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[48px] sm:min-h-[44px] ${
                           themeMode === 'light'
                             ? 'bg-white border-slate-300 text-slate-900 hover:border-rose-400'
                             : 'bg-slate-900 border-white/20 text-white hover:border-rose-400'
@@ -3095,13 +3280,54 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       </select>
                     </div>
 
-                    {/* TOOL 5: GOOGLE WEB TRENDS */}
-                    <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 sm:col-span-2 lg:col-span-2 ${
+                    {/* TOOL 5: BACKGROUND MUSIC TRACK */}
+                    <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
+                      themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase text-purple-400 flex items-center gap-1">
+                          <i className="fa-solid fa-music"></i> Background Music
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePlayCreatorBgMusic(globalMusicUrl)}
+                          className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 transition-all ${
+                            isCreatorMusicPlaying ? 'bg-purple-500 text-white animate-pulse' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                          }`}
+                        >
+                          <i className={`fa-solid ${isCreatorMusicPlaying ? 'fa-pause' : 'fa-play'} text-[8px]`}></i>
+                          <span>{isCreatorMusicPlaying ? 'Stop' : 'Preview'}</span>
+                        </button>
+                      </div>
+                      <select
+                        value={globalMusicUrl}
+                        onChange={(e) => {
+                          setGlobalMusicUrl(e.target.value);
+                          if (isCreatorMusicPlaying) {
+                            togglePlayCreatorBgMusic(e.target.value);
+                          }
+                        }}
+                        className={`w-full border text-[10px] sm:text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[48px] sm:min-h-[44px] ${
+                          themeMode === 'light'
+                            ? 'bg-white border-slate-300 text-slate-900 hover:border-purple-400'
+                            : 'bg-slate-900 border-white/20 text-white hover:border-purple-400'
+                        }`}
+                      >
+                        {PRESET_MUSIC_TRACKS.map((t) => (
+                          <option key={t.id} value={t.url}>
+                            🎵 {t.name} ({t.mood})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* TOOL 6: GOOGLE WEB TRENDS */}
+                    <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
                       themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
                     }`}>
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-black uppercase text-cyan-400 flex items-center gap-1">
-                          <i className="fa-solid fa-globe"></i> Google Web Trends Research
+                          <i className="fa-solid fa-globe"></i> Google Web Trends
                         </span>
                         <span className={`px-2 py-0.5 text-[8px] font-black rounded uppercase ${useWebSearchForVideo ? 'bg-cyan-400 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>
                           {useWebSearchForVideo ? 'ACTIVE' : 'OFF'}
@@ -3110,55 +3336,143 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       <button
                         type="button"
                         onClick={() => setUseWebSearchForVideo(!useWebSearchForVideo)}
-                        className={`w-full py-2 px-3 rounded-xl border text-[9.5px] font-black uppercase flex items-center justify-center gap-2 transition-all min-h-[40px] ${
+                        className={`w-full py-2 px-3 rounded-xl border text-[9.5px] font-black uppercase flex items-center justify-center gap-2 transition-all min-h-[48px] sm:min-h-[44px] ${
                           useWebSearchForVideo 
                             ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md' 
                             : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
                         }`}
                       >
                         <i className="fa-solid fa-globe text-xs"></i>
-                        <span>{useWebSearchForVideo ? 'Web Trends Search Enabled (Fetches Real-Time Data)' : 'Enable Real-Time Google Web Search'}</span>
+                        <span>{useWebSearchForVideo ? 'Real-Time Web Data ON' : 'Enable Real-Time Search'}</span>
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* LAUNCH BUTTON */}
-                <button 
-                  disabled={isAutopilotRunning || isSourcingVideos} 
-                  onClick={() => runUnifiedVideoCreation({ mode: 'topic' })} 
-                  className="btn-3d btn-3d-orange w-full py-4 text-xs font-black uppercase tracking-wider shadow-2xl mt-2 flex items-center justify-center gap-2"
-                >
-                  {isAutopilotRunning || isSourcingVideos ? (
-                    <>
-                      <i className="fa-solid fa-spinner animate-spin text-sm"></i>
-                      <span>Cooking Video ({autopilotProgress}%)...</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="fa-solid fa-rocket text-sm animate-bounce"></i>
-                      <span>✨ Cook {targetVideoDuration} {videoRatio === 'vertical' ? '9:16 Short' : videoRatio === 'horizontal' ? '16:9 Video' : '1:1 Square'} Video (1-Click AI Creation)</span>
-                    </>
-                  )}
-                </button>
+                {/* DUAL LAUNCH ACTION BUTTONS */}
+                <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* BUTTON 1: 1-CLICK FAST RENDER */}
+                  <button 
+                    disabled={isAutopilotRunning || isSourcingVideos || !scriptTopic.trim()} 
+                    onClick={() => runUnifiedVideoCreation({ mode: 'topic', skipReview: true })} 
+                    className="btn-3d btn-3d-orange w-full py-4 px-3 text-xs sm:text-sm font-black uppercase tracking-wider shadow-2xl flex items-center justify-center gap-2"
+                  >
+                    {isAutopilotRunning || isSourcingVideos ? (
+                      <>
+                        <i className="fa-solid fa-spinner animate-spin text-sm"></i>
+                        <span>Cooking Video ({autopilotProgress}%)...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-bolt text-sm animate-pulse text-amber-300"></i>
+                        <span>⚡ 1-Click Cook ({targetVideoDuration} {videoRatio === 'vertical' ? 'Short' : videoRatio === 'horizontal' ? '16:9' : '1:1'})</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* BUTTON 2: STEP-BY-STEP REVIEW & CUSTOMIZE */}
+                  <button 
+                    disabled={isAutopilotRunning || isSourcingVideos || !scriptTopic.trim()} 
+                    onClick={() => runUnifiedVideoCreation({ mode: 'topic', skipReview: false })} 
+                    className={`w-full py-4 px-3 rounded-2xl border-2 text-xs sm:text-sm font-black uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 transition-all active:scale-98 ${
+                      themeMode === 'light'
+                        ? 'bg-slate-900 text-white border-slate-800 hover:bg-slate-800'
+                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                    }`}
+                  >
+                    <i className="fa-solid fa-pen-to-square text-sm text-amber-400"></i>
+                    <span>📝 Review & Customize Script First</span>
+                  </button>
+                </div>
               </div>
             )}
 
             {/* INPUT CONSOLE: CREATE FROM SCRIPT MODE */}
             {creatorInputMode === 'script' && (
-              <div className={`p-5 rounded-3xl border space-y-4 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
-                <div className="flex justify-between items-center">
+              <div className={`p-4 sm:p-6 rounded-3xl border space-y-5 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900/60 border-white/10'}`}>
+                <div className="flex flex-wrap justify-between items-center gap-2">
                   <label className="text-xs font-black uppercase tracking-wider text-orange-500 flex items-center gap-1.5">
-                    <i className="fa-solid fa-pen-to-square"></i> Video Script & Storyboard Text
+                    <i className="fa-solid fa-pen-to-square"></i> Video Script & Narration Text
                   </label>
-                  {generatedScript && (
-                    <button 
-                      onClick={() => setVideoScriptInput(generatedScript)} 
-                      className="text-xs font-bold uppercase text-orange-500 hover:underline flex items-center gap-1"
+                  <div className="flex items-center gap-2">
+                    {generatedScript && (
+                      <button 
+                        onClick={() => setVideoScriptInput(generatedScript)} 
+                        className="text-xs font-bold uppercase text-orange-500 hover:underline flex items-center gap-1"
+                      >
+                        <i className="fa-solid fa-file-import"></i> Paste Generated Script
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* SCRIPT METRICS HUD */}
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                  <span className={`px-2.5 py-1 rounded-xl border flex items-center gap-1.5 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+                    <i className="fa-solid fa-font text-orange-400"></i>
+                    <span>{videoScriptInput.trim().split(/\s+/).filter(Boolean).length} Words</span>
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-xl border flex items-center gap-1.5 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+                    <i className="fa-solid fa-clock text-amber-400"></i>
+                    <span>~{Math.max(5, Math.round(videoScriptInput.trim().split(/\s+/).filter(Boolean).length / 2.3))}s Spoken Audio</span>
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-xl border flex items-center gap-1.5 ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-300'}`}>
+                    <i className="fa-solid fa-film text-emerald-400"></i>
+                    <span>~{Math.max(2, Math.round(videoScriptInput.trim().split(/\s+/).filter(Boolean).length / 15))} Scene Cuts</span>
+                  </span>
+                </div>
+
+                {/* 1-TAP AI SCRIPT POLISHERS */}
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1">
+                    <i className="fa-solid fa-wand-magic-sparkles text-amber-400"></i> 1-Tap AI Script Polishers
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <button
+                      type="button"
+                      disabled={isEnhancingScript || !videoScriptInput.trim()}
+                      onClick={() => handleEnhanceScript('hook')}
+                      className={`p-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all ${
+                        themeMode === 'light' ? 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-800' : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-300'
+                      }`}
                     >
-                      <i className="fa-solid fa-file-import"></i> Paste Generated Script
+                      <i className={`fa-solid fa-bolt text-[10px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                      <span>⚡ Punchy Hook</span>
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      disabled={isEnhancingScript || !videoScriptInput.trim()}
+                      onClick={() => handleEnhanceScript('condense')}
+                      className={`p-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all ${
+                        themeMode === 'light' ? 'bg-cyan-50 hover:bg-cyan-100 border-cyan-200 text-cyan-800' : 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30 text-cyan-300'
+                      }`}
+                    >
+                      <i className={`fa-solid fa-scissors text-[10px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                      <span>✂️ 30s Pacing</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isEnhancingScript || !videoScriptInput.trim()}
+                      onClick={() => handleEnhanceScript('emotional')}
+                      className={`p-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all ${
+                        themeMode === 'light' ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800' : 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300'
+                      }`}
+                    >
+                      <i className={`fa-solid fa-fire text-[10px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                      <span>🔥 Emotional Fire</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isEnhancingScript || !videoScriptInput.trim()}
+                      onClick={() => handleEnhanceScript('cta')}
+                      className={`p-2 rounded-xl border text-[9px] font-black uppercase flex items-center justify-center gap-1.5 transition-all ${
+                        themeMode === 'light' ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800' : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30 text-purple-300'
+                      }`}
+                    >
+                      <i className={`fa-solid fa-bullhorn text-[10px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                      <span>📢 Viral CTA</span>
+                    </button>
+                  </div>
                 </div>
 
                 <textarea 
@@ -3169,7 +3483,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 />
 
                 {/* PRODUCTION OPTIONS TOOLBAR */}
-                <div className="pt-2 text-left border-t border-white/10">
+                <div className="pt-2 text-left border-t border-white/10 space-y-3">
                   <p className="text-[9.5px] font-black uppercase text-slate-400 mb-2.5 flex items-center gap-1.5">
                     <i className="fa-solid fa-sliders text-orange-500"></i> Configure Production Options
                   </p>
@@ -3182,27 +3496,27 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       <span className="text-[9px] font-black uppercase text-rose-400 flex items-center gap-1">
                         <i className="fa-solid fa-mobile-screen"></i> Video Aspect Ratio
                       </span>
-                      <div className="grid grid-cols-3 gap-1">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('vertical')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'vertical' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'vertical' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-mobile-screen text-[10px]"></i> 9:16
+                          <i className="fa-solid fa-mobile-screen text-[11px]"></i> 9:16
                         </button>
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('horizontal')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'horizontal' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'horizontal' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-display text-[10px]"></i> 16:9
+                          <i className="fa-solid fa-display text-[11px]"></i> 16:9
                         </button>
                         <button 
                           type="button"
                           onClick={() => setVideoRatio('square')}
-                          className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[38px] ${videoRatio === 'square' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                          className={`py-2 px-1.5 rounded-xl text-[9.5px] sm:text-[9px] font-black uppercase flex items-center justify-center gap-1 border transition-all min-h-[44px] ${videoRatio === 'square' ? 'bg-orange-500 text-white border-orange-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                         >
-                          <i className="fa-solid fa-square text-[8px]"></i> 1:1
+                          <i className="fa-solid fa-square text-[9px]"></i> 1:1
                         </button>
                       </div>
                     </div>
@@ -3214,13 +3528,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
                       <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-1">
                         <i className="fa-solid fa-clock"></i> Target Duration
                       </span>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5">
                         {['15s', '30s', '1min', '2min', '3min', '5min'].map((dur) => (
                           <button 
                             key={dur}
                             type="button"
                             onClick={() => setTargetVideoDuration(dur)}
-                            className={`flex-1 min-w-[36px] py-1.5 px-2 rounded-xl text-[8.5px] font-black uppercase border transition-all text-center min-h-[36px] ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                            className={`py-1.5 px-2 rounded-xl text-[9px] sm:text-[8.5px] font-black uppercase border transition-all text-center min-h-[44px] sm:min-h-[38px] flex items-center justify-center ${targetVideoDuration === dur ? 'bg-amber-500 text-white border-amber-400 shadow-md' : themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
                           >
                             {dur}
                           </button>
@@ -3232,24 +3546,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     <div className={`p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${
                       themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-white/10'
                     }`}>
-                      <span className="text-[9px] font-black uppercase text-purple-400 flex items-center gap-1">
-                        <i className="fa-solid fa-microphone"></i> Voiceover Accent
-                      </span>
-                      <select
-                        value={selectedVoice}
-                        onChange={(e) => setSelectedVoice(e.target.value)}
-                        className={`w-full border text-[9.5px] font-black uppercase py-2 px-3 rounded-xl outline-none cursor-pointer transition-all min-h-[40px] ${
-                          themeMode === 'light'
-                            ? 'bg-white border-slate-300 text-slate-900 hover:border-orange-400'
-                            : 'bg-slate-900 border-white/20 text-white hover:border-orange-400'
-                        }`}
-                      >
-                        {VOICE_AVATAR_OPTIONS.map((v) => (
-                          <option key={v.id} value={v.voiceName}>
-                            {v.flag} {v.name} ({v.accent} - {v.gender})
-                          </option>
-                        ))}
-                      </select>
+                      <VoiceSelectorDropdown
+                        selectedVoice={selectedVoice}
+                        onSelectVoice={(voice) => setSelectedVoice(voice)}
+                        previewingVoiceId={previewingVoiceId}
+                        onPreviewVoice={handlePreviewVoice}
+                        themeMode={themeMode}
+                        label="Voiceover Character"
+                      />
                     </div>
                   </div>
                 </div>
@@ -3257,7 +3561,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 <button 
                   disabled={isSourcingVideos || isAutopilotRunning || !videoScriptInput.trim()} 
                   onClick={() => runUnifiedVideoCreation({ mode: 'script' })} 
-                  className="btn-3d btn-3d-orange w-full py-4 text-sm font-black uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="btn-3d btn-3d-orange w-full py-4 px-3 text-xs sm:text-sm font-black uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSourcingVideos || isAutopilotRunning ? (
                     <>
@@ -3274,27 +3578,27 @@ Structure: Full Masterclass / In-depth Documentary Script.
               </div>
             )}
 
-            {/* EDITABLE SCRIPT REVIEW CONSOLE (CORE REQUIREMENT 1) */}
+            {/* EDITABLE SCRIPT REVIEW CONSOLE */}
             {isReviewingScript && (
-              <div className={`p-6 rounded-3xl border-2 space-y-4 shadow-2xl relative overflow-hidden animate-rise ${
+              <div className={`p-5 sm:p-6 rounded-3xl border-2 space-y-4 shadow-2xl relative overflow-hidden animate-rise ${
                 themeMode === 'light'
                   ? 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-white border-amber-400'
                   : 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border-amber-500/50'
               }`}>
                 <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center font-black text-lg shadow-lg">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center font-black text-lg shadow-lg shrink-0">
                       <i className="fa-solid fa-pen-to-square"></i>
                     </div>
                     <div>
-                      <h3 className="text-sm font-black uppercase tracking-wider text-amber-500 flex items-center gap-2">
-                        <span>Step 1 Complete: Review & Edit Your Script</span>
+                      <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-500 flex items-center gap-2">
+                        <span>Review & Polish Script</span>
                         <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[9px] font-extrabold border border-amber-500/40">
                           Pre-Voiceover Check
                         </span>
                       </h3>
                       <p className={`text-xs mt-0.5 font-medium ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                        Read through every sentence below. You can edit, delete, or rewrite any words. Only when confirmed will voiceover audio be synthesized.
+                        Read and edit the generated script. Use 1-tap AI tools below or tweak words directly before synthesizing audio.
                       </p>
                     </div>
                   </div>
@@ -3308,21 +3612,71 @@ Structure: Full Masterclass / In-depth Documentary Script.
                   </button>
                 </div>
 
-                {/* EDITABLE SCRIPT TEXTAREA */}
+                {/* SCRIPT METRICS & AI POLISHERS */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-black uppercase text-amber-500">
-                    <span className="flex items-center gap-1.5">
-                      <i className="fa-solid fa-align-left"></i> Script Text Content
-                    </span>
-                    <span className={`text-[10px] font-bold ${themeMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {videoScriptInput.trim().split(/\s+/).filter(Boolean).length} Words | ~{Math.max(5, Math.round(videoScriptInput.trim().split(/\s+/).filter(Boolean).length / 2.3))}s Audio Length
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-[10px] font-bold">
+                      <span className={`px-2.5 py-0.5 rounded-lg border ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-300'}`}>
+                        📝 {videoScriptInput.trim().split(/\s+/).filter(Boolean).length} Words
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-lg border ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-black/40 border-white/10 text-slate-300'}`}>
+                        ⏱️ ~{Math.max(5, Math.round(videoScriptInput.trim().split(/\s+/).filter(Boolean).length / 2.3))}s Audio
+                      </span>
+                    </div>
+
+                    {/* QUICK AI POLISHER CHIPS */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={isEnhancingScript}
+                        onClick={() => handleEnhanceScript('hook')}
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${
+                          themeMode === 'light' ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300'
+                        }`}
+                      >
+                        <i className={`fa-solid fa-bolt text-[8px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                        <span>⚡ Hook</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isEnhancingScript}
+                        onClick={() => handleEnhanceScript('condense')}
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${
+                          themeMode === 'light' ? 'bg-cyan-50 hover:bg-cyan-100 border-cyan-300 text-cyan-800' : 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/40 text-cyan-300'
+                        }`}
+                      >
+                        <i className={`fa-solid fa-scissors text-[8px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                        <span>✂️ 30s Trim</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isEnhancingScript}
+                        onClick={() => handleEnhanceScript('emotional')}
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${
+                          themeMode === 'light' ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-800' : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
+                        }`}
+                      >
+                        <i className={`fa-solid fa-fire text-[8px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                        <span>🔥 Fire</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isEnhancingScript}
+                        onClick={() => handleEnhanceScript('cta')}
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase flex items-center gap-1 border transition-all ${
+                          themeMode === 'light' ? 'bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-800' : 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-500/40 text-purple-300'
+                        }`}
+                      >
+                        <i className={`fa-solid fa-bullhorn text-[8px] ${isEnhancingScript ? 'animate-spin' : ''}`}></i>
+                        <span>📢 CTA</span>
+                      </button>
+                    </div>
                   </div>
 
                   <textarea
                     value={videoScriptInput}
                     onChange={(e) => setVideoScriptInput(e.target.value)}
-                    rows={8}
+                    rows={7}
                     className={`w-full border rounded-2xl p-4 text-sm outline-none focus:border-amber-500 resize-y font-medium leading-relaxed shadow-inner ${
                       themeMode === 'light' 
                         ? 'bg-white border-amber-300 text-slate-900 focus:ring-2 focus:ring-amber-400/20' 
@@ -3341,7 +3695,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     className="btn-3d btn-3d-orange flex-1 py-4 text-xs font-black uppercase tracking-wider shadow-2xl flex items-center justify-center gap-2"
                   >
                     <i className="fa-solid fa-microphone-lines text-base"></i>
-                    <span>🎙️ Confirm Script & Synthesize Voiceover →</span>
+                    <span>🎙️ Confirm Script & Cook Video →</span>
                   </button>
 
                   {creatorInputMode === 'topic' && (
@@ -3440,6 +3794,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     scriptText={videoScriptInput || scriptTopic || generatedScript || "Video Timeline"} 
                     voiceoverBase64={lastVoiceoverAudio} 
                     sourcedVideos={sourcedVideos} 
+                    targetDuration={targetVideoDuration}
                     onVideoCompiled={handleVideoCompiled}
                     aspectRatio={videoRatio}
                     onAspectRatioChange={(ratio) => setVideoRatio(ratio)}
@@ -5218,27 +5573,6 @@ Structure: Full Masterclass / In-depth Documentary Script.
           </div>
         </div>
       )}
-
-      {/* FLOATING VIXORA AI CHAT BUTTON */}
-      <button
-        onClick={() => setIsTextChatOpen(true)}
-        title="Chat with Vixora AI Agent"
-        className="fixed bottom-6 right-4 sm:bottom-6 sm:right-6 z-[180] btn-3d btn-3d-orange p-3.5 rounded-full flex items-center justify-center gap-2 shadow-2xl active:scale-95 transition-all border-2 border-orange-300/40 cursor-pointer"
-      >
-        <i className="fa-solid fa-comments text-lg text-white"></i>
-        <span className="text-[10px] font-black uppercase tracking-wider text-white hidden sm:inline">Vixora Chat</span>
-        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      </button>
-
-      {/* PERSISTENT TEXT CHAT PANEL */}
-      <VixoraTextChatPanel
-        isOpen={isTextChatOpen}
-        onClose={() => setIsTextChatOpen(false)}
-        appContext={appContext}
-        apiKey={user?.apiKey && !user.apiKey.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ? user.apiKey : process.env.GEMINI_API_KEY || process.env.API_KEY || ''}
-        themeMode={themeMode}
-        onStartLiveAssistant={startLiveAssistant}
-      />
 
       {/* 1-CLICK ALL-IN-ONE API INTEGRATION DOCUMENTATION MODAL */}
       <CompleteApiModal

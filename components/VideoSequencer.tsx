@@ -29,6 +29,7 @@ interface VideoSequencerProps {
   scriptText: string;
   voiceoverBase64: string | null;
   sourcedVideos: SourcedVideo[];
+  targetDuration?: string;
   aspectRatio?: 'vertical' | 'horizontal' | 'square';
   onAspectRatioChange?: (ratio: 'vertical' | 'horizontal' | 'square') => void;
   onVideoCompiled?: (
@@ -42,6 +43,26 @@ interface VideoSequencerProps {
   onMusicVolumeChange?: (vol: number) => void;
   onMoodDetected?: (mood: string) => void;
   themeMode?: 'light' | 'dark';
+}
+
+export function parseTargetDurationSeconds(durStr?: string, fallback = 30): number {
+  if (!durStr) return fallback;
+  const clean = durStr.toLowerCase().trim();
+  if (clean === '15s' || clean === '15' || clean === '15 sec' || clean === '15 seconds' || clean === '15s hook') return 15;
+  if (clean === '30s' || clean === '30' || clean === '30 sec' || clean === '30 seconds' || clean === '30s viral') return 30;
+  if (clean === '60s' || clean === '60' || clean === '1min' || clean === '1m' || clean === '1 minute' || clean === '60 seconds' || clean === '60s story') return 60;
+  if (clean === '2min' || clean === '2m' || clean === '2 minutes' || clean === '120s' || clean === '120' || clean === '2m deep') return 120;
+  if (clean === '3min' || clean === '3m' || clean === '3 minutes' || clean === '180s' || clean === '180' || clean === '3m doc') return 180;
+  if (clean === '5min' || clean === '5m' || clean === '5 minutes' || clean === '300s' || clean === '300' || clean === '5m master') return 300;
+  
+  const matchSec = clean.match(/^(\d+)\s*s/);
+  if (matchSec) return parseInt(matchSec[1], 10);
+  const matchMin = clean.match(/^(\d+)\s*m/);
+  if (matchMin) return parseInt(matchMin[1], 10) * 60;
+  
+  const num = parseFloat(clean);
+  if (!isNaN(num) && num > 0) return num;
+  return fallback;
 }
 
 interface TimeWord {
@@ -124,6 +145,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   scriptText,
   voiceoverBase64,
   sourcedVideos,
+  targetDuration,
   aspectRatio: controlledAspectRatio,
   onAspectRatioChange,
   onVideoCompiled,
@@ -277,6 +299,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
   const musicSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const musicGainNodeRef = useRef<GainNode | null>(null);
   const compileMusicSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const compileMusicGainRef = useRef<GainNode | null>(null);
 
   // Helper to download and decode royalty-free background music track safely with clear error handling
   const downloadAndPrepareMusic = async (url: string) => {
@@ -736,8 +759,10 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     if (!scriptText) return;
 
     const prepareTimeline = async () => {
-      // 1. Determine Voiceover Duration
-      let duration = 12; // Fallback duration in seconds if no voiceover is available
+      // 1. Determine Target & Voiceover Duration
+      const targetSec = parseTargetDurationSeconds(targetDuration, 30);
+      let duration = targetSec;
+
       if (voiceoverBase64) {
         try {
           const binaryString = atob(voiceoverBase64);
@@ -764,15 +789,21 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           audioCtxRef.current = audioCtx;
           const decoded = await audioCtx.decodeAudioData(audioData);
           audioBufferRef.current = decoded;
-          duration = decoded.duration;
+          const rawAudioDuration = decoded.duration;
+
+          // If raw audio duration is within targetSec or slightly under, align exactly to targetSec
+          if (rawAudioDuration <= targetSec) {
+            duration = targetSec;
+          } else {
+            // If audio slightly exceeds targetSec, retain full voiceover so words aren't cut off
+            duration = Math.max(targetSec, rawAudioDuration);
+          }
         } catch (e) {
-          console.error("Failed to decode voiceover audio for sequencer, using length fallback:", e);
-          const wordsCount = scriptText.split(/\s+/).length;
-          duration = Math.max(8, wordsCount / 2.2);
+          console.error("Failed to decode voiceover audio for sequencer, using target length:", e);
+          duration = targetSec;
         }
       } else {
-        const wordsCount = scriptText.split(/\s+/).length;
-        duration = Math.max(8, wordsCount / 2.2);
+        duration = targetSec;
       }
 
       setTotalDuration(duration);
@@ -917,7 +948,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     };
 
     prepareTimeline();
-  }, [scriptText, voiceoverBase64, sourcedVideos, alignedWords]);
+  }, [scriptText, voiceoverBase64, sourcedVideos, alignedWords, targetDuration]);
 
   // --- AUTOMATIC COMPILATION TRIGGER ---
   useEffect(() => {
@@ -1605,11 +1636,23 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
         // Compile at matching speed
         const activeTime = elapsed;
 
+        // Smooth background music outro fade in the final 0.8s of rendering
+        if (compileMusicGainRef.current && mixCtx) {
+          const fadeStart = Math.max(0, renderingDuration - 0.8);
+          if (activeTime >= fadeStart) {
+            const fadeFraction = Math.min(1, (activeTime - fadeStart) / 0.8);
+            compileMusicGainRef.current.gain.setValueAtTime(
+              musicVolume * (1 - fadeFraction),
+              mixCtx.currentTime
+            );
+          }
+        }
+
         if (activeTime >= renderingDuration) {
           recorder.stop();
           if (hiddenVideoRef.current) hiddenVideoRef.current.pause();
         } else {
-          setCompileProgress(Math.floor((activeTime / renderingDuration) * 98));
+          setCompileProgress(Math.min(99, Math.floor((activeTime / renderingDuration) * 99)));
           drawFrame(activeTime);
           requestAnimationFrame(compileLoop);
         }

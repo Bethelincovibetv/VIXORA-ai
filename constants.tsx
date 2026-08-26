@@ -133,3 +133,86 @@ export const PRESET_MUSIC_TRACKS: PresetTrack[] = [
   { id: 'vlog-breeze', name: 'Vlog Breeze', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3?v=vlog', mood: 'upbeat', description: 'Perfect friendly, lighthearted background hum for creators' },
   { id: 'action-odyssey', name: 'Action Odyssey', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3?v=action', mood: 'dramatic', description: 'Adrenaline pumping, high-tempo brass and drum tracking' }
 ];
+
+export interface ViralPromptNiche {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  prompts: string[];
+}
+
+export const VIRAL_PROMPT_NICHES: ViralPromptNiche[] = [
+  {
+    id: 'hooks',
+    name: 'Viral Hooks',
+    icon: 'fa-bolt-lightning',
+    color: 'from-rose-500 to-orange-500',
+    prompts: [
+      "3 psychological tricks that make people instantly trust you",
+      "The 1-second body language rule you never noticed",
+      "Why 99% of people fail at their 20s and how to escape it",
+      "The secret method FBI negotiators use to detect lies"
+    ]
+  },
+  {
+    id: 'finance',
+    name: 'Wealth & Money',
+    icon: 'fa-sack-dollar',
+    color: 'from-emerald-500 to-teal-500',
+    prompts: [
+      "5 money rules separating the top 1% from the rest",
+      "How to build passive cashflow with zero startup capital",
+      "Why the rich buy assets while the poor buy liabilities",
+      "3 financial habits that secretly keep people broke"
+    ]
+  },
+  {
+    id: 'mindset',
+    name: 'Mindset & Stoic',
+    icon: 'fa-brain',
+    color: 'from-purple-500 to-indigo-500',
+    prompts: [
+      "Marcus Aurelius on dealing with difficult people",
+      "How to stay dangerously calm in high pressure situations",
+      "The brutal truth about discipline versus motivation",
+      "Why overthinking kills more dreams than failure ever will"
+    ]
+  },
+  {
+    id: 'tech',
+    name: 'AI & Tech Future',
+    icon: 'fa-microchip',
+    color: 'from-cyan-500 to-blue-500',
+    prompts: [
+      "3 AI tools that will replace entire departments in 2026",
+      "How quantum computing will break modern encryption overnight",
+      "The hidden dark side of humanoid robots no one is talking about",
+      "Why prompt engineering is evolving into AI agent architecture"
+    ]
+  },
+  {
+    id: 'history',
+    name: 'Untold History',
+    icon: 'fa-landmark',
+    color: 'from-orange-500 to-amber-600',
+    prompts: [
+      "The richest man who ever lived: Mansa Musa of Mali",
+      "The ancient African engineering marvels that baffled scientists",
+      "The forgotten samurai who was born in Mozambique: Yasuke",
+      "Mysteries of Great Zimbabwe: The fortress built without mortar"
+    ]
+  },
+  {
+    id: 'health',
+    name: 'Health & Energy',
+    icon: 'fa-heart-pulse',
+    color: 'from-pink-500 to-rose-500',
+    prompts: [
+      "What happens to your brain when you get 10 mins of morning sunlight",
+      "The simple 2-minute breathwork routine that resets your nervous system",
+      "3 foods destroying your daily dopamine and energy levels",
+      "The science behind cold showers and mitochondrial health"
+    ]
+  }
+];

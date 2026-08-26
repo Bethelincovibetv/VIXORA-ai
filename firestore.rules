@@ -92,6 +92,33 @@ service cloud.firestore {
         (!('userId' in data) || (data.userId is string && data.userId.size() <= 128));
     }
 
+    function isValidProject(data) {
+      return data.keys().hasAll(['id', 'title']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 500 &&
+        (!('topic' in data) || (data.topic is string && data.topic.size() <= 2000)) &&
+        (!('status' in data) || (data.status is string && data.status.size() <= 100)) &&
+        (!('aspectRatio' in data) || (data.aspectRatio is string && data.aspectRatio.size() <= 50)) &&
+        (!('targetDuration' in data) || (data.targetDuration is string && data.targetDuration.size() <= 100)) &&
+        (!('thumbnailUrl' in data) || (data.thumbnailUrl is string && data.thumbnailUrl.size() <= 10000)) &&
+        (!('scriptText' in data) || (data.scriptText is string && data.scriptText.size() <= 50000)) &&
+        (!('voiceoverUrl' in data) || (data.voiceoverUrl is string && data.voiceoverUrl.size() <= 500000)) &&
+        (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 10000)) &&
+        (!('chatHistoryJson' in data) || (data.chatHistoryJson is string && data.chatHistoryJson.size() <= 500000)) &&
+        (!('sourcedVideosJson' in data) || (data.sourcedVideosJson is string && data.sourcedVideosJson.size() <= 500000)) &&
+        (!('userId' in data) || (data.userId is string && data.userId.size() <= 128)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 100)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 100));
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create: if isValidId(projectId) && isValidProject(incoming());
+      allow update: if isValidId(projectId) && isValidProject(incoming());
+      allow delete: if isValidId(projectId);
+    }
+
     // Videos collection
     match /videos/{videoId} {
       allow read: if true;

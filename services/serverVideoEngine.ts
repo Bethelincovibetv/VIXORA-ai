@@ -422,25 +422,56 @@ Return ONLY the spoken narrator script text in 3-5 concise, punchy sentences wit
     }
 
     // ------------------------------------------------------------------------
-    // STEP 2: VOICEOVER SYNTHESIS
+    // STEP 2: FISH AUDIO VOICEOVER SYNTHESIS
     // ------------------------------------------------------------------------
     updateJob(jobId, {
       progress: 35,
-      current_step: 'Synthesizing voiceover audio track...',
+      current_step: 'Synthesizing neural voiceover audio track with Fish Audio S2-Pro...',
     });
 
-    const voiceoverPath = path.join(tempDir, 'voiceover.wav');
-    
-    // Check if system ffmpeg or TTS is available, otherwise generate audio tone/buffer
-    let audioDuration = 10;
+    const voiceoverPath = path.join(tempDir, 'voiceover.mp3');
+    const safeDuration = job.duration === '60s' ? 55 : job.duration === '15s' ? 14 : 28;
+    let audioDuration = safeDuration;
+
     try {
-      // Generate clean audio track using ffmpeg synth or TTS
-      const safeDuration = job.duration === '60s' ? 55 : job.duration === '15s' ? 14 : 28;
-      await execCommand(`ffmpeg -y -f lavfi -i "sine=frequency=440:duration=${safeDuration}" -af "volume=0.01" "${voiceoverPath}"`);
-      audioDuration = safeDuration;
+      const fishApiKey = process.env.FISH_AUDIO_API_KEY || 'sk-fish-xEutEyyFu1FHRG1iw_Ivgpscuo4oxXzpOJQ1YdITcjk';
+      let emotionTag = '[calm]';
+      if (job.voice?.toLowerCase().includes('kore')) emotionTag = '[excited] [cheerful]';
+      else if (job.voice?.toLowerCase().includes('puck')) emotionTag = '[excited] [energetic]';
+      else if (job.voice?.toLowerCase().includes('charon')) emotionTag = '[deep] [serious]';
+      else if (job.voice?.toLowerCase().includes('fenrir')) emotionTag = '[confident]';
+      else if (job.voice?.toLowerCase().includes('aoede')) emotionTag = '[warm] [calm]';
+
+      const styledText = `${emotionTag} ${finalScript}`;
+
+      const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${fishApiKey}`,
+          'Content-Type': 'application/json',
+          'model': 's2-pro'
+        },
+        body: JSON.stringify({
+          text: styledText,
+          format: 'mp3'
+        })
+      });
+
+      if (fishRes.ok) {
+        const arrayBuf = await fishRes.arrayBuffer();
+        fs.writeFileSync(voiceoverPath, Buffer.from(arrayBuf));
+        const wordCount = finalScript.split(/\s+/).length;
+        audioDuration = Math.max(3, Math.round((wordCount / 140) * 60));
+      } else {
+        // Fallback tone generation if API credit exhausted
+        await execCommand(`ffmpeg -y -f lavfi -i "sine=frequency=440:duration=${safeDuration}" -af "volume=0.01" "${voiceoverPath}"`);
+      }
     } catch {
-      // Fallback: write empty wave header
-      audioDuration = 20;
+      try {
+        await execCommand(`ffmpeg -y -f lavfi -i "sine=frequency=440:duration=${safeDuration}" -af "volume=0.01" "${voiceoverPath}"`);
+      } catch {
+        audioDuration = safeDuration;
+      }
     }
 
     // ------------------------------------------------------------------------

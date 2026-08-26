@@ -608,7 +608,7 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
     };
   }, [compiledBlobUrl]);
 
-  // Helpers for base64 WAV wrapping for Gemini
+  // Helpers for audio base64 handling (supports Fish Audio MP3, WAV and legacy PCM)
   const getWavBase64 = (rawPcmBase64: string): string => {
     try {
       const binaryString = atob(rawPcmBase64);
@@ -619,7 +619,8 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
       }
       
       const hasWavHeader = binaryString.startsWith('RIFF');
-      if (hasWavHeader) {
+      const isMp3 = binaryString.startsWith('ID3') || (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0);
+      if (hasWavHeader || isMp3) {
         return rawPcmBase64;
       }
       
@@ -748,7 +749,9 @@ export const VideoSequencer: React.FC<VideoSequencerProps> = ({
           
           let audioData = bytes.buffer;
           const hasWavHeader = binaryString.startsWith('RIFF');
-          if (!hasWavHeader) {
+          const isMp3 = binaryString.startsWith('ID3') || (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0);
+          
+          if (!hasWavHeader && !isMp3) {
             const rawPcm = new Int16Array(audioData);
             const wavHeader = createWavHeader(rawPcm.byteLength, 24000, 1, 16);
             const wavFile = new Uint8Array(wavHeader.length + rawPcm.byteLength);

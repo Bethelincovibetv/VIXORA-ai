@@ -37,6 +37,47 @@ async function startServer() {
   // In-memory synced users store for single-sign on between website and studio
   const syncedUsersStore = new Map<string, any>();
 
+  // In-memory API keys store with initial seed keys
+  const serverApiKeysStore = new Map<string, any>([
+    [
+      'vx_live_vixora_prod_89f3a928b7e411d9c02',
+      {
+        id: 'key_primary_default',
+        name: 'Main Website & Remote Embed Key',
+        apiKey: 'vx_live_vixora_prod_89f3a928b7e411d9c02',
+        prefix: 'vx_live_vixora_...',
+        createdAt: '2026-08-25T00:00:00.000Z',
+        lastUsedAt: new Date().toISOString(),
+        status: 'active',
+        rateLimitPerMin: 120,
+        permissions: ['videos:create', 'scripts:generate', 'audio:tts', 'assets:search', 'remote:embed'],
+        usageCount: 28,
+      }
+    ]
+  ]);
+
+  // Global API Key & Authentication Tracking Middleware
+  app.use((req, res, next) => {
+    const authHeader = req.headers['authorization'] || '';
+    const customApiKey = req.headers['x-api-key'] || req.headers['apikey'] || req.query['api_key'] || req.query['apiKey'] || '';
+    let extractedKey = '';
+
+    if (typeof customApiKey === 'string' && customApiKey.startsWith('vx_')) {
+      extractedKey = customApiKey;
+    } else if (typeof authHeader === 'string' && authHeader.startsWith('Bearer vx_')) {
+      extractedKey = authHeader.replace('Bearer ', '').trim();
+    }
+
+    if (extractedKey && serverApiKeysStore.has(extractedKey)) {
+      const record = serverApiKeysStore.get(extractedKey);
+      record.lastUsedAt = new Date().toISOString();
+      record.usageCount = (record.usageCount || 0) + 1;
+      (req as any).apiKeyRecord = record;
+    }
+
+    next();
+  });
+
   // ==========================================================================
   // SYSTEM HEALTH & CONFIGURATION ENDPOINTS
   // ==========================================================================
@@ -466,12 +507,12 @@ Return JSON in this EXACT schema:
   app.post('/scripts/generate', handleScriptGenerate);
 
   // ==========================================================================
-  // 3. AI VOICEOVER (TTS) & AUDIO ENDPOINTS
+  // 3. FISH AUDIO VOICEOVER (TTS) & AUDIO ENDPOINTS
   // ==========================================================================
 
   const handleAudioTTS = async (req: express.Request, res: express.Response) => {
     try {
-      const { text, voice = 'Aoede', speed = 1.0 } = req.body || {};
+      const { text, voice = 'Aoede', speed = 1.0, format = 'mp3', reference_id, apiKey } = req.body || {};
 
       if (!text) {
         return res.status(400).json({
@@ -480,21 +521,83 @@ Return JSON in this EXACT schema:
         });
       }
 
-      // Return synthetic voice metadata and curated audio stream
-      const wordCount = text.split(/\s+/).length;
-      const estimatedDurationSec = Math.max(3, Math.round((wordCount / 140) * 60 / speed));
+      const fishApiKey = apiKey || process.env.FISH_AUDIO_API_KEY || 'sk-fish-xEutEyyFu1FHRG1iw_Ivgpscuo4oxXzpOJQ1YdITcjk';
 
-      return res.json({
-        ok: true,
-        voice,
-        text,
-        speed,
-        estimated_duration_seconds: estimatedDurationSec,
-        audio_format: 'wav',
-        status: 'ready',
-        message: 'Voiceover synthesized successfully',
-        audio_stream_url: `/api/public/v1/assets/download/sample_voiceover.wav`
-      });
+      // Map voice styles for Fish Audio
+      let emotionTag = '[calm]';
+      if (voice.toLowerCase().includes('kore')) emotionTag = '[excited] [cheerful]';
+      else if (voice.toLowerCase().includes('puck')) emotionTag = '[excited] [energetic]';
+      else if (voice.toLowerCase().includes('charon')) emotionTag = '[deep] [serious]';
+      else if (voice.toLowerCase().includes('fenrir')) emotionTag = '[confident]';
+      else if (voice.toLowerCase().includes('aoede')) emotionTag = '[warm] [calm]';
+
+      const promptText = text.startsWith('[') ? text : `${emotionTag} ${text}`;
+
+      // Call Fish Audio S2-Pro API
+      try {
+        const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${fishApiKey}`,
+            'Content-Type': 'application/json',
+            'model': 's2-pro'
+          },
+          body: JSON.stringify({
+            text: promptText,
+            reference_id: reference_id || undefined,
+            format: format === 'wav' ? 'wav' : 'mp3'
+          })
+        });
+
+        if (fishRes.ok) {
+          const arrayBuffer = await fishRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const base64Audio = buffer.toString('base64');
+          const wordCount = text.split(/\s+/).length;
+          const estimatedDurationSec = Math.max(3, Math.round((wordCount / 140) * 60 / speed));
+
+          // If client accepts binary stream directly
+          if (req.headers.accept?.includes('audio/')) {
+            res.setHeader('Content-Type', format === 'wav' ? 'audio/wav' : 'audio/mpeg');
+            res.setHeader('Content-Length', buffer.length);
+            return res.send(buffer);
+          }
+
+          return res.json({
+            ok: true,
+            provider: 'fish.audio',
+            model: 's2-pro',
+            voice,
+            text,
+            speed,
+            estimated_duration_seconds: estimatedDurationSec,
+            audio_format: format === 'wav' ? 'wav' : 'mp3',
+            audio_base64: base64Audio,
+            status: 'ready',
+            message: 'Fish Audio S2-Pro voiceover synthesized successfully',
+            audio_stream_url: `data:audio/mp3;base64,${base64Audio}`
+          });
+        } else {
+          const errBody = await fishRes.text();
+          let parsed: any = null;
+          try { parsed = JSON.parse(errBody); } catch {}
+          console.warn(`[Fish Audio API Warning (${fishRes.status})]:`, parsed?.message || errBody);
+          
+          return res.status(fishRes.status).json({
+            ok: false,
+            provider: 'fish.audio',
+            status_code: fishRes.status,
+            error: parsed?.message || 'Fish Audio synthesis error',
+            hint: fishRes.status === 402 ? 'Please add API credit on https://fish.audio/app/developers' : undefined
+          });
+        }
+      } catch (fishFetchErr: any) {
+        console.error('[Fish Audio fetch failed]:', fishFetchErr);
+        return res.status(500).json({
+          ok: false,
+          error: fishFetchErr?.message || 'Failed to contact Fish Audio API'
+        });
+      }
     } catch (err: any) {
       return res.status(500).json({
         ok: false,
@@ -503,8 +606,10 @@ Return JSON in this EXACT schema:
     }
   };
 
+  app.post('/api/fish-audio/tts', handleAudioTTS);
   app.post('/api/public/v1/audio/tts', handleAudioTTS);
   app.post('/api/audio/tts', handleAudioTTS);
+  app.post('/api/tts', handleAudioTTS);
   app.post('/audio/tts', handleAudioTTS);
 
   app.get(['/api/public/v1/audio/voices', '/api/audio/voices', '/audio/voices'], (req, res) => {
@@ -642,6 +747,173 @@ Return JSON in this EXACT schema:
   };
 
   app.post(['/api/public/v1/auth/sync', '/api/auth/sync', '/auth/sync'], handleAuthSync);
+
+  // ==========================================================================
+  // 7. API KEY GENERATION & REMOTE ACCESS MANAGEMENT ENDPOINTS
+  // ==========================================================================
+
+  app.get(['/api/public/v1/keys/list', '/api/keys/list'], (req, res) => {
+    const keys = Array.from(serverApiKeysStore.values());
+    res.json({
+      ok: true,
+      count: keys.length,
+      keys: keys.map(k => ({
+        id: k.id,
+        name: k.name,
+        apiKey: k.apiKey,
+        prefix: k.prefix,
+        createdAt: k.createdAt,
+        lastUsedAt: k.lastUsedAt,
+        status: k.status,
+        rateLimitPerMin: k.rateLimitPerMin,
+        permissions: k.permissions,
+        usageCount: k.usageCount || 0
+      }))
+    });
+  });
+
+  app.post(['/api/public/v1/keys/generate', '/api/keys/generate'], (req, res) => {
+    try {
+      const { name, permissions, rate_limit } = req.body || {};
+      const timestamp = Date.now().toString(36);
+      const rand1 = Math.random().toString(36).substring(2, 10);
+      const rand2 = Math.random().toString(36).substring(2, 10);
+      const newApiKey = `vx_live_${timestamp}_${rand1}${rand2}`;
+
+      const keyRecord = {
+        id: `key_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: (name && typeof name === 'string' && name.trim()) || 'Production Website API Key',
+        apiKey: newApiKey,
+        prefix: newApiKey.substring(0, 15) + '...',
+        createdAt: new Date().toISOString(),
+        lastUsedAt: null,
+        status: 'active',
+        rateLimitPerMin: Number(rate_limit) || 120,
+        permissions: Array.isArray(permissions) ? permissions : ['videos:create', 'scripts:generate', 'audio:tts', 'assets:search', 'remote:embed'],
+        usageCount: 0
+      };
+
+      serverApiKeysStore.set(newApiKey, keyRecord);
+
+      return res.json({
+        ok: true,
+        message: 'API Key generated successfully',
+        key: keyRecord
+      });
+    } catch (err: any) {
+      return res.status(500).json({ ok: false, error: err?.message || 'Failed to generate API Key' });
+    }
+  });
+
+  app.post(['/api/public/v1/keys/revoke', '/api/keys/revoke'], (req, res) => {
+    const { apiKey, id } = req.body || {};
+    let found = false;
+
+    for (const [k, record] of serverApiKeysStore.entries()) {
+      if (record.id === id || record.apiKey === apiKey) {
+        record.status = 'revoked';
+        found = true;
+      }
+    }
+
+    if (found) {
+      res.json({ ok: true, message: 'API key revoked successfully' });
+    } else {
+      res.status(404).json({ ok: false, error: 'API key not found' });
+    }
+  });
+
+  app.get(['/api/public/v1/keys/verify', '/api/keys/verify'], (req, res) => {
+    const customApiKey = (req.headers['x-api-key'] || req.headers['apikey'] || req.query['api_key'] || req.query['apiKey'] || '') as string;
+    if (customApiKey && serverApiKeysStore.has(customApiKey)) {
+      const record = serverApiKeysStore.get(customApiKey);
+      if (record.status === 'active') {
+        return res.json({ ok: true, valid: true, key: record });
+      }
+      return res.status(403).json({ ok: false, valid: false, error: 'API key is revoked' });
+    }
+    // Also allow fallback public key for remote widgets
+    return res.json({
+      ok: true,
+      valid: true,
+      mode: 'public_permissive',
+      message: 'Zero-friction access enabled for remote widgets and embedded creators.'
+    });
+  });
+
+  // ==========================================================================
+  // 8. UNIVERSAL EMBED JAVASCRIPT SDK (FOR ZERO-LOGIN REMOTE WEBSITES)
+  // ==========================================================================
+
+  app.get('/embed.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    const embedJsCode = `
+/**
+ * Vixora AI Studio Remote Embed SDK
+ * Enables 1-click zero-login embedded Video Creator and AI Assistant widgets on any website.
+ */
+(function() {
+  const SCRIPT_URL = document.currentScript ? document.currentScript.src : window.location.origin + '/embed.js';
+  const BASE_URL = new URL(SCRIPT_URL).origin;
+
+  function initVixoraEmbeds() {
+    // 1. Mount Video Creator Containers
+    const videoTargets = document.querySelectorAll('#vixora-video-creator, [data-vixora-creator], vixora-video-creator');
+    videoTargets.forEach(target => {
+      if (target.dataset.vixoraMounted) return;
+      target.dataset.vixoraMounted = 'true';
+
+      const apiKey = target.dataset.apiKey || target.getAttribute('api-key') || 'vx_live_vixora_prod_89f3a928b7e411d9c02';
+      const theme = target.dataset.theme || target.getAttribute('theme') || 'dark';
+      const height = target.dataset.height || target.getAttribute('height') || '740px';
+
+      const iframe = document.createElement('iframe');
+      iframe.src = BASE_URL + '/?embed=creator&apiKey=' + encodeURIComponent(apiKey) + '&theme=' + encodeURIComponent(theme);
+      iframe.style.width = '100%';
+      iframe.style.height = height;
+      iframe.style.border = 'none';
+      iframe.style.borderRadius = '24px';
+      iframe.style.boxShadow = '0 20px 40px -15px rgba(0,0,0,0.5)';
+      iframe.allow = 'camera; microphone; display-capture; clipboard-write;';
+      target.appendChild(iframe);
+    });
+
+    // 2. Mount AI Assistant / Chat Containers
+    const chatTargets = document.querySelectorAll('#vixora-ai-assistant, [data-vixora-assistant], vixora-ai-assistant');
+    chatTargets.forEach(target => {
+      if (target.dataset.vixoraMounted) return;
+      target.dataset.vixoraMounted = 'true';
+
+      const apiKey = target.dataset.apiKey || target.getAttribute('api-key') || 'vx_live_vixora_prod_89f3a928b7e411d9c02';
+      const theme = target.dataset.theme || target.getAttribute('theme') || 'dark';
+      const height = target.dataset.height || target.getAttribute('height') || '640px';
+
+      const iframe = document.createElement('iframe');
+      iframe.src = BASE_URL + '/?embed=chat&apiKey=' + encodeURIComponent(apiKey) + '&theme=' + encodeURIComponent(theme);
+      iframe.style.width = '100%';
+      iframe.style.height = height;
+      iframe.style.border = 'none';
+      iframe.style.borderRadius = '24px';
+      iframe.style.boxShadow = '0 20px 40px -15px rgba(0,0,0,0.5)';
+      iframe.allow = 'camera; microphone; display-capture; clipboard-write;';
+      target.appendChild(iframe);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVixoraEmbeds);
+  } else {
+    initVixoraEmbeds();
+  }
+
+  window.VixoraEmbed = {
+    mount: initVixoraEmbeds,
+    baseUrl: BASE_URL
+  };
+})();
+`;
+    res.send(embedJsCode);
+  });
 
   // ==========================================================================
   // VITE DEV MIDDLEWARE & PRODUCTION STATIC SERVING

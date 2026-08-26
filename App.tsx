@@ -8,9 +8,11 @@ import { VixoraTextChatPanel } from './components/VixoraTextChatPanel';
 import { ToolsLibrary } from './components/ToolsLibrary';
 import { DeveloperApiView } from './components/DeveloperApiView';
 import { CompleteApiModal } from './components/CompleteApiModal';
+import { NativeExportDownloadModal } from './components/NativeExportDownloadModal';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
 import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
+import { synthesizeFishAudio, FISH_AUDIO_VOICES } from './services/fishAudioService';
 import { playProceduralSFX } from './sfxLibrary';
 import { 
   syncSaveCreatedVideo, 
@@ -243,6 +245,37 @@ function createWavHeader(dataLength: number, sampleRate: number, numChannels: nu
   return new Uint8Array(buffer);
 }
 
+function createAudioBlobFromBase64(base64Audio: string): Blob {
+  try {
+    const binaryString = atob(base64Audio);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const isMp3 = binaryString.startsWith('ID3') || (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0);
+    const isWav = binaryString.startsWith('RIFF');
+
+    if (isMp3) {
+      return new window.Blob([bytes], { type: 'audio/mpeg' });
+    } else if (isWav) {
+      return new window.Blob([bytes], { type: 'audio/wav' });
+    } else {
+      // PCM wrapping
+      const rawPcm = new Int16Array(bytes.buffer);
+      const wavHeader = createWavHeader(rawPcm.byteLength, 24000, 1, 16);
+      const audioFile = new Uint8Array(wavHeader.length + rawPcm.byteLength);
+      audioFile.set(wavHeader);
+      audioFile.set(new Uint8Array(rawPcm.buffer), wavHeader.length);
+      return new window.Blob([audioFile], { type: 'audio/wav' });
+    }
+  } catch (e) {
+    console.error("createAudioBlobFromBase64 error:", e);
+    return new window.Blob([], { type: 'audio/mpeg' });
+  }
+}
+
 // --- APP COMPONENT ---
 
 const App: React.FC = () => {
@@ -254,6 +287,7 @@ const App: React.FC = () => {
   const [showAbout, setShowAbout] = useState(false);
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [showGlobalApiModal, setShowGlobalApiModal] = useState(false);
+  const [showNativeExportModal, setShowNativeExportModal] = useState(false);
 
   // Projects State for Requirement 3 (Projects-based Navigation)
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -825,45 +859,35 @@ const App: React.FC = () => {
     }
   };
 
-  // Voice preview function
+  // Voice preview function (Powered by Fish Audio S2-Pro)
   const handlePreviewVoice = async (voiceOption: typeof VOICE_AVATAR_OPTIONS[0]) => {
-    const activeApiKey = getEffectiveApiKey(user?.apiKey);
-    if (!activeApiKey) {
-      setAppError("AI Engine initialization required to preview voice.");
-      return;
-    }
+    if (previewingVoiceId) return;
     setPreviewingVoiceId(voiceOption.id);
     try {
-      const response = await generateGeminiContentWithFallback(user?.apiKey, {
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: voiceOption.sampleText }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voiceOption.voiceName },
-            },
-          },
-        },
+      const sampleText = voiceOption.sampleText || `Hello, I'm ${voiceOption.name}, ready to narrate your high-impact video.`;
+      const result = await synthesizeFishAudio({
+        text: sampleText,
+        voiceName: voiceOption.voiceName,
+        format: 'mp3'
       });
-
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (base64Audio) {
-        const pcmData = decode(base64Audio);
-        const wavHeader = createWavHeader(pcmData.length, 24000, 1, 16);
-        const audioFile = new Uint8Array(wavHeader.length + pcmData.length);
-        audioFile.set(wavHeader);
-        audioFile.set(pcmData, wavHeader.length);
-
-        const blob = new window.Blob([audioFile], { type: 'audio/mp3' });
+      if (result.ok && result.audioBase64) {
+        const blob = createAudioBlobFromBase64(result.audioBase64);
         const url = URL.createObjectURL(blob);
         const previewAudio = new Audio(url);
-        previewAudio.play();
+        previewAudio.onended = () => {
+          setPreviewingVoiceId(null);
+          URL.revokeObjectURL(url);
+        };
+        previewAudio.onerror = () => {
+          setPreviewingVoiceId(null);
+        };
+        await previewAudio.play();
+      } else {
+        playProceduralSFX('sparkle');
+        setPreviewingVoiceId(null);
       }
-    } catch (err) {
-      console.error("Voice preview failed:", err);
-      setAppError("Voice preview error. Please check your API key.");
-    } finally {
+    } catch (e) {
+      console.warn("Voice preview error:", e);
       setPreviewingVoiceId(null);
     }
   };
@@ -872,6 +896,45 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
+      // Check for remote display & embed parameters (?embed=creator | chat | scripts | voiceover)
+      const urlParams = new URLSearchParams(window.location.search);
+      const embedParam = urlParams.get('embed');
+      const apiKeyParam = urlParams.get('apiKey') || urlParams.get('api_key') || urlParams.get('apikey');
+      const themeParam = urlParams.get('theme');
+
+      if (themeParam === 'light' || themeParam === 'dark') {
+        setThemeMode(themeParam);
+      }
+
+      if (embedParam) {
+        // Zero-friction instant access for remote embedded websites
+        const remoteGuestUser: UserProfile = {
+          fullName: 'Remote Creator',
+          email: 'guest@remote-embed.vixora',
+          phone: '',
+          apiKey: apiKeyParam || process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+          niche: 'general'
+        };
+        setUser(remoteGuestUser);
+        setNewApiKey(remoteGuestUser.apiKey || '');
+        setWizardStep(3);
+
+        if (embedParam === 'chat' || embedParam === 'assistant' || embedParam === 'surah' || embedParam === 'ai') {
+          setActiveTab('chat');
+        } else if (embedParam === 'voice' || embedParam === 'voiceover') {
+          setActiveTab('voiceover');
+        } else if (embedParam === 'scripts') {
+          setActiveTab('scripts');
+        } else if (embedParam === 'developer' || embedParam === 'api') {
+          setActiveTab('developer');
+        } else {
+          setActiveTab('studio');
+        }
+
+        setLoading(false);
+        return;
+      }
+
       const savedUser = localStorage.getItem('ggd_creator_user');
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
@@ -1483,13 +1546,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
     } else {
       if (activeVoiceoverId !== id) {
         voiceoverAudioRef.pause();
-        const pcmData = decode(base64Audio);
-        const wavHeader = createWavHeader(pcmData.length, 24000, 1, 16);
-        const audioFile = new Uint8Array(wavHeader.length + pcmData.length);
-        audioFile.set(wavHeader);
-        audioFile.set(pcmData, wavHeader.length);
-
-        const blob = new window.Blob([audioFile], { type: 'audio/mp3' });
+        const blob = createAudioBlobFromBase64(base64Audio);
         const url = URL.createObjectURL(blob);
         voiceoverAudioRef.src = url;
         setActiveVoiceoverId(id);
@@ -1505,13 +1562,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
   const downloadVoiceoverMp3 = (audioBase64?: string, textSnippet?: string) => {
     const dataToUse = audioBase64 || lastVoiceoverAudio;
     if (!dataToUse) return;
-    const pcmData = decode(dataToUse);
-    const wavHeader = createWavHeader(pcmData.length, 24000, 1, 16);
-    const audioFile = new Uint8Array(wavHeader.length + pcmData.length);
-    audioFile.set(wavHeader);
-    audioFile.set(pcmData, wavHeader.length);
-
-    const blob = new window.Blob([audioFile], { type: 'audio/mp3' });
+    const blob = createAudioBlobFromBase64(dataToUse);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1537,44 +1588,40 @@ Structure: Full Masterclass / In-depth Documentary Script.
   const handleGenerateVoiceover = async (overrideText?: string) => {
     const text = overrideText || voiceoverText;
     if (!text.trim()) return;
-    const activeApiKey = getEffectiveApiKey(user?.apiKey);
-    if (!activeApiKey) return;
 
     setIsGeneratingVoiceover(true);
     setAppError(null);
 
     try {
-      const response = await generateGeminiContentWithFallback(user?.apiKey, {
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Speak this script with a natural, professional accent. No conversational filler: ${text.replace(/\*/g, '')}` }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: selectedVoice || 'Kore' },
-            },
-          },
-        },
+      // Synthesize using Fish Audio S2-Pro API
+      const result = await synthesizeFishAudio({
+        text: text.replace(/\*/g, ''),
+        voiceName: selectedVoice || 'Kore',
+        format: 'mp3'
       });
 
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (base64Audio) {
-        setLastVoiceoverAudio(base64Audio);
+      if (result.ok && result.audioBase64) {
+        setLastVoiceoverAudio(result.audioBase64);
         const newId = `vo_${Date.now()}`;
         const newEntry = {
           id: newId,
           text: text,
-          audioBase64: base64Audio,
+          audioBase64: result.audioBase64,
           date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         const updatedHistory = [newEntry, ...voiceoverHistory];
         setVoiceoverHistory(updatedHistory);
         syncSaveVoiceover(newEntry);
         playProceduralSFX('bell');
-        // Generated voiceover stored silently without auto-playing
+      } else {
+        if (result.error) {
+          setAppError(`Fish Audio (${result.statusCode || 'Error'}): ${result.error}`);
+        } else {
+          setAppError("Voiceover synthesis with Fish Audio failed. Please check network/API status.");
+        }
       }
-    } catch (err) {
-      setAppError("Voiceover generation failed. Please try again.");
+    } catch (err: any) {
+      setAppError(`Fish Audio voiceover error: ${err?.message || err}`);
     } finally {
       setIsGeneratingVoiceover(false);
     }
@@ -2608,6 +2655,16 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
 
         <div className="flex items-center gap-2">
+          {/* 1-CLICK COMPLETE CODEBASE & AI BUILDER PACKAGE DOWNLOAD BUTTON */}
+          <button 
+            onClick={() => setShowNativeExportModal(true)}
+            title="Download 1-Click Complete Codebase & AI Side-Builder Prompt"
+            className="btn-3d btn-3d-orange h-10 px-3 flex items-center gap-1.5 shadow-xl active:scale-95 transition-all text-white cursor-pointer border border-amber-300/40"
+          >
+            <i className="fa-solid fa-box-archive text-xs text-amber-200"></i>
+            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Export App</span>
+          </button>
+
           {/* 1-CLICK COMPLETE API INTEGRATION BUTTON */}
           <button 
             onClick={() => setShowGlobalApiModal(true)}
@@ -4972,6 +5029,13 @@ Structure: Full Masterclass / In-depth Documentary Script.
         onClose={() => setShowGlobalApiModal(false)}
         themeMode={themeMode}
         baseUrl={typeof window !== 'undefined' ? window.location.origin : 'https://vixora.studio'}
+      />
+
+      {/* 1-CLICK COMPLETE CODEBASE & AI SIDE-BUILDER EXPORT MODAL */}
+      <NativeExportDownloadModal
+        isOpen={showNativeExportModal}
+        onClose={() => setShowNativeExportModal(false)}
+        themeMode={themeMode}
       />
 
       <canvas ref={canvasRef} className="hidden" />

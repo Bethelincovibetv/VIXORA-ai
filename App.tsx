@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from "@google/genai";
 import { UserProfile, Bank, Project } from './types';
 import { VideoSequencer, SourcedVideo } from './components/VideoSequencer';
@@ -10,6 +11,7 @@ import { DeveloperApiView } from './components/DeveloperApiView';
 import { CompleteApiModal } from './components/CompleteApiModal';
 import { NativeExportDownloadModal } from './components/NativeExportDownloadModal';
 import { ProjectsNavigationDrawer } from './components/ProjectsNavigationDrawer';
+import { VixoraNavbar } from './components/VixoraNavbar';
 import { VixoraAppContext } from './services/vixoraAgentTools';
 import { PRESET_MUSIC_TRACKS, VOICE_AVATAR_OPTIONS } from './constants';
 import { synthesizeFishAudio, FISH_AUDIO_VOICES } from './services/fishAudioService';
@@ -279,6 +281,9 @@ function createAudioBlobFromBase64(base64Audio: string): Blob {
 // --- APP COMPONENT ---
 
 const App: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [user, setUser] = useState<(UserProfile & { apiKey?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
@@ -288,6 +293,66 @@ const App: React.FC = () => {
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [showGlobalApiModal, setShowGlobalApiModal] = useState(false);
   const [showNativeExportModal, setShowNativeExportModal] = useState(false);
+
+  // Helper to map tab identifier to canonical URL path
+  const getTabPath = (tab: string) => {
+    switch (tab) {
+      case 'videos': return '/videos';
+      case 'scripts': return '/scripts';
+      case 'autopilot': return '/autopilot';
+      case 'voiceover': return '/voiceover';
+      case 'bgmusic': return '/bgmusic';
+      case 'more': return '/growth';
+      case 'tools': return '/tools';
+      case 'developer': return '/developer';
+      case 'profile': return '/profile';
+      case 'contact': return '/contact';
+      case 'coach': return '/coach';
+      case 'chat': return '/studio';
+      default: return '/studio';
+    }
+  };
+
+  // Navigates and updates URL path seamlessly
+  const handleSelectTab = (tab: any) => {
+    setActiveTab(tab);
+    const targetPath = getTabPath(tab);
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
+  };
+
+  // Synchronize URL changes (e.g. direct address bar entry, browser back/forward) to activeTab
+  useEffect(() => {
+    const rawPath = location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+    if (rawPath === '/' || rawPath === '/studio') {
+      setActiveTab('studio');
+    } else if (rawPath === '/videos' || rawPath === '/creator' || rawPath === '/video-creator') {
+      setActiveTab('videos');
+    } else if (rawPath === '/scripts' || rawPath === '/script-writer' || rawPath === '/script') {
+      setActiveTab('scripts');
+    } else if (rawPath === '/autopilot' || rawPath === '/video-autopilot') {
+      setActiveTab('autopilot');
+    } else if (rawPath === '/voiceover' || rawPath === '/voice' || rawPath === '/tts') {
+      setActiveTab('voiceover');
+    } else if (rawPath === '/bgmusic' || rawPath === '/music' || rawPath === '/soundtracks') {
+      setActiveTab('bgmusic');
+    } else if (rawPath === '/growth' || rawPath === '/more' || rawPath === '/seo') {
+      setActiveTab('more');
+    } else if (rawPath === '/tools' || rawPath === '/features') {
+      setActiveTab('tools');
+    } else if (rawPath === '/developer' || rawPath === '/api' || rawPath === '/docs') {
+      setActiveTab('developer');
+    } else if (rawPath === '/profile' || rawPath === '/settings') {
+      setActiveTab('profile');
+    } else if (rawPath === '/contact' || rawPath === '/support') {
+      setActiveTab('contact');
+    } else if (rawPath === '/coach' || rawPath === '/mentorship') {
+      setActiveTab('coach');
+    } else if (rawPath === '/projects') {
+      setIsSidebarOpen(true);
+    }
+  }, [location.pathname]);
 
   // Projects State for Requirement 3 (Projects-based Navigation)
   const [projects, setProjects] = useState<Project[]>(() => {
@@ -2595,6 +2660,67 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
       )}
 
+      {/* GLOBAL URL-BASED NAVIGATION HEADER & DOCK */}
+      <VixoraNavbar
+        themeMode={themeMode}
+        onToggleTheme={() => setThemeMode(prev => prev === 'light' ? 'dark' : 'light')}
+        onOpenAccessibility={() => setShowAccessibilityModal(true)}
+        onOpenProjects={() => setIsSidebarOpen(true)}
+        onOpenGlobalApi={() => setShowGlobalApiModal(true)}
+        onOpenExportModal={() => setShowNativeExportModal(true)}
+        projectCount={projects.length}
+        activeProjectTitle={projects.find(p => p.id === activeProjectId)?.title}
+        isLiveActive={isLiveActive}
+      />
+
+      {/* PROJECTS DRAWER MODAL */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-[350] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-rise">
+          <div className={`w-full max-w-lg rounded-3xl p-6 border relative shadow-2xl space-y-4 max-h-[85vh] flex flex-col overflow-hidden ${
+            themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-lg shadow-md">
+                  <i className="fa-solid fa-folder-open"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Creation Projects Manager</h3>
+                  <p className="text-[9px] text-amber-400 font-bold uppercase">All Saved Timelines & Drafts ({projects.length})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center border ${
+                  themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'
+                }`}
+              >
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              <ProjectsNavigationDrawer
+                projects={projects}
+                activeProjectId={activeProjectId}
+                onSelectProject={(proj) => {
+                  handleSelectProject(proj);
+                  handleSelectTab('videos');
+                }}
+                onCreateNewProject={() => {
+                  handleCreateNewProject();
+                  handleSelectTab('videos');
+                }}
+                onDeleteProject={handleDeleteProject}
+                onRenameProject={handleRenameProject}
+                onDuplicateProject={handleDuplicateProject}
+                themeMode={themeMode}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="w-full">
         {appError && (
           <div className="mb-4 p-3 bg-red-600/20 border border-red-500/40 rounded-xl text-red-200 text-[10px] font-bold flex justify-between items-center">
@@ -2711,14 +2837,14 @@ Structure: Full Masterclass / In-depth Documentary Script.
           </div>
         )}
 
-        {activeTab === 'coach' && (
+        {(activeTab === 'coach' || activeTab === 'scripts') && (
           <div className="animate-rise space-y-4">
             <VixoraContentMaster 
               themeMode={themeMode}
               onGenerateScriptForStudio={(scriptHook, topicTitle) => {
                 setScriptTopic(topicTitle || scriptHook);
                 setVideoScriptInput(scriptHook);
-                setActiveTab('videos');
+                handleSelectTab('videos');
               }}
               onCookAutopilotVideo={(topic, platform) => {
                 setScriptTopic(topic);
@@ -2728,7 +2854,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                 if (tpl.targetDuration) setTargetVideoDuration(tpl.targetDuration);
                 if (tpl.aspectRatio) setVideoRatio(tpl.aspectRatio);
                 if (tpl.topic) setScriptTopic(tpl.topic);
-                setActiveTab('videos');
+                handleSelectTab('videos');
               }}
             />
           </div>
@@ -4207,7 +4333,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
                     <button 
                       onClick={() => {
                         setScriptTopic(toolInput);
-                        setActiveTab('scripts');
+                        handleSelectTab('scripts');
                       }}
                       className="text-xs font-bold uppercase text-slate-400 hover:text-ggd-orange flex items-center gap-1 transition-all"
                     >
@@ -4224,7 +4350,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
         {activeTab === 'tools' && (
           <div className="animate-rise">
             <ToolsLibrary
-              onSelectTab={(tab) => setActiveTab(tab as any)}
+              onSelectTab={(tab) => handleSelectTab(tab as any)}
               onStartLiveAssistant={() => setIsTextChatOpen(true)}
               onOpenChatWithPrompt={(prompt) => {
                 setIsTextChatOpen(true);

@@ -6,6 +6,7 @@ export interface UserProfile {
   uid?: string;
   displayName?: string;
   apiKey?: string;
+  fishAudioApiKey?: string;
   plan?: string;
   isPro?: boolean;
   credits?: number;

@@ -207,38 +207,56 @@ export const VIXORA_AGENT_TOOLS: VixoraToolDefinition[] = [
   },
   {
     name: 'navigateToTab',
-    description: 'Switches or navigates to a specific screen/tab inside Vixora AI Studio app.',
+    description: 'Switches or navigates to a specific screen/tab inside Vixora AI Studio app (e.g. profile, settings, api keys, studio, autopilot, videos, scripts, voiceover, coach, tools, developer, contact).',
     parameters: {
       type: Type.OBJECT,
       properties: {
         tab: { 
           type: Type.STRING, 
-          enum: ['autopilot', 'manual', 'studio', 'voiceover', 'music', 'coach', 'tools', 'profile', 'announcements'], 
-          description: 'The target tab name to open.' 
+          description: 'The target tab name to open e.g. "profile", "studio", "autopilot", "videos", "scripts", "voiceover", "coach", "tools", "developer", "contact", "settings".' 
         }
       },
       required: ['tab']
     },
     execute: async (args, ctx) => {
+      const raw = (args.tab || '').toLowerCase().trim();
       const tabMap: Record<string, string> = {
+        'profile': 'profile',
+        'account': 'profile',
+        'settings': 'profile',
+        'api keys': 'profile',
+        'keys': 'profile',
+        'api': 'profile',
         'autopilot': 'autopilot',
-        'manual': 'manual',
+        'videos': 'videos',
+        'video': 'videos',
+        'creator': 'videos',
+        'manual': 'videos',
         'studio': 'studio',
+        'live': 'studio',
+        'scripts': 'scripts',
+        'script': 'scripts',
+        'genius': 'scripts',
         'voiceover': 'voiceover',
         'voice overs': 'voiceover',
-        'music': 'music',
+        'voice': 'voiceover',
+        'tts': 'voiceover',
+        'music': 'bgmusic',
+        'bgmusic': 'bgmusic',
+        'background music': 'bgmusic',
         'coach': 'coach',
+        'sister': 'coach',
         'tools': 'tools',
-        'profile': 'profile',
-        'announcements': 'announcements'
+        'developer': 'developer',
+        'contact': 'contact'
       };
-      const mapped = tabMap[args.tab.toLowerCase()] || 'autopilot';
+      const mapped = tabMap[raw] || (raw in tabMap ? raw : 'profile');
       ctx.setActiveTab(mapped);
 
       return {
         success: true,
         executedActionName: 'navigateToTab',
-        message: `Navigated to the ${mapped.toUpperCase()} tab.`
+        message: `Navigated to the ${mapped.toUpperCase()} page.`
       };
     }
   },

@@ -12,6 +12,7 @@ export interface ChatMessage {
   imageUrl?: string;
   attachedFile?: { name: string; text?: string };
   isThinking?: boolean;
+  navigatedTab?: string;
 }
 
 interface VixoraTextChatPanelProps {
@@ -28,7 +29,7 @@ interface VixoraTextChatPanelProps {
 const DEFAULT_WELCOME_MSG: ChatMessage = {
   id: 'msg_welcome',
   sender: 'vixora',
-  text: "How far my creator! 👋 I am Vixora, your AI Creator Assistant. You can chat with me or give me direct commands—I can generate videos on autopilot, change narrator voices, switch tabs, update captions, or design promotional flyers for your channel! What are we cooking today?",
+  text: "How far my creator! 👋 I am Vixora, your AI Creator Assistant. You can chat with me, configure your API keys in Profile, or give me direct commands—I can generate videos on autopilot, change narrator voices, switch tabs, or write viral scripts! What are we cooking today?",
   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 };
 
@@ -62,6 +63,7 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     try {
@@ -81,9 +83,44 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
     }
   }, [initialPrompt]);
 
+  const interruptAi = () => {
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch (e) {}
+      abortControllerRef.current = null;
+    }
+    setIsProcessing(false);
+    setMessages(prev => {
+      const withoutThinking = prev.filter(m => !m.isThinking);
+      return [
+        ...withoutThinking,
+        {
+          id: `int_${Date.now()}`,
+          sender: 'vixora',
+          text: "⚡ [Response stopped by creator. Ready for your next instruction!]",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actionBadge: "Interrupted by Creator"
+        }
+      ];
+    });
+  };
+
   const handleSendMessage = async (customText?: string) => {
     const textToSend = (customText || inputQuery).trim();
-    if ((!textToSend && !attachedImage && !attachedFile) || isProcessing) return;
+    if (!textToSend && !attachedImage && !attachedFile) return;
+
+    // If AI is currently replying, interrupt the active stream first
+    if (isProcessing) {
+      if (abortControllerRef.current) {
+        try { abortControllerRef.current.abort(); } catch (e) {}
+        abortControllerRef.current = null;
+      }
+      setIsProcessing(false);
+    }
+
+    const currentController = new AbortController();
+    abortControllerRef.current = currentController;
 
     let fullPromptText = textToSend;
     if (attachedFile) {
@@ -109,7 +146,7 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
       isThinking: true
     };
 
-    setMessages(prev => [...prev, userMsg, thinkingMsg]);
+    setMessages(prev => [...prev.filter(m => !m.isThinking), userMsg, thinkingMsg]);
     setInputQuery('');
     setAttachedImage(null);
     setAttachedFile(null);
@@ -117,10 +154,25 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
     setIsProcessing(true);
 
     try {
+      const isInvalidKey = (k?: string) => {
+        if (!k) return true;
+        const clean = k.trim();
+        return (
+          !clean ||
+          clean === 'undefined' ||
+          clean === 'null' ||
+          clean === 'your_gemini_api_key_here' ||
+          clean.includes('AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk') ||
+          clean.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ||
+          clean.startsWith('AIzaSy...')
+        );
+      };
+
       const envApiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-      let activeKey = apiKey;
-      if (!activeKey || activeKey.includes('AIzaSyCBO1PRv5h9aQAB3rWb')) {
-        activeKey = envApiKey || activeKey;
+      let activeKey = !isInvalidKey(apiKey) ? apiKey : !isInvalidKey(envApiKey) ? envApiKey : '';
+
+      if (!activeKey) {
+        throw new Error("No valid Gemini API key found. Please open Profile to configure your API key.");
       }
       const ai = new GoogleGenAI({ apiKey: activeKey });
 
@@ -128,13 +180,13 @@ export const VixoraTextChatPanel: React.FC<VixoraTextChatPanelProps> = ({
 
 YOUR MANDATE:
 You can CONTROL the Vixora AI Studio app directly for the user using function calls/tools!
-Whenever the user asks you to make a video, switch tabs, change voice, edit script, change caption style, generate a flyer, or learn a skill, CALL THE APPROPRIATE TOOL!
+Whenever the user asks you to open the profile page, configure API keys, make a video, switch tabs, change voice, edit script, change caption style, generate a flyer, or learn a skill, CALL THE APPROPRIATE TOOL!
 
 AMBIGUITY RULE:
-If the user's request is ambiguous or missing information (e.g. "make it shorter" without specifying if they mean script, clip, or video length, or by how much), DO NOT call a tool blindly! Ask a quick, friendly clarifying question first in chat.
+If the user's request is ambiguous or missing information, ask a quick, friendly clarifying question first in chat.
 
-UNSUPPORTED CAPABILITIES RULE:
-If the user asks for an action that Vixora AI Studio does not support yet (e.g. "export as 3D Holographic VR file" or "order pizza"), politely explain that the capability is not currently supported, and suggest what you CAN do instead!`;
+NAVIGATION:
+If user asks to open profile, settings, studio, autopilot, scripts, voiceover, tools, or any page, call the navigateToTab tool immediately!`;
 
       // Build conversation history turns for Gemini
       const historyTurns = messages
@@ -153,6 +205,9 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
       let responseText = '';
       let actionBadgeText: string | undefined = undefined;
       let generatedImageUrl: string | undefined = undefined;
+      let targetNavTab: string | undefined = undefined;
+
+      if (currentController.signal.aborted) return;
 
       try {
         const response = await ai.models.generateContent({
@@ -170,6 +225,8 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
           }
         });
 
+        if (currentController.signal.aborted) return;
+
         responseText = response.text || '';
 
         // Handle Function Calls
@@ -181,6 +238,9 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
               actionBadgeText = `⚡ ${toolResult.message}`;
               if (toolResult.data?.imageUrl) {
                 generatedImageUrl = toolResult.data.imageUrl;
+              }
+              if (fc.name === 'navigateToTab' && fc.args?.tab) {
+                targetNavTab = String(fc.args.tab);
               }
 
               try {
@@ -220,6 +280,7 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
         }
       } catch (firstPassErr) {
         console.warn("First pass chat model call with tools warning:", firstPassErr);
+        if (currentController.signal.aborted) return;
         // Fallback pass without tools functionDeclarations
         try {
           const fallbackRes = await ai.models.generateContent({
@@ -233,27 +294,39 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
         }
       }
 
+      if (currentController.signal.aborted) return;
+
       // Check local intent fallback if API response was empty or error occurred
       if (!responseText) {
         const lower = fullPromptText.toLowerCase();
-        if (lower.includes('video') || lower.includes('autopilot') || lower.includes('generate')) {
+        if (lower.includes('profile') || lower.includes('key') || lower.includes('setting') || lower.includes('account') || lower.includes('fish.audio') || lower.includes('fish audio')) {
+          appContext.setActiveTab('profile');
+          targetNavTab = 'profile';
+          actionBadgeText = '⚡ Navigated to Profile & API Key Settings';
+          responseText = "I've opened your Profile page! You can configure your Gemini AI and Fish.Audio API keys right there.";
+        } else if (lower.includes('video') || lower.includes('autopilot') || lower.includes('generate')) {
           appContext.setActiveTab('autopilot');
+          targetNavTab = 'autopilot';
           actionBadgeText = '⚡ Navigated to AI Autopilot Studio';
           responseText = "No wahala! I have switched you directly to the AI Autopilot Studio so we can cook your video!";
         } else if (lower.includes('script')) {
           appContext.setActiveTab('scripts');
+          targetNavTab = 'scripts';
           actionBadgeText = '⚡ Navigated to YT Scripts Genius';
           responseText = "I've brought you right to the Script Writer studio! Enter your topic to draft a viral video script.";
         } else if (lower.includes('voice') || lower.includes('speech') || lower.includes('narration')) {
           appContext.setActiveTab('voiceover');
+          targetNavTab = 'voiceover';
           actionBadgeText = '⚡ Navigated to Voice Studio';
           responseText = "Switched to AI Voice Studio! You can choose Kore, Chimamanda, or any preferred narrator voice.";
         } else if (lower.includes('coach') || lower.includes('sister')) {
           appContext.setActiveTab('coach');
+          targetNavTab = 'coach';
           actionBadgeText = '⚡ Navigated to Sister Vixora Coach';
           responseText = "God bless you! Switched to Sister Vixora Content Master & Divine Purpose Coach.";
         } else if (lower.includes('tools') || lower.includes('library')) {
           appContext.setActiveTab('tools');
+          targetNavTab = 'tools';
           actionBadgeText = '⚡ Navigated to Tools Library';
           responseText = "Opening our unified Vixora AI Tools Library!";
         } else {
@@ -267,11 +340,13 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
         text: responseText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actionBadge: actionBadgeText,
-        imageUrl: generatedImageUrl
+        imageUrl: generatedImageUrl,
+        navigatedTab: targetNavTab
       };
 
       setMessages(prev => prev.filter(m => m.id !== thinkingMsgId).concat(agentMsg));
     } catch (err: any) {
+      if (currentController.signal.aborted) return;
       console.error("Vixora Text Chat Error:", err);
       const errorMsg: ChatMessage = {
         id: `err_${Date.now()}`,
@@ -281,7 +356,10 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
       };
       setMessages(prev => prev.filter(m => m.id !== thinkingMsgId).concat(errorMsg));
     } finally {
-      setIsProcessing(false);
+      if (abortControllerRef.current === currentController) {
+        setIsProcessing(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -369,6 +447,33 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
           </div>
 
           <div className="flex items-center gap-2">
+            {isProcessing && (
+              <button 
+                onClick={interruptAi}
+                title="Interrupt / Stop AI Response"
+                className="px-2.5 py-1.5 rounded-xl border border-red-500/40 bg-red-500/20 text-red-300 text-[10px] font-black uppercase flex items-center gap-1.5 transition-all active:scale-95 animate-pulse shadow-md"
+              >
+                <i className="fa-solid fa-hand text-xs"></i>
+                <span className="hidden sm:inline">Stop</span>
+              </button>
+            )}
+
+            <button 
+              onClick={() => {
+                appContext.setActiveTab('profile');
+                if (!isFullTab) onClose();
+              }}
+              title="Open Profile & API Keys"
+              className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 transition-all active:scale-95 ${
+                themeMode === 'light' 
+                  ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' 
+                  : 'bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/25'
+              }`}
+            >
+              <i className="fa-solid fa-user-gear text-xs"></i>
+              <span className="hidden sm:inline">Profile</span>
+            </button>
+
             <button 
               onClick={handleClearHistory} 
               title="Clear Chat History"
@@ -397,16 +502,16 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
           themeMode === 'light' ? 'bg-slate-100/80 border-slate-200' : 'bg-slate-950/40 border-white/5'
         }`}>
           {[
+            { label: '🔑 Profile & API Keys', cmd: 'Open my profile page so I can configure API keys' },
             { label: '⚡ Cook Finance Video', cmd: 'Generate a 30s vertical video on 5 rules of wealth' },
             { label: '🎨 Generate Flyer', cmd: 'Generate a promotional flyer banner for my finance channel' },
-            { label: '🎙️ Voice to Sarah', cmd: 'Change the voice narrator to Sarah' },
+            { label: '🎙️ Voice to Kore', cmd: 'Change the voice narrator to Kore' },
             { label: '📐 9:16 Vertical Ratio', cmd: 'Change video preferences to 9:16 vertical ratio' },
             { label: '🔤 TikTok Green Captions', cmd: 'Change subtitle caption style to TikTok pop green' }
           ].map((chip, idx) => (
             <button
               key={idx}
               onClick={() => handleSendMessage(chip.cmd)}
-              disabled={isProcessing}
               className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all active:scale-95 shrink-0 ${
                 themeMode === 'light'
                   ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-sm'
@@ -464,9 +569,18 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
                 )}
 
                 {msg.isThinking ? (
-                  <div className="flex items-center gap-2.5 text-ggd-orange font-bold text-[11px] py-1">
-                    <i className="fa-solid fa-spinner animate-spin text-sm"></i>
-                    <span>Vixora is analyzing & executing action...</span>
+                  <div className="flex items-center justify-between gap-3 py-1">
+                    <div className="flex items-center gap-2.5 text-ggd-orange font-bold text-[11px]">
+                      <i className="fa-solid fa-spinner animate-spin text-sm"></i>
+                      <span>Vixora is analyzing & executing action...</span>
+                    </div>
+                    <button
+                      onClick={interruptAi}
+                      className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <i className="fa-solid fa-hand"></i>
+                      <span>Stop</span>
+                    </button>
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -477,6 +591,22 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
                   <div className="mt-2.5 p-2.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10.5px] font-bold flex items-center gap-2 shadow-sm">
                     <i className="fa-solid fa-bolt text-emerald-400"></i>
                     <span>{msg.actionBadge}</span>
+                  </div>
+                )}
+
+                {/* DIRECT 1-TAP OPEN PAGE BUTTON */}
+                {msg.navigatedTab && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        appContext.setActiveTab(msg.navigatedTab as any);
+                        if (!isFullTab) onClose();
+                      }}
+                      className="w-full py-2 px-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase text-[9.5px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer border border-purple-400/30"
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                      <span>Open {msg.navigatedTab.toUpperCase()} Page Now →</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -630,14 +760,15 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
             <button
               type="button"
               onClick={() => {
-                if (onStartLiveAssistant) onStartLiveAssistant();
-                else if (appContext.handleAutopilotVideoGeneration) {
-                  // Fallback to switching or triggering live assistant
+                if (!isFullTab) onClose();
+                if (onStartLiveAssistant) {
+                  onStartLiveAssistant();
+                } else {
                   appContext.setActiveTab('studio');
                 }
               }}
               title="Start Live Voice Assistant Call"
-              className="px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black uppercase text-[10px] tracking-wider flex items-center gap-1.5 shadow-md active:scale-90 shrink-0 border border-amber-300/40"
+              className="px-3.5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black uppercase text-[10px] tracking-wider flex items-center gap-1.5 shadow-lg active:scale-90 shrink-0 border border-amber-300/40 cursor-pointer"
             >
               <i className="fa-solid fa-microphone-lines text-xs animate-pulse"></i>
               <span className="hidden sm:inline">Live Call</span>
@@ -648,8 +779,7 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
               type="text" 
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Ask Vixora anything or type a command..."
-              disabled={isProcessing}
+              placeholder={isProcessing ? "Type to interrupt & ask something new..." : "Ask Vixora anything or type a command..."}
               className={`flex-1 px-4 py-3 rounded-2xl border text-xs font-medium outline-none transition-all ${
                 themeMode === 'light'
                   ? 'bg-slate-100 border-slate-300 text-slate-900 focus:bg-white focus:border-ggd-orange'
@@ -657,18 +787,26 @@ If the user asks for an action that Vixora AI Studio does not support yet (e.g. 
               }`}
             />
 
-            {/* SEND BUTTON */}
-            <button 
-              type="submit"
-              disabled={(!inputQuery.trim() && !attachedImage && !attachedFile) || isProcessing}
-              className="btn-3d btn-3d-orange px-4 py-3.5 rounded-2xl text-xs tracking-wider disabled:opacity-50 shrink-0 shadow-lg"
-            >
-              {isProcessing ? (
-                <i className="fa-solid fa-spinner animate-spin"></i>
-              ) : (
+            {/* STOP BUTTON OR SEND BUTTON */}
+            {isProcessing ? (
+              <button 
+                type="button"
+                onClick={interruptAi}
+                title="Interrupt / Stop AI response"
+                className="px-4 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg active:scale-90 animate-pulse shrink-0 cursor-pointer border border-red-400/40"
+              >
+                <i className="fa-solid fa-hand text-sm"></i>
+                <span className="hidden sm:inline text-[10px]">Stop</span>
+              </button>
+            ) : (
+              <button 
+                type="submit"
+                disabled={!inputQuery.trim() && !attachedImage && !attachedFile}
+                className="btn-3d btn-3d-orange px-4 py-3.5 rounded-2xl text-xs tracking-wider disabled:opacity-50 shrink-0 shadow-lg cursor-pointer"
+              >
                 <i className="fa-solid fa-paper-plane"></i>
-              )}
-            </button>
+              </button>
+            )}
           </form>
           <p className="text-[8.5px] text-slate-500 font-semibold text-center mt-2">
             Vixora controls video production, voices, & scripts using AI function calling.

@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       env.VITE_GEMINI_API_KEY || 
       env.API_KEY || 
       env.VITE_API_KEY || 
-      'AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk';
+      '';
 
     return {
       server: {

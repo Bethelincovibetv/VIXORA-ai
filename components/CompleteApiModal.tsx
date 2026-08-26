@@ -28,7 +28,7 @@ SHARED DATABASE & CLOUD ENVIRONMENT VARIABLES (FOR SEAMLESS SSO & AUTO-SYNC):
 Add these environment variables to your website's .env file so users share the exact same projects and never have to sign in twice:
 VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
-GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk
+GEMINI_API_KEY=your_gemini_api_key_here
 
 COMPLETE REST API ENDPOINTS SPECIFICATION:
 1. CREATE VIDEO JOB:
@@ -86,7 +86,7 @@ Add these to your website's .env configuration to connect to the exact same clou
 
 VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
-GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk
+GEMINI_API_KEY=your_gemini_api_key_here
 
 --------------------------------------------------------------------------------
 2. PROMPT / INSTRUCTIONS TO GIVE TO AI STUDIO / YOUR WEB DEVELOPER
@@ -568,11 +568,11 @@ export function VixoraNativeStudioEmbed({ currentUser }) {
 {`# Shared Cloud Database & AI Keys
 VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
-GEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk`}
+GEMINI_API_KEY=your_gemini_api_key_here`}
               </pre>
 
               <button
-                onClick={() => copyToClipboard(`VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co\nVITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ\nGEMINI_API_KEY=AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk`)}
+                onClick={() => copyToClipboard(`VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co\nVITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ\nGEMINI_API_KEY=your_gemini_api_key_here`)}
                 className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <i className="fa-solid fa-copy"></i> Copy Environment Variables

@@ -37,7 +37,7 @@ Add these dependencies to your website's package.json:
 --------------------------------------------------------------------------------
 2. ENVIRONMENT VARIABLES (.env)
 --------------------------------------------------------------------------------
-GEMINI_API_KEY=AIzaSy...
+GEMINI_API_KEY=your_gemini_api_key_here
 VITE_SUPABASE_URL=https://yyejcbbcqirsigphzxxo.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_bgmE8p2LPYQn2eVWBUEdMw_6R4GplVZ
 VITE_PAYSTACK_PUBLIC_KEY=pk_test_...

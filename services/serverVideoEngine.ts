@@ -25,7 +25,7 @@ export function getSupabase() {
 let geminiClient: GoogleGenAI | null = null;
 export function getGemini(): GoogleGenAI {
   if (!geminiClient) {
-    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || 'AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk';
+    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
     geminiClient = new GoogleGenAI({ apiKey: key });
   }
   return geminiClient;

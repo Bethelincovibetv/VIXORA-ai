@@ -504,6 +504,14 @@ const App: React.FC = () => {
 
   // API Update State
   const [newApiKey, setNewApiKey] = useState('');
+  const [apiKeyStatusMsg, setApiKeyStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showGeminiKeyInProfile, setShowGeminiKeyInProfile] = useState(false);
+
+  // Fish.Audio API Key State & Live Test
+  const [newFishAudioKey, setNewFishAudioKey] = useState('');
+  const [fishAudioStatusMsg, setFishAudioStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isTestingFishAudio, setIsTestingFishAudio] = useState(false);
+  const [showFishAudioKeyInProfile, setShowFishAudioKeyInProfile] = useState(false);
 
   // Live Assistant State
   const [isLiveActive, setIsLiveActive] = useState(false);
@@ -792,12 +800,30 @@ const App: React.FC = () => {
   }, [activeTab, videoMode, scriptTopic, videoScriptInput, voiceoverText]);
 
   // Centralized API Key Resolver & Fallback Generation Engine
+  const isInvalidOrLeakedKey = (key?: string): boolean => {
+    if (!key) return true;
+    const clean = key.trim();
+    if (!clean || clean === 'undefined' || clean === 'null' || clean === 'your_gemini_api_key_here') return true;
+    if (
+      clean.includes('AIzaSyAeCyBC9daZbvXNRtfLjxBWwpF3MwXJggk') ||
+      clean.includes('AIzaSyCBO1PRv5h9aQAB3rWb') ||
+      clean.startsWith('AIzaSy...') ||
+      clean === 'AIzaSy...'
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   const getEffectiveApiKey = (userApiKey?: string): string => {
     const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-    if (!userApiKey || userApiKey.includes('AIzaSyCBO1PRv5h9aQAB3rWb') || userApiKey.trim() === '' || userApiKey === 'undefined' || userApiKey === 'null') {
-      return envKey;
+    if (!isInvalidOrLeakedKey(userApiKey)) {
+      return userApiKey!.trim();
     }
-    return userApiKey;
+    if (!isInvalidOrLeakedKey(envKey)) {
+      return envKey.trim();
+    }
+    return '';
   };
 
   const generateGeminiContentWithFallback = async (
@@ -936,26 +962,30 @@ const App: React.FC = () => {
       }
 
       const savedUser = localStorage.getItem('ggd_creator_user');
-      const defaultEnvKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      const rawEnvKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      const defaultEnvKey = isInvalidOrLeakedKey(rawEnvKey) ? '' : rawEnvKey;
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
         if (parsed) {
           if (!parsed.niche) parsed.niche = 'finance';
-          if (!parsed.apiKey) parsed.apiKey = defaultEnvKey;
+          if (isInvalidOrLeakedKey(parsed.apiKey)) {
+            parsed.apiKey = defaultEnvKey;
+          }
           if (parsed.fullName && parsed.email) {
             setUser(parsed);
             setNewApiKey(parsed.apiKey);
+            localStorage.setItem('ggd_creator_user', JSON.stringify(parsed));
             setWizardStep(3);
           } else {
             const fallbackUser: UserProfile = {
               fullName: parsed.fullName || 'Creator',
               email: parsed.email || 'creator@vixora.studio',
               phone: '',
-              apiKey: defaultEnvKey,
+              apiKey: parsed.apiKey || defaultEnvKey,
               niche: parsed.niche || 'finance'
             };
             setUser(fallbackUser);
-            setNewApiKey(defaultEnvKey);
+            setNewApiKey(fallbackUser.apiKey);
             localStorage.setItem('ggd_creator_user', JSON.stringify(fallbackUser));
             setWizardStep(3);
           }
@@ -988,7 +1018,8 @@ const App: React.FC = () => {
       }
     } catch (e) {
       console.warn("User state restoration fallback:", e);
-      const defaultEnvKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      const rawEnvKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      const defaultEnvKey = isInvalidOrLeakedKey(rawEnvKey) ? '' : rawEnvKey;
       const autoUser: UserProfile = {
         fullName: 'Creator',
         email: 'creator@vixora.studio',
@@ -1105,10 +1136,58 @@ const App: React.FC = () => {
 
   const updateApiKey = () => {
     if (!user) return;
-    const updatedUser = { ...user, apiKey: newApiKey };
+    const cleanKey = newApiKey.trim();
+    if (cleanKey && isInvalidOrLeakedKey(cleanKey)) {
+      setApiKeyStatusMsg({ text: "This API key appears to be revoked, invalid or leaked. Please enter a valid Gemini API key.", type: 'error' });
+      return;
+    }
+    const updatedUser = { ...user, apiKey: cleanKey };
     setUser(updatedUser);
     localStorage.setItem('ggd_creator_user', JSON.stringify(updatedUser));
-    alert("Profile updated successfully!");
+    setApiKeyStatusMsg({ 
+      text: cleanKey ? "Gemini API key updated successfully! Your studio is connected." : "Reverted to default system API key.", 
+      type: 'success' 
+    });
+    setTimeout(() => setApiKeyStatusMsg(null), 4000);
+  };
+
+  const updateFishAudioKey = () => {
+    if (!user) return;
+    const cleanKey = newFishAudioKey.trim();
+    const updatedUser = { ...user, fishAudioApiKey: cleanKey };
+    setUser(updatedUser);
+    localStorage.setItem('ggd_creator_user', JSON.stringify(updatedUser));
+    localStorage.setItem('vixora_fish_audio_key', cleanKey);
+    setFishAudioStatusMsg({
+      text: cleanKey ? "Fish.Audio API key saved successfully! Custom voice synthesis is active." : "Reverted to default Fish.Audio configuration.",
+      type: 'success'
+    });
+    setTimeout(() => setFishAudioStatusMsg(null), 4000);
+  };
+
+  const testFishAudioConnection = async () => {
+    setIsTestingFishAudio(true);
+    setFishAudioStatusMsg({ text: "Testing Fish.Audio connection & generating voice sample...", type: 'info' });
+    try {
+      const keyToTest = newFishAudioKey.trim() || user?.fishAudioApiKey || undefined;
+      const res = await synthesizeFishAudio({
+        text: "How far my creator! Fish Audio is fully connected and ready for your studio videos!",
+        voiceName: 'Kore',
+        customApiKey: keyToTest
+      });
+      if (res.ok && res.audioUrl) {
+        const audio = new Audio(res.audioUrl);
+        await audio.play();
+        setFishAudioStatusMsg({ text: "✓ Fish.Audio connected! Live voice sample played successfully.", type: 'success' });
+      } else {
+        setFishAudioStatusMsg({ text: `Connection note: ${res.error || 'Check API key or network connection.'}`, type: 'error' });
+      }
+    } catch (err: any) {
+      setFishAudioStatusMsg({ text: `Fish.Audio error: ${err.message || 'Failed to connect.'}`, type: 'error' });
+    } finally {
+      setIsTestingFishAudio(false);
+      setTimeout(() => setFishAudioStatusMsg(null), 6000);
+    }
   };
 
   const handleFinishOnboarding = async () => {
@@ -1856,7 +1935,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
   const startLiveAssistant = async () => {
     const activeApiKey = getEffectiveApiKey(user?.apiKey);
     if (!activeApiKey) {
-      setAppError("AI Engine connection required.");
+      setAppError("Gemini API key required. Please configure your key in Profile settings.");
       return;
     }
 
@@ -2118,7 +2197,12 @@ Structure: Full Masterclass / In-depth Documentary Script.
           onclose: () => stopLiveAssistant(),
           onerror: (e) => {
             console.error("Live assistant error:", e);
-            setAppError("Live voice connection dropped. Please tap again to start call.");
+            const errStr = String((e as any)?.message || (e as any)?.error?.message || e || '');
+            if (errStr.toLowerCase().includes('leaked') || errStr.toLowerCase().includes('api key')) {
+              setAppError("API key error or key reported as invalid. Please enter your Gemini API key in Profile settings.");
+            } else {
+              setAppError("Live voice connection dropped. Please tap again to start call.");
+            }
             stopLiveAssistant();
           },
         },
@@ -2678,9 +2762,22 @@ Structure: Full Masterclass / In-depth Documentary Script.
       )}
 
       {/* APP NAVBAR HEADER */}
-      <header className={`px-5 py-4 flex items-center justify-between z-40 backdrop-blur-xl border-b transition-colors duration-300 ${themeMode === 'light' ? 'bg-white/90 border-slate-200 text-slate-900 shadow-sm' : 'bg-slate-950/80 border-white/5 text-white'}`}>
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
+      <header className={`px-4 sm:px-5 py-3.5 flex items-center justify-between z-40 backdrop-blur-xl border-b transition-colors duration-300 ${themeMode === 'light' ? 'bg-white/90 border-slate-200 text-slate-900 shadow-sm' : 'bg-slate-950/80 border-white/5 text-white'}`}>
+        <div className="flex items-center gap-2.5">
+          {/* HAMBURGER MENU BUTTON */}
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            title="Open Navigation Menu"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all active:scale-95 cursor-pointer ${
+              themeMode === 'light' 
+                ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
+                : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <i className="fa-solid fa-bars text-sm"></i>
+          </button>
+
+          <h1 className="text-base sm:text-lg font-black uppercase tracking-tighter flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-slate-950 p-0.5 flex items-center justify-center overflow-hidden shrink-0 border border-ggd-orange/30 shadow-md">
               <img src={vixoraLogo} alt="Vixora Logo" className="w-full h-full object-cover rounded-md" referrerPolicy="no-referrer" />
             </span>
@@ -2689,21 +2786,37 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
 
         <div className="flex items-center gap-2">
+          {/* PROFILE & API KEYS HEADER QUICK BUTTON */}
+          <button
+            onClick={() => setActiveTab('profile')}
+            title="My Profile & API Settings"
+            className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl border flex items-center gap-1.5 font-black uppercase text-[9px] tracking-wider transition-all active:scale-95 cursor-pointer ${
+              activeTab === 'profile'
+                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/30'
+                : themeMode === 'light'
+                ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
+                : 'bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/25'
+            }`}
+          >
+            <i className="fa-solid fa-user-gear text-xs"></i>
+            <span className="hidden sm:inline">Profile</span>
+          </button>
+
           {/* 1-CLICK COMPLETE CODEBASE & AI BUILDER PACKAGE DOWNLOAD BUTTON */}
           <button 
             onClick={() => setShowNativeExportModal(true)}
             title="Download 1-Click Complete Codebase & AI Side-Builder Prompt"
-            className="btn-3d btn-3d-orange h-10 px-3 flex items-center gap-1.5 shadow-xl active:scale-95 transition-all text-white cursor-pointer border border-amber-300/40"
+            className="btn-3d btn-3d-orange h-9 sm:h-10 px-2.5 sm:px-3 flex items-center gap-1.5 shadow-xl active:scale-95 transition-all text-white cursor-pointer border border-amber-300/40"
           >
             <i className="fa-solid fa-box-archive text-xs text-amber-200"></i>
-            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Export App</span>
+            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Export</span>
           </button>
 
           {/* 3D PWA INSTALL QUICK BUTTON */}
           <button 
             onClick={triggerPwaInstall}
             title="Install Vixora PWA App on Phone"
-            className="btn-3d btn-3d-orange h-10 px-3 flex items-center gap-1.5 shadow-lg active:scale-95 transition-all text-white cursor-pointer"
+            className="btn-3d btn-3d-orange h-9 sm:h-10 px-2.5 sm:px-3 flex items-center gap-1.5 shadow-lg active:scale-95 transition-all text-white cursor-pointer"
           >
             <i className="fa-solid fa-mobile-screen-button text-xs text-white animate-pulse"></i>
             <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Install</span>
@@ -4394,6 +4507,191 @@ Structure: Full Masterclass / In-depth Documentary Script.
                      <i className="fa-solid fa-download"></i>
                      <span>{isStandalone ? 'PWA App Installed ✓' : 'Install Vixora PWA App'}</span>
                   </button>
+               </div>
+            </div>
+
+            {/* GEMINI AI API KEY & ENGINE SETTINGS */}
+            <div className={`rounded-2xl p-4 sm:p-5 border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
+               <div className="flex items-center justify-between">
+                 <div className="text-left">
+                   <h3 className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
+                     <i className="fa-solid fa-key"></i> Gemini AI Engine Key
+                   </h3>
+                   <p className={`text-[9px] leading-normal mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                     Powers Live Voice Calls, AI script writing, and Video Autopilot.
+                   </p>
+                 </div>
+                 <div className="flex items-center gap-1">
+                   <span className={`w-2 h-2 rounded-full ${getEffectiveApiKey(user?.apiKey) ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                   <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">
+                     {getEffectiveApiKey(user?.apiKey) ? 'Connected' : 'No Key'}
+                   </span>
+                 </div>
+               </div>
+
+               <div className="space-y-2 pt-1">
+                 <div className="relative">
+                   <input
+                     type={showGeminiKeyInProfile ? "text" : "password"}
+                     value={newApiKey}
+                     onChange={(e) => setNewApiKey(e.target.value)}
+                     placeholder={user?.apiKey ? "•••••••••••••••• (Saved)" : "Enter Gemini API Key (e.g. AIzaSy...)"}
+                     className={`w-full p-3 pr-10 rounded-xl border font-mono text-xs outline-none transition-all ${
+                       themeMode === 'light' 
+                         ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-purple-500' 
+                         : 'bg-white/5 border-white/10 text-white focus:border-purple-500'
+                     }`}
+                   />
+                   <button
+                     type="button"
+                     onClick={() => setShowGeminiKeyInProfile(!showGeminiKeyInProfile)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer"
+                   >
+                     <i className={`fa-solid ${showGeminiKeyInProfile ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                   </button>
+                 </div>
+
+                 {apiKeyStatusMsg && (
+                   <div className={`p-2.5 rounded-xl text-[9px] font-bold flex items-center gap-1.5 ${
+                     apiKeyStatusMsg.type === 'success' 
+                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                       : apiKeyStatusMsg.type === 'error'
+                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                         : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                   }`}>
+                     <i className={`fa-solid ${apiKeyStatusMsg.type === 'success' ? 'fa-check' : 'fa-circle-exclamation'}`}></i>
+                     <span>{apiKeyStatusMsg.text}</span>
+                   </div>
+                 )}
+
+                 <div className="flex gap-2">
+                   <button
+                     onClick={updateApiKey}
+                     className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                   >
+                     <i className="fa-solid fa-floppy-disk"></i>
+                     <span>Save Gemini Key</span>
+                   </button>
+                   {user?.apiKey && (
+                     <button
+                       onClick={() => {
+                         setNewApiKey('');
+                         if (user) {
+                           const updated = { ...user, apiKey: '' };
+                           setUser(updated);
+                           localStorage.setItem('ggd_creator_user', JSON.stringify(updated));
+                           setApiKeyStatusMsg({ text: "Reverted to default environment key.", type: 'info' });
+                           setTimeout(() => setApiKeyStatusMsg(null), 3000);
+                         }
+                       }}
+                       className={`px-3 py-3 rounded-xl font-black uppercase text-[9px] border transition-all active:scale-95 cursor-pointer ${
+                         themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'
+                       }`}
+                     >
+                       Reset
+                     </button>
+                   )}
+                 </div>
+               </div>
+            </div>
+
+            {/* FISH.AUDIO API KEY & VOICE ENGINE SETTINGS */}
+            <div className={`rounded-2xl p-4 sm:p-5 border space-y-3 shadow-xl ${themeMode === 'light' ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
+               <div className="flex items-center justify-between">
+                 <div className="text-left">
+                   <h3 className="text-xs font-black uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+                     <i className="fa-solid fa-microphone-lines"></i> Fish.Audio Voice Engine Key
+                   </h3>
+                   <p className={`text-[9px] leading-normal mt-0.5 ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                     High-fidelity African TTS voices including Kore, Chimamanda, Uncle Bayo & Funke.
+                   </p>
+                 </div>
+                 <div className="flex items-center gap-1">
+                   <span className={`w-2 h-2 rounded-full ${user?.fishAudioApiKey || localStorage.getItem('vixora_fish_audio_key') ? 'bg-emerald-400 animate-pulse' : 'bg-cyan-400'}`}></span>
+                   <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">
+                     {user?.fishAudioApiKey ? 'Custom Key' : 'Default Key'}
+                   </span>
+                 </div>
+               </div>
+
+               <div className="space-y-2 pt-1">
+                 <div className="relative">
+                   <input
+                     type={showFishAudioKeyInProfile ? "text" : "password"}
+                     value={newFishAudioKey}
+                     onChange={(e) => setNewFishAudioKey(e.target.value)}
+                     placeholder={user?.fishAudioApiKey ? "•••••••••••••••• (Saved)" : "Enter Fish.Audio API Key (e.g. sk-fish-...)"}
+                     className={`w-full p-3 pr-10 rounded-xl border font-mono text-xs outline-none transition-all ${
+                       themeMode === 'light' 
+                         ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-cyan-500' 
+                         : 'bg-white/5 border-white/10 text-white focus:border-cyan-500'
+                     }`}
+                   />
+                   <button
+                     type="button"
+                     onClick={() => setShowFishAudioKeyInProfile(!showFishAudioKeyInProfile)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer"
+                   >
+                     <i className={`fa-solid ${showFishAudioKeyInProfile ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                   </button>
+                 </div>
+
+                 {fishAudioStatusMsg && (
+                   <div className={`p-2.5 rounded-xl text-[9px] font-bold flex items-center gap-1.5 ${
+                     fishAudioStatusMsg.type === 'success' 
+                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                       : fishAudioStatusMsg.type === 'error'
+                         ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                         : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                   }`}>
+                     <i className={`fa-solid ${fishAudioStatusMsg.type === 'success' ? 'fa-check' : 'fa-circle-exclamation'}`}></i>
+                     <span>{fishAudioStatusMsg.text}</span>
+                   </div>
+                 )}
+
+                 <div className="flex gap-2">
+                   <button
+                     onClick={updateFishAudioKey}
+                     className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                   >
+                     <i className="fa-solid fa-floppy-disk"></i>
+                     <span>Save Fish Key</span>
+                   </button>
+
+                   <button
+                     onClick={testFishAudioConnection}
+                     disabled={isTestingFishAudio}
+                     className="px-3.5 py-3 bg-white/10 hover:bg-white/20 border border-white/15 text-cyan-300 rounded-xl font-black uppercase text-[9px] tracking-wider active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                   >
+                     {isTestingFishAudio ? (
+                       <i className="fa-solid fa-spinner animate-spin"></i>
+                     ) : (
+                       <i className="fa-solid fa-volume-high"></i>
+                     )}
+                     <span>Test Voice</span>
+                   </button>
+
+                   {user?.fishAudioApiKey && (
+                     <button
+                       onClick={() => {
+                         setNewFishAudioKey('');
+                         if (user) {
+                           const updated = { ...user, fishAudioApiKey: '' };
+                           setUser(updated);
+                           localStorage.setItem('ggd_creator_user', JSON.stringify(updated));
+                           localStorage.removeItem('vixora_fish_audio_key');
+                           setFishAudioStatusMsg({ text: "Reverted to default Fish.Audio configuration.", type: 'info' });
+                           setTimeout(() => setFishAudioStatusMsg(null), 3000);
+                         }
+                       }}
+                       className={`px-3 py-3 rounded-xl font-black uppercase text-[9px] border transition-all active:scale-95 cursor-pointer ${
+                         themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'
+                       }`}
+                     >
+                       Reset
+                     </button>
+                   )}
+                 </div>
                </div>
             </div>
 

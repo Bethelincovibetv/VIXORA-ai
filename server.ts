@@ -512,7 +512,7 @@ Return JSON in this EXACT schema:
 
   const handleAudioTTS = async (req: express.Request, res: express.Response) => {
     try {
-      const { text, voice = 'Aoede', speed = 1.0, format = 'mp3', reference_id, apiKey } = req.body || {};
+      const { text, voice = 'Aoede', speed = 1.0, format = 'mp3', model = 's2.1-pro-free', reference_id, apiKey } = req.body || {};
 
       if (!text) {
         return res.status(400).json({
@@ -533,14 +533,14 @@ Return JSON in this EXACT schema:
 
       const promptText = text.startsWith('[') ? text : `${emotionTag} ${text}`;
 
-      // Call Fish Audio S2-Pro API
+      // Call Fish Audio S2.1 Pro Free API
       try {
         const fishRes = await fetch('https://api.fish.audio/v1/tts', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${fishApiKey}`,
             'Content-Type': 'application/json',
-            'model': 's2-pro'
+            'model': model
           },
           body: JSON.stringify({
             text: promptText,
@@ -566,7 +566,7 @@ Return JSON in this EXACT schema:
           return res.json({
             ok: true,
             provider: 'fish.audio',
-            model: 's2-pro',
+            model: model,
             voice,
             text,
             speed,
@@ -574,7 +574,7 @@ Return JSON in this EXACT schema:
             audio_format: format === 'wav' ? 'wav' : 'mp3',
             audio_base64: base64Audio,
             status: 'ready',
-            message: 'Fish Audio S2-Pro voiceover synthesized successfully',
+            message: 'Fish Audio S2.1 Pro voiceover synthesized successfully',
             audio_stream_url: `data:audio/mp3;base64,${base64Audio}`
           });
         } else {

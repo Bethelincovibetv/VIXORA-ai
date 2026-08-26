@@ -426,7 +426,7 @@ Return ONLY the spoken narrator script text in 3-5 concise, punchy sentences wit
     // ------------------------------------------------------------------------
     updateJob(jobId, {
       progress: 35,
-      current_step: 'Synthesizing neural voiceover audio track with Fish Audio S2-Pro...',
+      current_step: 'Synthesizing neural voiceover audio track with Fish Audio S2.1 Pro Free...',
     });
 
     const voiceoverPath = path.join(tempDir, 'voiceover.mp3');
@@ -449,7 +449,7 @@ Return ONLY the spoken narrator script text in 3-5 concise, punchy sentences wit
         headers: {
           'Authorization': `Bearer ${fishApiKey}`,
           'Content-Type': 'application/json',
-          'model': 's2-pro'
+          'model': 's2.1-pro-free'
         },
         body: JSON.stringify({
           text: styledText,

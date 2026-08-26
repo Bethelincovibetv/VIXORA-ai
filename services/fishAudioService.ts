@@ -78,6 +78,7 @@ export interface FishAudioSynthesisRequest {
   text: string;
   voiceName?: string;
   reference_id?: string;
+  model?: 's2.1-pro-free' | 's2.1-pro' | 's2-pro' | string;
   format?: 'mp3' | 'wav' | 'opus' | 'pcm';
   speed?: number;
   customApiKey?: string;
@@ -118,7 +119,7 @@ export function resolveFishAudioParams(voiceKey: string = 'Kore', text: string):
  * Synthesizes voice audio via Fish Audio S2-Pro API (via server proxy or direct fallback)
  */
 export async function synthesizeFishAudio(params: FishAudioSynthesisRequest): Promise<FishAudioSynthesisResponse> {
-  const { text, voiceName = 'Kore', format = 'mp3', customApiKey } = params;
+  const { text, voiceName = 'Kore', format = 'mp3', model = 's2.1-pro-free', customApiKey } = params;
   
   if (!text || !text.trim()) {
     return {
@@ -143,6 +144,7 @@ export async function synthesizeFishAudio(params: FishAudioSynthesisRequest): Pr
         reference_id: reference_id || params.reference_id,
         format,
         voice: voiceName,
+        model,
         apiKey: customApiKey || DEFAULT_FISH_AUDIO_KEY
       })
     });
@@ -210,7 +212,7 @@ export async function synthesizeFishAudio(params: FishAudioSynthesisRequest): Pr
       headers: {
         'Authorization': `Bearer ${apiKeyToUse}`,
         'Content-Type': 'application/json',
-        'model': 's2-pro'
+        'model': model
       },
       body: JSON.stringify({
         text: styledText,

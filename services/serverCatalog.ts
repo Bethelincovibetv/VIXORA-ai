@@ -14,51 +14,51 @@ export interface ServerVoiceOption {
 
 export const SERVER_VOICE_OPTIONS: ServerVoiceOption[] = [
   {
-    id: 'kore_nigerian',
-    name: 'Vixora Voice (Kore - Highly Energetic Lady)',
+    id: 'kore_flagship',
+    name: 'Vixora Voice (Google Kore - Flagship High Energy)',
     voiceName: 'Kore',
-    accent: 'Highly Energetic Nigerian Female Accent',
+    accent: 'High Energy Engaging Voice',
     gender: 'Female',
-    description: 'Vibrant, highly energetic, natural Nigerian female AI tone. Energetic, witty, warm flagship Vixora Studio voice.',
-    sampleText: 'Welcome to Vixora Studio! I am your energetic Nigerian AI partner, ready to cook viral videos with you!',
-    badge: 'FLAGSHIP HIGHLY ENERGETIC NIGERIAN VOICE',
+    description: 'Vibrant, high-energy, natural AI voice with emotional dynamics powered by Google AI.',
+    sampleText: 'Welcome to Vixora Voice Agent Studio! I am your energetic AI partner, ready to cook viral videos and scripts with you!',
+    badge: 'FLAGSHIP GOOGLE AI VOICE',
     isVixoraVoice: true
   },
   {
     id: 'aoede_warm',
-    name: 'Aoede',
+    name: 'Aoede (Warm Storytelling)',
     voiceName: 'Aoede',
-    accent: 'Warm Storytelling Accent',
+    accent: 'Warm & Engaging Accent',
     gender: 'Female',
-    description: 'Gentle, engaging female narrator tone for documentary and lifestyle shorts.',
-    sampleText: 'Empower your content with high-retention storytelling and effortless clarity.'
+    description: 'Gentle, engaging female narrator tone for documentary, storytelling, and lifestyle shorts.',
+    sampleText: 'Empower your content with high-retention storytelling, crystal clarity, and authentic pacing.'
   },
   {
     id: 'puck_high_energy',
-    name: 'Puck',
+    name: 'Puck (Viral High Energy)',
     voiceName: 'Puck',
-    accent: 'High Energy Viral Accent',
+    accent: 'Fast-Paced Viral Accent',
     gender: 'Male',
-    description: 'Upbeat, fast-paced viral male voice ideal for TikTok and YouTube Shorts hooks.',
-    sampleText: 'Stop scrolling right now! Here are three secrets to build wealth before 30.'
+    description: 'Upbeat, high-impact male voice engineered for fast hooks on TikTok and YouTube Shorts.',
+    sampleText: 'Stop scrolling right now! Here are three secrets top creators use to scale their audience.'
   },
   {
     id: 'charon_dramatic',
-    name: 'Charon',
+    name: 'Charon (Deep Cinematic)',
     voiceName: 'Charon',
-    accent: 'Deep Cinematic Accent',
+    accent: 'Deep Authoritative Tone',
     gender: 'Male',
-    description: 'Authoritative deep cinematic tone for true crime, history, and mysteries.',
-    sampleText: 'In a world driven by constant evolution, one historic truth remains untouched.'
+    description: 'Authoritative deep cinematic tone for mysteries, history, finance, and dramatic breakdowns.',
+    sampleText: 'In a world driven by continuous change, one fundamental truth remains untouched.'
   },
   {
     id: 'fenrir_bold',
-    name: 'Fenrir',
+    name: 'Fenrir (Bold & Direct)',
     voiceName: 'Fenrir',
-    accent: 'Bold & Direct Accent',
+    accent: 'Confident Direct Tone',
     gender: 'Male',
-    description: 'Strong, articulate male tone for tech reviews, news, and business breakdowns.',
-    sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough of the decade.'
+    description: 'Strong, articulate male tone for tech reviews, business breakdowns, and sharp commentaries.',
+    sampleText: 'Welcome back! Today we are dissecting the biggest AI breakthrough and how you can profit from it.'
   }
 ];
 

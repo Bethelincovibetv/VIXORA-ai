@@ -3,7 +3,7 @@ import path from 'path';
 import { exec } from 'child_process';
 import http from 'http';
 import https from 'https';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
 // ============================================================================
@@ -25,8 +25,11 @@ export function getSupabase() {
 let geminiClient: GoogleGenAI | null = null;
 export function getGemini(): GoogleGenAI {
   if (!geminiClient) {
-    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-    geminiClient = new GoogleGenAI({ apiKey: key });
+    const key = process.env.GEMINI_API_KEY || process.env.API_KEY || 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
+    geminiClient = new GoogleGenAI({ 
+      apiKey: key,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
   }
   return geminiClient;
 }
@@ -426,47 +429,72 @@ Return ONLY the spoken narrator script text in 3-5 concise, punchy sentences wit
     // ------------------------------------------------------------------------
     updateJob(jobId, {
       progress: 35,
-      current_step: 'Synthesizing neural voiceover audio track with Fish Audio S2.1 Pro Free...',
+      current_step: 'Synthesizing voiceover audio track with Google AI (Kore Voice)...',
     });
 
-    const voiceoverPath = path.join(tempDir, 'voiceover.mp3');
+    const voiceoverPath = path.join(tempDir, 'voiceover.wav');
     const safeDuration = job.duration === '60s' ? 55 : job.duration === '15s' ? 14 : 28;
     let audioDuration = safeDuration;
 
     try {
-      const fishApiKey = process.env.FISH_AUDIO_API_KEY || 'sk-fish-xEutEyyFu1FHRG1iw_Ivgpscuo4oxXzpOJQ1YdITcjk';
-      let emotionTag = '[calm]';
-      if (job.voice?.toLowerCase().includes('kore')) emotionTag = '[excited] [cheerful]';
-      else if (job.voice?.toLowerCase().includes('puck')) emotionTag = '[excited] [energetic]';
-      else if (job.voice?.toLowerCase().includes('charon')) emotionTag = '[deep] [serious]';
-      else if (job.voice?.toLowerCase().includes('fenrir')) emotionTag = '[confident]';
-      else if (job.voice?.toLowerCase().includes('aoede')) emotionTag = '[warm] [calm]';
+      let googleVoice = 'Kore';
+      const v = (job.voice || '').toLowerCase();
+      if (v.includes('aoede')) googleVoice = 'Aoede';
+      else if (v.includes('puck')) googleVoice = 'Puck';
+      else if (v.includes('charon')) googleVoice = 'Charon';
+      else if (v.includes('fenrir')) googleVoice = 'Fenrir';
+      else if (v.includes('zephyr')) googleVoice = 'Zephyr';
 
-      const styledText = `${emotionTag} ${finalScript}`;
-
-      const fishRes = await fetch('https://api.fish.audio/v1/tts', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${fishApiKey}`,
-          'Content-Type': 'application/json',
-          'model': 's2.1-pro-free'
-        },
-        body: JSON.stringify({
-          text: styledText,
-          format: 'mp3'
-        })
+      const ai = getGemini();
+      const speechRes = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-tts-preview',
+        contents: finalScript,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: googleVoice
+              }
+            }
+          }
+        }
       });
 
-      if (fishRes.ok) {
-        const arrayBuf = await fishRes.arrayBuffer();
-        fs.writeFileSync(voiceoverPath, Buffer.from(arrayBuf));
+      const inlineData = speechRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      if (inlineData?.data) {
+        const rawPcm = Buffer.from(inlineData.data, 'base64');
+        const wavHeader = Buffer.alloc(44);
+        const totalDataLen = rawPcm.length;
+        const totalFileLen = totalDataLen + 36;
+        const sampleRate = 24000;
+        const numChannels = 1;
+        const byteRate = sampleRate * numChannels * 2;
+        const blockAlign = numChannels * 2;
+
+        wavHeader.write('RIFF', 0);
+        wavHeader.writeUInt32LE(totalFileLen, 4);
+        wavHeader.write('WAVE', 8);
+        wavHeader.write('fmt ', 12);
+        wavHeader.writeUInt32LE(16, 16);
+        wavHeader.writeUInt16LE(1, 20);
+        wavHeader.writeUInt16LE(numChannels, 22);
+        wavHeader.writeUInt32LE(sampleRate, 24);
+        wavHeader.writeUInt32LE(byteRate, 28);
+        wavHeader.writeUInt16LE(blockAlign, 32);
+        wavHeader.writeUInt16LE(16, 34);
+        wavHeader.write('data', 36);
+        wavHeader.writeUInt32LE(totalDataLen, 40);
+
+        const fullWav = Buffer.concat([wavHeader, rawPcm]);
+        fs.writeFileSync(voiceoverPath, fullWav);
         const wordCount = finalScript.split(/\s+/).length;
         audioDuration = Math.max(3, Math.round((wordCount / 140) * 60));
       } else {
-        // Fallback tone generation if API credit exhausted
         await execCommand(`ffmpeg -y -f lavfi -i "sine=frequency=440:duration=${safeDuration}" -af "volume=0.01" "${voiceoverPath}"`);
       }
-    } catch {
+    } catch (voiceErr) {
+      console.warn('[Video engine voiceover generation note]:', voiceErr);
       try {
         await execCommand(`ffmpeg -y -f lavfi -i "sine=frequency=440:duration=${safeDuration}" -af "volume=0.01" "${voiceoverPath}"`);
       } catch {

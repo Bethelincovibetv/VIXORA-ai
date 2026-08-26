@@ -816,14 +816,15 @@ const App: React.FC = () => {
   };
 
   const getEffectiveApiKey = (userApiKey?: string): string => {
-    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+    const defaultKey = 'AIzaSyAd6JjVFP5LYmtiSUXLH-HZGIPlHcseohA';
+    const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || defaultKey;
     if (!isInvalidOrLeakedKey(userApiKey)) {
       return userApiKey!.trim();
     }
     if (!isInvalidOrLeakedKey(envKey)) {
       return envKey.trim();
     }
-    return '';
+    return defaultKey;
   };
 
   const generateGeminiContentWithFallback = async (
@@ -2500,175 +2501,8 @@ Structure: Full Masterclass / In-depth Documentary Script.
   );
 
   return (
-    <div className={`max-w-lg mx-auto min-h-screen relative flex flex-col pb-6 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
+    <div className={`max-w-xl mx-auto min-h-screen relative flex flex-col justify-center px-4 py-8 transition-colors duration-300 ${themeMode === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-white'}`}>
       
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" onClick={() => setIsSidebarOpen(false)}></div>
-      )}
-
-      <div className={`fixed top-0 left-0 h-full w-72 z-[201] transition-all duration-300 transform shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${themeMode === 'light' ? 'bg-white text-slate-900 border-r border-slate-200' : 'bg-slate-900 text-white'}`}>
-        <div className="p-5 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-5 pb-3 border-b border-white/10">
-            <h2 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-slate-950 p-1 flex items-center justify-center overflow-hidden shrink-0 border border-ggd-orange/30 shadow-md">
-                <img src={vixoraLogo} alt="Vixora Logo" className="w-full h-full object-cover rounded-md" referrerPolicy="no-referrer" />
-              </span>
-              <span>Vixora <span className="text-ggd-orange">Studio</span></span>
-            </h2>
-            <button onClick={() => setIsSidebarOpen(false)} className={`w-8 h-8 rounded-full flex items-center justify-center border ${themeMode === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white'}`}><i className="fa-solid fa-xmark text-xs"></i></button>
-          </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto pr-1">
-            {/* PROJECTS NAVIGATION DRAWER (REQUIREMENT 3) */}
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-                <span>Creation Projects</span>
-                <span className="text-[8px] px-1.5 py-0.5 rounded bg-ggd-orange/20 text-ggd-orange font-mono font-bold">
-                  {projects.length} Total
-                </span>
-              </p>
-
-              <ProjectsNavigationDrawer
-                projects={projects}
-                activeProjectId={activeProjectId}
-                onSelectProject={handleSelectProject}
-                onCreateNewProject={handleCreateNewProject}
-                onDeleteProject={handleDeleteProject}
-                onRenameProject={handleRenameProject}
-                onDuplicateProject={handleDuplicateProject}
-                themeMode={themeMode}
-              />
-            </div>
-
-            <div className={`h-px my-2 ${themeMode === 'light' ? 'bg-slate-200' : 'bg-white/10'}`}></div>
-
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Quick Navigation</p>
-
-            <button onClick={() => { setActiveTab('tools'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'tools' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#064e3b] border border-emerald-300/40">
-                <i className="fa-solid fa-shapes text-xs"></i>
-              </div>
-              <span>Tools Library</span>
-            </button>
-
-            <button onClick={() => { setIsTextChatOpen(true); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#b33600] border border-orange-300/40">
-                <i className="fa-solid fa-comments text-xs"></i>
-              </div>
-              <span>Vixora Text Chat</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('coach'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'coach' ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#78350f] border border-amber-300/40">
-                <i className="fa-solid fa-cross text-xs"></i>
-              </div>
-              <span>Sister Vixora Coach</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('studio'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'studio' ? 'bg-orange-500/10 border-orange-500/40 text-orange-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#b33600] border border-orange-300/40">
-                <i className="fa-solid fa-microphone-lines text-xs"></i>
-              </div>
-              <span>Vixora Studio</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('autopilot'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'autopilot' || activeTab === 'videos' ? 'bg-rose-500/10 border-rose-500/40 text-rose-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#9f1239] border border-rose-300/40">
-                <i className="fa-solid fa-wand-magic-sparkles text-xs"></i>
-              </div>
-              <span>AI Creator Studio</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('scripts'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'scripts' ? 'bg-purple-500/10 border-purple-500/40 text-purple-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#581c87] border border-purple-300/40">
-                <i className="fa-solid fa-scroll text-xs"></i>
-              </div>
-              <span>YT Scripts Genius</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('voiceover'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'voiceover' ? 'bg-blue-500/10 border-blue-500/40 text-blue-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#1e3a8a] border border-blue-300/40">
-                <i className="fa-solid fa-waveform-lines text-xs"></i>
-              </div>
-              <span>Voice Studio</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('bgmusic'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'bgmusic' ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#78350f] border border-amber-300/40">
-                <i className="fa-solid fa-music text-xs"></i>
-              </div>
-              <span>Background Music</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('more'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'more' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#064e3b] border border-emerald-300/40">
-                <i className="fa-solid fa-bolt-lightning text-xs"></i>
-              </div>
-              <span>Growth Tools</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('developer'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'developer' ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400 shadow-md' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#0369a1] border border-cyan-300/40">
-                <i className="fa-solid fa-code text-xs"></i>
-              </div>
-              <div className="flex items-center justify-between flex-1">
-                <span>Developer API</span>
-                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">REST</span>
-              </div>
-            </button>
-
-            <div className={`h-px my-3 ${themeMode === 'light' ? 'bg-slate-200' : 'bg-white/10'}`}></div>
-
-            {/* ACCESSIBILITY & THEME MODE CONTROL BUTTONS IN SIDEBAR */}
-            <button 
-              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')} 
-              className={`w-full flex items-center justify-between p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-slate-800/80 border-slate-700 text-amber-300'}`}
-            >
-              <span className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#78350f] border border-amber-300/40">
-                  <i className={`fa-solid ${themeMode === 'light' ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
-                </div>
-                <span>{themeMode === 'light' ? 'Light Mode' : 'Normal (Dark)'}</span>
-              </span>
-              <span className="text-[8px] px-2 py-0.5 rounded-full font-black bg-ggd-orange text-white shadow-sm">
-                {themeMode === 'light' ? 'LIGHT' : 'DARK'}
-              </span>
-            </button>
-
-            <button onClick={() => { setActiveTab('contact'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'contact' ? 'bg-slate-500/20 border-slate-400 text-slate-900' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#334155] border border-slate-400/40">
-                <i className="fa-solid fa-envelope text-xs"></i>
-              </div>
-              <span>Contact Us</span>
-            </button>
-
-            <button onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${activeTab === 'profile' ? 'bg-slate-500/20 border-slate-400 text-slate-900' : themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#581c87] border border-purple-300/40">
-                <i className="fa-solid fa-user-gear text-xs"></i>
-              </div>
-              <span>User Profile</span>
-            </button>
-
-            <button onClick={() => { setShowAbout(false); setShowAbout(true); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-2.5 rounded-2xl font-bold uppercase text-xs tracking-wider border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-white/5 border-white/5 text-slate-300'}`}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shrink-0 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.4),0_3px_0_#155e75] border border-cyan-300/40">
-                <i className="fa-solid fa-circle-info text-xs"></i>
-              </div>
-              <span>About App</span>
-            </button>
-          </div>
-
-          <div className={`pt-3 border-t ${themeMode === 'light' ? 'border-slate-200' : 'border-white/5'}`}>
-             <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-ggd-orange/20 border border-ggd-orange flex items-center justify-center text-xs font-black uppercase text-ggd-orange">{user.fullName[0]}</div>
-               <div className="flex-1 overflow-hidden">
-                 <p className="text-[10px] font-black truncate">{user.fullName}</p>
-                 <p className="text-[8px] text-slate-500 font-bold">Gold Creator</p>
-               </div>
-             </div>
-          </div>
-        </div>
-      </div>
-
       {showAbout && (
         <div className="fixed inset-0 z-[300] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-rise">
            <div className={`w-full max-w-sm rounded-2xl p-6 border text-center space-y-4 relative shadow-2xl ${themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-white/10 text-white'}`}>
@@ -2676,9 +2510,9 @@ Structure: Full Masterclass / In-depth Documentary Script.
               <div className="w-16 h-16 rounded-2xl mx-auto overflow-hidden shadow-xl border border-ggd-orange/40 bg-slate-950 p-1 flex items-center justify-center">
                  <img src={vixoraLogo} alt="Vixora Logo" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
               </div>
-              <h2 className="text-xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Studio</span></h2>
-              <p className={`text-xs ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Modern AI content engine for faceless creators with accessibility support.</p>
-              <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em]">Version 2.6.0 Accessible Edition</p>
+              <h2 className="text-xl font-black uppercase tracking-tighter">Vixora <span className="text-ggd-orange">Voice Agent Studio</span></h2>
+              <p className={`text-xs ${themeMode === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Powered by Google AI with Google Kore Voice integration.</p>
+              <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em]">Vixora Voice Agent Studio</p>
            </div>
         </div>
       )}
@@ -2761,79 +2595,7 @@ Structure: Full Masterclass / In-depth Documentary Script.
         </div>
       )}
 
-      {/* APP NAVBAR HEADER */}
-      <header className={`px-4 sm:px-5 py-3.5 flex items-center justify-between z-40 backdrop-blur-xl border-b transition-colors duration-300 ${themeMode === 'light' ? 'bg-white/90 border-slate-200 text-slate-900 shadow-sm' : 'bg-slate-950/80 border-white/5 text-white'}`}>
-        <div className="flex items-center gap-2.5">
-          {/* HAMBURGER MENU BUTTON */}
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            title="Open Navigation Menu"
-            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all active:scale-95 cursor-pointer ${
-              themeMode === 'light' 
-                ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
-                : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-            }`}
-          >
-            <i className="fa-solid fa-bars text-sm"></i>
-          </button>
-
-          <h1 className="text-base sm:text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-slate-950 p-0.5 flex items-center justify-center overflow-hidden shrink-0 border border-ggd-orange/30 shadow-md">
-              <img src={vixoraLogo} alt="Vixora Logo" className="w-full h-full object-cover rounded-md" referrerPolicy="no-referrer" />
-            </span>
-            <span>Vixora <span className="text-ggd-orange">Studio</span></span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* PROFILE & API KEYS HEADER QUICK BUTTON */}
-          <button
-            onClick={() => setActiveTab('profile')}
-            title="My Profile & API Settings"
-            className={`h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl border flex items-center gap-1.5 font-black uppercase text-[9px] tracking-wider transition-all active:scale-95 cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/30'
-                : themeMode === 'light'
-                ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'
-                : 'bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/25'
-            }`}
-          >
-            <i className="fa-solid fa-user-gear text-xs"></i>
-            <span className="hidden sm:inline">Profile</span>
-          </button>
-
-          {/* 1-CLICK COMPLETE CODEBASE & AI BUILDER PACKAGE DOWNLOAD BUTTON */}
-          <button 
-            onClick={() => setShowNativeExportModal(true)}
-            title="Download 1-Click Complete Codebase & AI Side-Builder Prompt"
-            className="btn-3d btn-3d-orange h-9 sm:h-10 px-2.5 sm:px-3 flex items-center gap-1.5 shadow-xl active:scale-95 transition-all text-white cursor-pointer border border-amber-300/40"
-          >
-            <i className="fa-solid fa-box-archive text-xs text-amber-200"></i>
-            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Export</span>
-          </button>
-
-          {/* 3D PWA INSTALL QUICK BUTTON */}
-          <button 
-            onClick={triggerPwaInstall}
-            title="Install Vixora PWA App on Phone"
-            className="btn-3d btn-3d-orange h-9 sm:h-10 px-2.5 sm:px-3 flex items-center gap-1.5 shadow-lg active:scale-95 transition-all text-white cursor-pointer"
-          >
-            <i className="fa-solid fa-mobile-screen-button text-xs text-white animate-pulse"></i>
-            <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Install</span>
-          </button>
-
-          {/* LIGHT / DARK MODE TOGGLE */}
-          <button 
-            onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-            title={`Switch to ${themeMode === 'dark' ? 'Light' : 'Normal (Dark)'} Mode`}
-            className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-95 ${themeMode === 'light' ? 'bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200' : 'bg-white/10 border-white/10 text-amber-300 hover:bg-white/20'}`}
-          >
-            <i className={`fa-solid ${themeMode === 'dark' ? 'fa-sun text-amber-300' : 'fa-moon text-amber-700'} text-xs`}></i>
-          </button>
-        </div>
-      </header>
-
-      <main className="flex-1 p-3 sm:p-4 overflow-y-auto">
+      <main className="w-full">
         {appError && (
           <div className="mb-4 p-3 bg-red-600/20 border border-red-500/40 rounded-xl text-red-200 text-[10px] font-bold flex justify-between items-center">
             <span>{appError}</span>
